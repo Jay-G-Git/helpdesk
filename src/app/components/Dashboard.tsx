@@ -1,14 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
+
+type RecentDoc = {
+  id: number
+  type: string
+  employee_name: string
+  created_at: string
+}
 
 type Props = {
   employees: Employee[]
   selectedEmp: Employee | null
   docsGenerated: number
+  loading: boolean
   onSelectEmp: (emp: Employee) => void
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void
+  onDeleteEmployee: (id: number) => void
   onStartAction: (type: ActionType) => void
 }
 
@@ -18,26 +28,63 @@ function initials(name: string) {
 
 function tenure(start: string) {
   const months = Math.floor((Date.now() - new Date(start).getTime()) / 2629800000)
+  if (months < 1) return 'New'
   if (months < 12) return `${months}mo`
   return `${Math.floor(months / 12)}yr ${months % 12}mo`
 }
 
-const history = [
-  { icon: '→', label: 'Welcome pack — Maria G.', meta: '2 days ago' },
-  { icon: '✓', label: 'Check-in note — Tom B.', meta: '5 days ago' },
-  { icon: '←', label: 'Offboarding — Jake R.', meta: 'Last week' },
-]
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return `${Math.floor(days / 7)}w ago`
+}
 
-export default function Dashboard({ employees, selectedEmp, docsGenerated, onSelectEmp, onAddEmployee, onStartAction }: Props) {
+const docIcon: Record<string, string> = {
+  onboarding: '→',
+  checkin: '✓',
+  offboarding: '←',
+}
+
+const docLabel: Record<string, string> = {
+  onboarding: 'Welcome pack',
+  checkin: 'Check-in note',
+  offboarding: 'Offboarding plan',
+}
+
+export default function Dashboard({
+  employees, selectedEmp, docsGenerated, loading,
+  onSelectEmp, onAddEmployee, onDeleteEmployee, onStartAction
+}: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('')
   const [newStart, setNewStart] = useState('')
   const [newType, setNewType] = useState('Full-time')
+  const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([])
+  const [saving, setSaving] = useState(false)
 
-  function handleAdd() {
+  useEffect(() => {
+    loadRecentDocs()
+  }, [docsGenerated])
+
+  async function loadRecentDocs() {
+    const { data } = await supabase
+      .from('documents')
+      .select('id, type, employee_name, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5)
+    if (data) setRecentDocs(data)
+  }
+
+  async function handleAdd() {
     if (!newName || !newRole) return
-    onAddEmployee({
+    setSaving(true)
+    await onAddEmployee({
       name: newName,
       role: newRole,
       start: newStart || new Date().toISOString().slice(0, 10),
@@ -45,6 +92,7 @@ export default function Dashboard({ employees, selectedEmp, docsGenerated, onSel
     })
     setNewName(''); setNewRole(''); setNewStart(''); setNewType('Full-time')
     setShowAddForm(false)
+    setSaving(false)
   }
 
   function handleAction(type: ActionType) {
@@ -63,11 +111,11 @@ export default function Dashboard({ employees, selectedEmp, docsGenerated, onSel
 
       <div className="stat-row">
         <div className="stat">
-          <div className="stat-n">{employees.length}</div>
+          <div className="stat-n">{loading ? '–' : employees.length}</div>
           <div className="stat-l">Employees</div>
         </div>
         <div className="stat">
-          <div className="stat-n">{docsGenerated}</div>
+          <div className="stat-n">{loading ? '–' : docsGenerated}</div>
           <div className="stat-l">Docs generated</div>
         </div>
         <div className="stat">
@@ -110,24 +158,39 @@ export default function Dashboard({ employees, selectedEmp, docsGenerated, onSel
                 </select>
               </div>
             </div>
-            <button className="btn" onClick={handleAdd}>Save employee</button>
+            <button className="btn" onClick={handleAdd} disabled={saving}>
+              {saving ? 'Saving...' : 'Save employee'}
+            </button>
           </div>
         )}
 
-        <div className="emp-grid">
-          {employees.map(emp => (
-            <div
-              key={emp.id}
-              className={`emp-card${selectedEmp?.id === emp.id ? ' selected' : ''}`}
-              onClick={() => onSelectEmp(emp)}
-            >
-              <div className="avatar">{initials(emp.name)}</div>
-              <div className="emp-name">{emp.name}</div>
-              <div className="emp-role">{emp.role}</div>
-              <div className="emp-tenure">{emp.type} · {tenure(emp.start)}</div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="loading-state">Loading your team...</div>
+        ) : employees.length === 0 ? (
+          <div className="empty-state">No employees yet — add your first one above.</div>
+        ) : (
+          <div className="emp-grid">
+            {employees.map(emp => (
+              <div
+                key={emp.id}
+                className={`emp-card${selectedEmp?.id === emp.id ? ' selected' : ''}`}
+                onClick={() => onSelectEmp(emp)}
+              >
+                <div className="emp-card-top">
+                  <div className="avatar">{initials(emp.name)}</div>
+                  <button
+                    className="delete-btn"
+                    onClick={e => { e.stopPropagation(); onDeleteEmployee(emp.id) }}
+                    title="Remove employee"
+                  >×</button>
+                </div>
+                <div className="emp-name">{emp.name}</div>
+                <div className="emp-role">{emp.role}</div>
+                <div className="emp-tenure">{emp.type} · {tenure(emp.start)}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="section-label" style={{ marginTop: '1.25rem' }}>What do you need?</div>
         <div className="action-grid">
@@ -151,16 +214,20 @@ export default function Dashboard({ employees, selectedEmp, docsGenerated, onSel
 
       <div className="card">
         <div className="section-label">Recent documents</div>
-        {history.map((h, i) => (
-          <div key={i} className="history-item">
-            <div className="hist-icon">{h.icon}</div>
-            <div style={{ flex: 1 }}>
-              <div className="hist-title">{h.label}</div>
-              <div className="hist-meta">{h.meta}</div>
+        {recentDocs.length === 0 ? (
+          <div className="empty-state">No documents yet — generate your first one above.</div>
+        ) : (
+          recentDocs.map(doc => (
+            <div key={doc.id} className="history-item">
+              <div className="hist-icon">{docIcon[doc.type] || '•'}</div>
+              <div style={{ flex: 1 }}>
+                <div className="hist-title">{docLabel[doc.type] || doc.type} — {doc.employee_name}</div>
+                <div className="hist-meta">{timeAgo(doc.created_at)}</div>
+              </div>
+              <span className="badge badge-green">Saved</span>
             </div>
-            <span className="badge badge-green">Done</span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

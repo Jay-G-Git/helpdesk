@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
 import Dashboard from './components/Dashboard'
 import ActionScreen from './components/ActionScreen'
 
@@ -14,21 +15,45 @@ export type Employee = {
 
 export type ActionType = 'onboarding' | 'checkin' | 'offboarding' | null
 
-const defaultEmployees: Employee[] = [
-  { id: 1, name: 'Maria Garcia', role: 'Store Manager', start: '2022-03-15', type: 'Full-time' },
-  { id: 2, name: 'Tom Bradley', role: 'Cashier', start: '2024-01-08', type: 'Part-time' },
-  { id: 3, name: 'Lisa Park', role: 'Inventory Lead', start: '2023-06-20', type: 'Full-time' },
-  { id: 4, name: 'Derek James', role: 'Delivery Driver', start: '2024-09-01', type: 'Full-time' },
-]
-
 export default function Home() {
-  const [employees, setEmployees] = useState<Employee[]>(defaultEmployees)
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null)
   const [action, setAction] = useState<ActionType>(null)
-  const [docsGenerated, setDocsGenerated] = useState(7)
+  const [docsGenerated, setDocsGenerated] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  function addEmployee(emp: Omit<Employee, 'id'>) {
-    setEmployees(prev => [...prev, { ...emp, id: Date.now() }])
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    setLoading(true)
+    const [empRes, docRes] = await Promise.all([
+      supabase.from('employees').select('*').order('created_at', { ascending: true }),
+      supabase.from('documents').select('id', { count: 'exact', head: true }),
+    ])
+    if (empRes.data) setEmployees(empRes.data)
+    if (docRes.count !== null) setDocsGenerated(docRes.count)
+    setLoading(false)
+  }
+
+  async function addEmployee(emp: Omit<Employee, 'id'>) {
+    const { data, error } = await supabase
+      .from('employees')
+      .insert([emp])
+      .select()
+      .single()
+    if (!error && data) {
+      setEmployees(prev => [...prev, data])
+    }
+  }
+
+  async function deleteEmployee(id: number) {
+    const { error } = await supabase.from('employees').delete().eq('id', id)
+    if (!error) {
+      setEmployees(prev => prev.filter(e => e.id !== id))
+      if (selectedEmp?.id === id) setSelectedEmp(null)
+    }
   }
 
   function startAction(type: ActionType) {
@@ -38,6 +63,7 @@ export default function Home() {
 
   function goHome() {
     setAction(null)
+    setSelectedEmp(null)
   }
 
   function onDocDone() {
@@ -60,8 +86,10 @@ export default function Home() {
       employees={employees}
       selectedEmp={selectedEmp}
       docsGenerated={docsGenerated}
+      loading={loading}
       onSelectEmp={setSelectedEmp}
       onAddEmployee={addEmployee}
+      onDeleteEmployee={deleteEmployee}
       onStartAction={startAction}
     />
   )

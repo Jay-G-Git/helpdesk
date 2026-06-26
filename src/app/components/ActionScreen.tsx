@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
 
 type Props = {
@@ -18,11 +19,14 @@ export default function ActionScreen({ employee, action, onBack, onDocDone }: Pr
   const [reason, setReason] = useState('New job')
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [doneMsg, setDoneMsg] = useState('')
+  const [saved, setSaved] = useState(false)
 
   async function generate() {
     setLoading(true)
     setDoneMsg('')
+    setSaved(false)
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -44,9 +48,25 @@ export default function ActionScreen({ employee, action, onBack, onDocDone }: Pr
     })
   }
 
-  function markDone() {
-    setDoneMsg('Saved to records.')
-    onDocDone()
+  async function markDone() {
+    if (saved) {
+      setDoneMsg('Already saved.')
+      return
+    }
+    setSaving(true)
+    const { error } = await supabase.from('documents').insert([{
+      type: action,
+      employee_name: employee.name,
+      content: output,
+    }])
+    if (error) {
+      setDoneMsg('Error saving. Try again.')
+    } else {
+      setSaved(true)
+      setDoneMsg('Saved to records.')
+      onDocDone()
+    }
+    setSaving(false)
   }
 
   if (!action) return null
@@ -109,7 +129,9 @@ export default function ActionScreen({ employee, action, onBack, onDocDone }: Pr
           <div className="output">{output}</div>
           <div className="doc-actions">
             <button className="doc-btn" onClick={copyDoc}>Copy</button>
-            <button className="doc-btn" onClick={markDone}>Mark done</button>
+            <button className="doc-btn" onClick={markDone} disabled={saving || saved}>
+              {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save to records'}
+            </button>
             <button className="doc-btn" onClick={generate}>Regenerate</button>
           </div>
           {doneMsg && <div className="done-msg">{doneMsg}</div>}
