@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
+import BillingButton from './BillingButton'
 
 type RecentDoc = {
   id: number
@@ -111,7 +112,10 @@ export default function Dashboard({
     <div className="app">
       <div className="topbar">
         <div className="logo">help<span>desk</span></div>
-        <button className="btn-ghost" onClick={onLogout}>Sign out</button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <BillingButton />
+          <button className="btn-ghost" onClick={onLogout}>Sign out</button>
+        </div>
       </div>
 
       <div className="stat-row">
