@@ -39,7 +39,7 @@ export default function Settings() {
     setUserId(session.user.id)
     const { data } = await supabase
       .from('onboarding_templates')
-      .select('fields')
+      .select('fields, welcome_pack')
       .eq('user_id', session.user.id)
       .single()
     if (data?.fields && data.fields.length > 0) {
