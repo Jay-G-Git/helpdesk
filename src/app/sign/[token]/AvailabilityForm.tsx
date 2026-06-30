@@ -11,7 +11,7 @@ type DayAvail = {
   end: string
 }
 
-export default function AvailabilityForm({ employeeId }: { employeeId: number }) {
+export default function AvailabilityForm({ employeeId, onComplete }: { employeeId: number; onComplete?: () => void }) {
   const [avail, setAvail] = useState<DayAvail[]>(
     DAYS.map(() => ({ enabled: false, start: '09:00', end: '17:00' }))
   )
@@ -54,12 +54,12 @@ export default function AvailabilityForm({ employeeId }: { employeeId: number })
       if (error) { setMsg('Error saving. Try again.'); setSaving(false); return }
     }
     setMsg('Availability saved!')
-    setTimeout(() => setMsg(''), 3000)
     setSaving(false)
+    setTimeout(() => onComplete?.(), 1200)
   }
 
   return (
-    <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
+    <div>
       <div className="sign-section-label">My Availability</div>
       <p style={{ fontSize: '13px', color: '#666', marginTop: '0.25rem', marginBottom: '1rem' }}>
         Check the days you're available and set your hours.

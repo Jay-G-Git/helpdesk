@@ -7,9 +7,10 @@ type Props = {
   employeeId: number
   userId: string
   defaultName?: string
+  onComplete?: () => void
 }
 
-export default function I9Form({ token, employeeId, userId, defaultName }: Props) {
+export default function I9Form({ token, employeeId, userId, defaultName, onComplete }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -69,6 +70,7 @@ export default function I9Form({ token, employeeId, userId, defaultName }: Props
       setError(data.error || 'Could not save. Try again.')
     } else {
       setSubmitted(true)
+      setTimeout(() => onComplete?.(), 1200)
     }
     setSaving(false)
   }
