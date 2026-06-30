@@ -254,6 +254,7 @@ export default function Dashboard({
           <div className="logo">help<span>desk</span></div>
           <nav className="dash-nav-links">
             <div className="dash-nav-link active">Dashboard</div>
+            <a href="/payroll" className="dash-nav-link">Payroll</a>
           </nav>
         </div>
         <div className="dash-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
