@@ -160,9 +160,9 @@ export default function SignUpload({ token }: { token: string }) {
         ))}
       </div>
 
-      <div className="sign-section-label" style={{ marginTop: '2rem' }}>Acknowledgment</div>
-
       <TimeOffRequest token={token} />
+
+      <div className="sign-section-label" style={{ marginTop: '2rem' }}>Acknowledgment</div>
 
       {signed ? (
         <div className="done-msg" style={{ fontSize: '15px', padding: '1rem 0' }}>
