@@ -32,7 +32,7 @@ export function TimeOffRequest({ token }: { token: string }) {
   }
 
   return (
-    <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
+    <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
       <div className="sign-section-label">Time Off</div>
       {submitted ? (
         <div className="done-msg" style={{ fontSize: '15px', padding: '0.75rem 0' }}>✓ Time-off request submitted!</div>

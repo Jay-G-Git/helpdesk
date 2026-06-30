@@ -119,7 +119,7 @@ export default function OnboardingFlow({ token, employeeId, userId, employeeName
           <p style={{ fontSize: '14px', color: '#666', marginBottom: '1.5rem' }}>
             Your onboarding is complete. Use this page anytime to request time off or update your availability.
           </p>
-          <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
             <TimeOffRequest token={token} />
           </div>
           <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
