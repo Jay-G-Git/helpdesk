@@ -63,9 +63,16 @@ export default async function SignPage({ params }: { params: Promise<{ token: st
     })
   )
 
+  const Section = ({ label, children }: { label: string, children: React.ReactNode }) => (
+    <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+      <div className="sign-section-label" style={{ marginBottom: '1rem' }}>{label}</div>
+      {children}
+    </div>
+  )
+
   return (
     <div className="sign-wrap">
-      <div className="sign-card">
+      <div className="sign-card" style={{ alignSelf: 'flex-start' }}>
         <div className="logo">help<span>desk</span></div>
         <h1>Welcome, {link.employee_name.split(' ')[0]}!</h1>
 
@@ -77,45 +84,43 @@ export default async function SignPage({ params }: { params: Promise<{ token: st
           </div>
         )}
 
-        <div className="sign-section-label">Documents to review & sign</div>
-        {docsWithUrls.length === 0 ? (
-          <div className="empty-state">No documents have been added yet.</div>
-        ) : (
-          <div className="upload-list">
-            {docsWithUrls.map(doc => (
-              <div key={doc.id} className="upload-item">
-                <div className="upload-icon">📄</div>
-                <div style={{ flex: 1 }}>
-                  <div className="upload-name">{doc.file_name}</div>
-                  <div className="upload-meta">{formatSize(doc.file_size)}</div>
+        <Section label="Documents to review & sign">
+          {docsWithUrls.length === 0 ? (
+            <div className="empty-state">No documents have been added yet.</div>
+          ) : (
+            <div className="upload-list">
+              {docsWithUrls.map(doc => (
+                <div key={doc.id} className="upload-item">
+                  <div className="upload-icon">📄</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="upload-name">{doc.file_name}</div>
+                    <div className="upload-meta">{formatSize(doc.file_size)}</div>
+                  </div>
+                  {doc.url && (
+                    <a className="doc-btn" href={doc.url} target="_blank" rel="noopener noreferrer">
+                      Download
+                    </a>
+                  )}
                 </div>
-                {doc.url && (
-                  <a className="doc-btn" href={doc.url} target="_blank" rel="noopener noreferrer">
-                    Download
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </Section>
 
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-          <div className="sign-section-label">W-4 — Federal Tax Withholding</div>
+        <Section label="W-4 — Federal Tax Withholding">
           <W4Form token={token} employeeId={link.employee_id} userId={link.user_id} defaultName={link.employee_name} />
-        </div>
+        </Section>
 
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-          <div className="sign-section-label">I-9 — Employment Eligibility</div>
+        <Section label="I-9 — Employment Eligibility">
           <I9Form token={token} employeeId={link.employee_id} userId={link.user_id} defaultName={link.employee_name} />
-        </div>
+        </Section>
 
         <AvailabilityForm employeeId={link.employee_id} />
         <TimeOffRequest token={token} />
 
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-          <div className="sign-section-label">Return your completed documents</div>
-        </div>
-        <SignUpload token={token} />
+        <Section label="Return your completed documents">
+          <SignUpload token={token} />
+        </Section>
       </div>
     </div>
   )

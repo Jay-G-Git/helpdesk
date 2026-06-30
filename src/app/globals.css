@@ -1042,13 +1042,14 @@ body:has(.auth-layout) {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 3rem 1rem;
+  align-items: flex-start;
+  padding: 3rem 1rem 4rem;
   background: #f7f7f5;
 }
 
 .sign-card {
   width: 100%;
-  max-width: 560px;
+  max-width: 720px;
   background: #ffffff;
   border: 0.5px solid rgba(0,0,0,0.12);
   border-radius: 12px;
