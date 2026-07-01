@@ -186,8 +186,8 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'info', label: 'Info' },
-    { key: 'compliance', label: 'Compliance' },
     { key: 'onboarding', label: 'Onboarding' },
+    { key: 'compliance', label: 'Compliance' },
     { key: 'offboarding', label: 'Offboarding' },
   ]
 
