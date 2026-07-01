@@ -21,6 +21,7 @@ type Employee = {
   date_of_birth: string
   i9_status: string
   w4_status: string
+  direct_deposit_status: string
   pay_type: string
   pay_rate: number | null
   pay_period: string
@@ -300,9 +301,10 @@ export default function EmployeeProfile() {
               employeeId={form.id}
               i9Status={form.i9_status || 'pending'}
               w4Status={form.w4_status || 'pending'}
+              directDepositStatus={form.direct_deposit_status || 'pending'}
               welcomePackSent={welcomePackSent}
               documentsSigned={documentsSigned}
-              onUpdate={(field, value) => set(field, value)}
+              onUpdate={(field, value) => set(field as keyof Employee, value)}
             />
 
             <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>

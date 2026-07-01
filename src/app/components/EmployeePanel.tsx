@@ -113,6 +113,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
         employeeId={employee.id}
         i9Status={form.i9_status || 'pending'}
         w4Status={form.w4_status || 'pending'}
+        directDepositStatus={form.direct_deposit_status || 'pending'}
         welcomePackSent={welcomePackSent}
         documentsSigned={documentsSigned}
         onUpdate={(field, value) => {

@@ -7,9 +7,10 @@ type Props = {
   employeeId: number
   i9Status: string
   w4Status: string
+  directDepositStatus: string
   welcomePackSent: boolean
   documentsSigned: boolean
-  onUpdate: (field: 'i9_status' | 'w4_status', value: string) => void
+  onUpdate: (field: 'i9_status' | 'w4_status' | 'direct_deposit_status', value: string) => void
 }
 
 type Item = {
@@ -22,11 +23,11 @@ type Item = {
 }
 
 export default function ComplianceChecklist({
-  employeeId, i9Status, w4Status, welcomePackSent, documentsSigned, onUpdate
+  employeeId, i9Status, w4Status, directDepositStatus, welcomePackSent, documentsSigned, onUpdate
 }: Props) {
   const [saving, setSaving] = useState<string | null>(null)
 
-  async function toggle(field: 'i9_status' | 'w4_status', current: string) {
+  async function toggle(field: 'i9_status' | 'w4_status' | 'direct_deposit_status', current: string) {
     const next = current === 'complete' ? 'pending' : 'complete'
     setSaving(field)
     await supabase.from('employees').update({ [field]: next }).eq('id', employeeId)
@@ -36,11 +37,11 @@ export default function ComplianceChecklist({
 
   const items: Item[] = [
     {
-      key: 'i9',
-      label: 'I-9 completed',
-      description: 'Work authorization verified within 3 days of start',
-      checked: i9Status === 'complete',
-      onToggle: () => toggle('i9_status', i9Status),
+      key: 'welcome',
+      label: 'Welcome pack sent',
+      description: 'Onboarding link generated and sent to employee',
+      checked: welcomePackSent,
+      readOnly: true,
     },
     {
       key: 'w4',
@@ -50,16 +51,23 @@ export default function ComplianceChecklist({
       onToggle: () => toggle('w4_status', w4Status),
     },
     {
-      key: 'welcome',
-      label: 'Welcome pack sent',
-      description: 'Onboarding link generated and sent to employee',
-      checked: welcomePackSent,
-      readOnly: true,
+      key: 'i9',
+      label: 'I-9 completed',
+      description: 'Work authorization verified within 3 days of start',
+      checked: i9Status === 'complete',
+      onToggle: () => toggle('i9_status', i9Status),
+    },
+    {
+      key: 'direct_deposit',
+      label: 'Direct deposit set up',
+      description: 'Bank account info collected for payroll',
+      checked: directDepositStatus === 'complete',
+      onToggle: () => toggle('direct_deposit_status', directDepositStatus),
     },
     {
       key: 'signed',
-      label: 'Documents signed',
-      description: 'Employee acknowledged and signed their welcome pack',
+      label: 'Agreement signed',
+      description: 'Employee reviewed documents and signed off on their paperwork',
       checked: documentsSigned,
       readOnly: true,
     },
