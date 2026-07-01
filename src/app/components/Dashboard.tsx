@@ -142,6 +142,7 @@ export default function Dashboard({
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([])
   const [saving, setSaving] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showTerminated, setShowTerminated] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -326,7 +327,14 @@ export default function Dashboard({
           <div className="card">
             <div className="card-header">
               <div className="section-label">Your team</div>
-              <button className="btn-ghost" onClick={() => setShowAddForm(v => !v)}>+ Add employee</button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {employees.some(e => e.status === 'terminated') && (
+                  <button className="btn-ghost" style={{ fontSize: '12px', color: showTerminated ? '#185fa5' : '#9a9a9a' }} onClick={() => setShowTerminated(v => !v)}>
+                    {showTerminated ? 'Hide terminated' : 'Show terminated'}
+                  </button>
+                )}
+                <button className="btn-ghost" onClick={() => setShowAddForm(v => !v)}>+ Add employee</button>
+              </div>
             </div>
 
             {showAddForm && (
@@ -403,7 +411,7 @@ export default function Dashboard({
               <div className="empty-state">No employees yet — add your first one above.</div>
             ) : (
               <div className="emp-grid">
-                {employees.map(emp => (
+                {employees.filter(emp => showTerminated || emp.status !== 'terminated').map(emp => (
                   <div
                     key={emp.id}
                     className={`emp-card${selectedEmp?.id === emp.id ? ' selected' : ''}`}
