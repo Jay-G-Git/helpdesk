@@ -13,6 +13,17 @@ type RecentDoc = {
   created_at: string
 }
 
+type TimeOffRequest = {
+  id: number
+  employee_id: number
+  start_date: string
+  end_date: string
+  type: string
+  reason: string | null
+  status: string
+  created_at: string
+}
+
 type Props = {
   employees: Employee[]
   selectedEmp: Employee | null
@@ -132,6 +143,7 @@ export default function Dashboard({
   const [newDob, setNewDob] = useState('')
   const [newStatus, setNewStatus] = useState('active')
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([])
+  const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([])
   const [saving, setSaving] = useState(false)
   const [showTerminated, setShowTerminated] = useState(false)
   const [openTab, setOpenTab] = useState<'info' | 'compliance' | 'onboarding' | 'offboarding'>('info')
@@ -149,6 +161,7 @@ export default function Dashboard({
     loadRecentDocs()
     loadComplianceIssues()
     loadOnboardingProgress()
+    loadTimeOffRequests()
   }, [docsGenerated, employees])
 
   async function loadComplianceIssues() {
@@ -194,6 +207,29 @@ export default function Dashboard({
     setOnboardingProgress(inProgress)
   }
 
+
+  async function loadTimeOffRequests() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { data } = await supabase
+      .from('time_off_requests')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    if (data) setTimeOffRequests(data)
+  }
+
+  async function handleTimeOff(id: number, status: 'approved' | 'denied') {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`/api/time-off/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ status }),
+    })
+    setTimeOffRequests(prev => prev.filter(r => r.id !== id))
+  }
 
   async function loadRecentDocs() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -455,6 +491,56 @@ export default function Dashboard({
                         </div>
                       </div>
                       <span style={{ fontSize: '11px', color: '#9a9a9a', flexShrink: 0 }}>→</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {timeOffRequests.length > 0 && (
+            <div className="card">
+              <div className="section-label" style={{ marginBottom: '0.75rem' }}>
+                Time-off requests
+                <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#185fa5', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>
+                  {timeOffRequests.length}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {timeOffRequests.map(req => {
+                  const emp = employees.find(e => e.id === req.employee_id)
+                  return (
+                    <div key={req.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      padding: '0.65rem 0.75rem', borderRadius: '8px',
+                      background: '#fafafa', border: '1px solid #eee',
+                    }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {emp ? initials(emp.name) : '??'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>
+                          {emp?.name || 'Employee'} — <span style={{ fontWeight: 400, color: '#555' }}>{req.type}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>
+                          {req.start_date} – {req.end_date}
+                          {req.reason ? ` · ${req.reason}` : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                        <button
+                          onClick={() => handleTimeOff(req.id, 'approved')}
+                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #27ae60', background: '#f0faf4', color: '#27ae60', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleTimeOff(req.id, 'denied')}
+                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e0e0e0', background: '#fafafa', color: '#c0392b', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          Deny
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
