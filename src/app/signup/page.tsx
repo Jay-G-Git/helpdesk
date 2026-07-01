@@ -3,14 +3,27 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const RULES = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One number', test: (p: string) => /[0-9]/.test(p) },
+  { label: 'One special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+]
+
 export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
 
+  const allRulesPassed = RULES.every(r => r.test(password))
+  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0
+
   async function handleSignup() {
+    if (!allRulesPassed) { setError('Password does not meet all requirements.'); return }
+    if (!passwordsMatch) { setError('Passwords do not match.'); return }
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.signUp({ email, password })
@@ -65,16 +78,48 @@ export default function Signup() {
           <div className="auth-card">
             <div className="auth-title">Create your account</div>
             <div className="auth-subtitle">Free to try. $39/month after.</div>
+
             <div className="field">
               <label>Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ background: '#ffffff' }} />
             </div>
+
             <div className="field">
               <label>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleSignup()} style={{ background: '#ffffff' }} />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ background: '#ffffff' }} />
+              {password.length > 0 && (
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {RULES.map(rule => (
+                    <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: rule.test(password) ? '#27ae60' : '#9a9a9a' }}>
+                      <span>{rule.test(password) ? '✓' : '○'}</span>
+                      {rule.label}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            <div className="field">
+              <label>Confirm password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                onKeyDown={e => e.key === 'Enter' && handleSignup()}
+                style={{ background: '#ffffff', borderColor: confirmPassword.length > 0 ? (passwordsMatch ? '#27ae60' : '#c0392b') : undefined }}
+              />
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '4px' }}>Passwords don't match</div>
+              )}
+            </div>
+
             {error && <div className="auth-error">{error}</div>}
-            <button className="btn auth-btn" onClick={handleSignup} disabled={loading}>
+            <button
+              className="btn auth-btn"
+              onClick={handleSignup}
+              disabled={loading || !allRulesPassed || !passwordsMatch || !email}
+            >
               {loading ? 'Creating account...' : 'Create account'}
             </button>
             <div className="auth-switch">
