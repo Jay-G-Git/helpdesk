@@ -20,6 +20,7 @@ const DEFAULT_FIELDS: Field[] = [
 export default function Settings() {
   const [fields, setFields] = useState<Field[]>(DEFAULT_FIELDS)
   const [welcomePack, setWelcomePack] = useState('')
+  const [offboardingTemplate, setOffboardingTemplate] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -39,7 +40,7 @@ export default function Settings() {
     setUserId(session.user.id)
     const { data } = await supabase
       .from('onboarding_templates')
-      .select('fields, welcome_pack')
+      .select('fields, welcome_pack, offboarding_template')
       .eq('user_id', session.user.id)
       .single()
     if (data?.fields && data.fields.length > 0) {
@@ -47,6 +48,9 @@ export default function Settings() {
     }
     if (data?.welcome_pack) {
       setWelcomePack(data.welcome_pack)
+    }
+    if (data?.offboarding_template) {
+      setOffboardingTemplate(data.offboarding_template)
     }
     setLoading(false)
   }
@@ -71,7 +75,7 @@ export default function Settings() {
     setSaveMsg('')
     const { error } = await supabase
       .from('onboarding_templates')
-      .upsert({ user_id: userId, fields, welcome_pack: welcomePack, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      .upsert({ user_id: userId, fields, welcome_pack: welcomePack, offboarding_template: offboardingTemplate, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
     if (error) {
       setSaveMsg('Error saving. Try again.')
     } else {
@@ -158,6 +162,34 @@ export default function Settings() {
             onChange={e => setWelcomePack(e.target.value)}
             placeholder={`Hi {{employee_name}},\n\nWelcome to the team! Your start time is {{startTime}} and your pay rate is {{payRate}}.\n\n...`}
             style={{ minHeight: '260px', fontFamily: 'inherit', fontSize: '14px' }}
+          />
+          <button className="btn auth-btn-primary" onClick={save} disabled={saving} style={{ marginTop: '1rem', width: 'auto' }}>
+            {saving ? 'Saving...' : 'Save template'}
+          </button>
+          {saveMsg && <div className="done-msg">{saveMsg}</div>}
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="section-label">Offboarding template</div>
+          <div className="context-bar" style={{ background: '#f7f7f5', color: '#6b6b6b', marginBottom: '1rem' }}>
+            Write notes or instructions that pre-fill every time you offboard someone. Use <strong>{'{{employee_name}}'}</strong>, <strong>{'{{lastDay}}'}</strong>, and <strong>{'{{reason}}'}</strong> as placeholders.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+            {['employee_name', 'lastDay', 'reason', 'role'].map(id => (
+              <code
+                key={id}
+                style={{ background: '#f0f0ee', padding: '2px 8px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer' }}
+                onClick={() => setOffboardingTemplate(prev => prev + `{{${id}}}`)}
+              >
+                {`{{${id}}}`}
+              </code>
+            ))}
+          </div>
+          <textarea
+            value={offboardingTemplate}
+            onChange={e => setOffboardingTemplate(e.target.value)}
+            placeholder={`{{employee_name}}'s last day is {{lastDay}}.\nReason: {{reason}}\n\nPlease ensure all equipment is returned and access is revoked before their departure.`}
+            style={{ minHeight: '180px', fontFamily: 'inherit', fontSize: '14px' }}
           />
           <button className="btn auth-btn-primary" onClick={save} disabled={saving} style={{ marginTop: '1rem', width: 'auto' }}>
             {saving ? 'Saving...' : 'Save template'}

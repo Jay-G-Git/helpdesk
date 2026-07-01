@@ -44,6 +44,39 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [templateLoaded, setTemplateLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('onboarding_templates')
+      .select('offboarding_template')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data }) => {
+        if (data?.offboarding_template) {
+          setNotes(data.offboarding_template)
+        }
+        setTemplateLoaded(true)
+      })
+  }, [userId])
+
+  function applyPlaceholders(text: string, day: string, rsn: string) {
+    return text
+      .replace(/\{\{employee_name\}\}/g, employee.name)
+      .replace(/\{\{lastDay\}\}/g, day || '[last day]')
+      .replace(/\{\{reason\}\}/g, rsn)
+      .replace(/\{\{role\}\}/g, employee.role || '')
+  }
+
+  function handleLastDayChange(val: string) {
+    setLastDay(val)
+    setNotes(prev => applyPlaceholders(prev, val, reason))
+  }
+
+  function handleReasonChange(val: string) {
+    setReason(val)
+    setNotes(prev => applyPlaceholders(prev, lastDay, val))
+  }
 
   function toggle(key: string) {
     setChecked(prev => ({ ...prev, [key]: !prev[key] }))
@@ -80,11 +113,11 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
       <div className="row2" style={{ marginBottom: '0.75rem' }}>
         <div className="field">
           <label>Last day</label>
-          <input type="date" value={lastDay} onChange={e => setLastDay(e.target.value)} />
+          <input type="date" value={lastDay} onChange={e => handleLastDayChange(e.target.value)} />
         </div>
         <div className="field">
           <label>Reason for leaving</label>
-          <select value={reason} onChange={e => setReason(e.target.value)}>
+          <select value={reason} onChange={e => handleReasonChange(e.target.value)}>
             <option>Resignation</option>
             <option>Termination</option>
             <option>Layoff</option>
