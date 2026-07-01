@@ -31,10 +31,10 @@ export default function Login() {
             <div className="auth-sub">From hiring to offboarding — helpdesk handles your HR so you can focus on your business.</div>
             <div className="auth-features">
               <div className="auth-feature">→ Digital onboarding — W-4, I-9, direct deposit, all in one link</div>
-              <div className="auth-feature">✓ Compliance tracker — know exactly who's missing what</div>
-              <div className="auth-feature">📅 Schedule builder — shifts, availability, and time-off requests</div>
-              <div className="auth-feature">💵 Payroll visibility — track pay rates, periods, and history</div>
-              <div className="auth-feature">← Offboarding checklists — customizable, step by step</div>
+              <div className="auth-feature">→ Compliance tracker — know exactly who's missing what</div>
+              <div className="auth-feature">→ Schedule builder — shifts, availability, and time-off requests</div>
+              <div className="auth-feature">→ Payroll visibility — track pay rates, periods, and history</div>
+              <div className="auth-feature">→ Offboarding checklists — customizable, step by step</div>
             </div>
             <div className="auth-stats">
               <div className="auth-stat">
