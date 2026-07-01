@@ -620,6 +620,11 @@ body:has(.auth-layout) {
   padding: 0;
 }
 
+body:has(.dash-wrap) {
+  display: block;
+  padding: 0;
+}
+
 .auth-wrap {
   display: flex;
   flex-direction: column;
