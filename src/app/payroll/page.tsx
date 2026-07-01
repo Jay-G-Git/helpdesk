@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import Nav from '../components/Nav'
 
 type Employee = {
   id: number
@@ -194,16 +195,7 @@ export default function PayrollPage() {
 
   return (
     <div className="dash-wrap">
-      <div className="dash-nav">
-        <div className="dash-nav-left">
-          <div className="logo">help<span>desk</span></div>
-          <nav className="dash-nav-links">
-            <a href="/" className="dash-nav-link">Dashboard</a>
-            <div className="dash-nav-link active">Payroll</div>
-            <a href="/schedule" className="dash-nav-link">Schedule</a>
-          </nav>
-        </div>
-      </div>
+      <Nav active="payroll" />
 
       <div className="dash-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
