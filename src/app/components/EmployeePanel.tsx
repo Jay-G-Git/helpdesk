@@ -13,13 +13,13 @@ type Props = {
   onStartAction: (type: 'onboarding' | 'checkin' | 'offboarding') => void
 }
 
-const OFFBOARDING_ITEMS = [
-  { key: 'keys', label: 'Keys / access cards returned' },
-  { key: 'equipment', label: 'Equipment returned (uniform, devices, tools)' },
-  { key: 'access', label: 'System access revoked (email, POS, software)' },
-  { key: 'paycheck', label: 'Final paycheck processed' },
-  { key: 'pto', label: 'Unused PTO paid out (if applicable)' },
-  { key: 'exit', label: 'Exit interview completed' },
+const DEFAULT_OFFBOARDING_ITEMS = [
+  'Keys / access cards returned',
+  'Equipment returned (uniform, devices, tools)',
+  'System access revoked (email, POS, software)',
+  'Final paycheck processed',
+  'Unused PTO paid out (if applicable)',
+  'Exit interview completed',
 ]
 
 type Tab = 'info' | 'compliance' | 'onboarding' | 'offboarding'
@@ -44,7 +44,8 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('Resignation')
   const [notes, setNotes] = useState('')
-  const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [checklistItems, setChecklistItems] = useState<string[]>(DEFAULT_OFFBOARDING_ITEMS)
+  const [checked, setChecked] = useState<boolean[]>([])
   const [offboardingSaving, setOffboardingSaving] = useState(false)
   const [offboardingDone, setOffboardingDone] = useState(false)
 
@@ -85,10 +86,13 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
     if (!sessionData.session) return
     const { data } = await supabase
       .from('onboarding_templates')
-      .select('offboarding_template')
+      .select('offboarding_template, offboarding_checklist')
       .eq('user_id', sessionData.session.user.id)
       .single()
     if (data?.offboarding_template) setNotes(data.offboarding_template)
+    const items = data?.offboarding_checklist?.length ? data.offboarding_checklist : DEFAULT_OFFBOARDING_ITEMS
+    setChecklistItems(items)
+    setChecked(new Array(items.length).fill(false))
   }
 
   function set(field: keyof Employee, value: string) {
@@ -171,7 +175,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
     await supabase.from('documents').insert([{
       type: 'offboarding',
       employee_name: employee.name,
-      content: `Last day: ${lastDay || 'Not set'}\nReason: ${reason}\nChecklist: ${OFFBOARDING_ITEMS.map(i => `${i.label}: ${checked[i.key] ? '✓' : '✗'}`).join(', ')}\nNotes: ${notes}`,
+      content: `Last day: ${lastDay || 'Not set'}\nReason: ${reason}\nChecklist: ${checklistItems.map((label, i) => `${label}: ${checked[i] ? '✓' : '✗'}`).join(', ')}\nNotes: ${notes}`,
       user_id: sessionData.session?.user.id,
     }])
     onUpdated({ ...form, status: 'terminated' })
@@ -351,7 +355,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
             </div>
           ) : (
             <>
-              <div className="row2" style={{ marginBottom: '0.75rem' }}>
+              <div className="row2" style={{ marginBottom: '1rem' }}>
                 <div className="field">
                   <label>Last day</label>
                   <input type="date" value={lastDay} onChange={e => handleLastDayChange(e.target.value)} />
@@ -365,27 +369,41 @@ export default function EmployeePanel({ employee, onClose, onUpdated, onDelete, 
                 </div>
               </div>
 
-              <div className="emp-panel-section">Checklist</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
-                {OFFBOARDING_ITEMS.map(item => (
-                  <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', background: checked[item.key] ? '#f0faf4' : '#fafafa', border: `1px solid ${checked[item.key] ? '#a8dab5' : '#e8eaf0'}`, borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <input type="checkbox" checked={!!checked[item.key]} onChange={() => setChecked(prev => ({ ...prev, [item.key]: !prev[item.key] }))} style={{ width: '15px', height: '15px', flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', color: checked[item.key] ? '#27ae60' : '#3a3a3a', textDecoration: checked[item.key] ? 'line-through' : 'none' }}>{item.label}</span>
-                  </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div className="emp-panel-section" style={{ margin: 0 }}>Checklist</div>
+                <span className={`badge ${checked.filter(Boolean).length === checklistItems.length ? 'badge-green' : checked.some(Boolean) ? 'badge-yellow' : 'badge-red'}`}>
+                  {checked.filter(Boolean).length}/{checklistItems.length} done
+                </span>
+              </div>
+
+              <div className="compliance-list" style={{ marginBottom: '1rem' }}>
+                {checklistItems.map((label, i) => (
+                  <div
+                    key={i}
+                    className="compliance-item clickable"
+                    onClick={() => setChecked(prev => { const next = [...prev]; next[i] = !next[i]; return next })}
+                  >
+                    <div className={`compliance-check${checked[i] ? ' checked' : ''}`}>
+                      {checked[i] ? '✓' : ''}
+                    </div>
+                    <div className="compliance-label" style={{ textDecoration: checked[i] ? 'line-through' : 'none', color: checked[i] ? '#27ae60' : undefined }}>
+                      {label}
+                    </div>
+                  </div>
                 ))}
               </div>
 
-              <div className="field">
+              <div className="field" style={{ marginBottom: '1rem' }}>
                 <label>Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional notes..." style={{ minHeight: '70px' }} />
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional notes..." style={{ minHeight: '60px' }} />
               </div>
 
               <button
                 onClick={completeOffboarding}
                 disabled={offboardingSaving}
-                style={{ marginTop: '0.5rem', padding: '8px 16px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: 'auto' }}
+                style={{ padding: '8px 16px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: 'auto' }}
               >
-                {offboardingSaving ? 'Saving...' : 'Complete offboarding & terminate'}
+                {offboardingSaving ? 'Saving...' : 'Complete & terminate'}
               </button>
             </>
           )}
