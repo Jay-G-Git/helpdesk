@@ -104,6 +104,17 @@ export default function Login() {
         const raw = error.message ?? ''
         const isExisting = !raw || raw === '{}' || raw === '{ }' || raw.toLowerCase().includes('already registered') || raw.toLowerCase().includes('already been registered')
         if (isExisting) {
+          // Try to auto-confirm + sign in anyway
+          await fetch('/api/auth/auto-confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          })
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+          if (!signInErr && signInData.session) {
+            window.location.href = '/'
+            return
+          }
           setPendingConfirm(true); setDone(true)
           setLoading(false); return
         }
@@ -114,6 +125,16 @@ export default function Login() {
       // Supabase returns data.user but no session when email confirmation is required
       // and the user already has a pending unconfirmed account
       if (data.user && !data.session && data.user.identities?.length === 0) {
+        await fetch('/api/auth/auto-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        })
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+        if (!signInErr && signInData.session) {
+          window.location.href = '/'
+          return
+        }
         setPendingConfirm(true); setDone(true)
         setLoading(false); return
       }
