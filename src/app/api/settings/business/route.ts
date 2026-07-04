@@ -18,7 +18,21 @@ export async function GET(req: NextRequest) {
     .eq('user_id', user.id)
     .single()
 
-  return NextResponse.json({ profile: data ?? null })
+  // Auto-create profile from user metadata if missing (happens after email confirmation)
+  if (!data) {
+    const meta = user.user_metadata ?? {}
+    const businessName = meta.business_name as string | undefined
+    const contactEmail = user.email ?? ''
+    if (businessName) {
+      await supabaseAdmin.from('business_profiles').upsert(
+        { user_id: user.id, business_name: businessName, contact_email: contactEmail, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      )
+    }
+    return NextResponse.json({ profile: businessName ? { user_id: user.id, business_name: businessName, contact_email: contactEmail } : null })
+  }
+
+  return NextResponse.json({ profile: data })
 }
 
 export async function POST(req: NextRequest) {

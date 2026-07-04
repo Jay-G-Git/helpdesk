@@ -83,22 +83,31 @@ export default function Login() {
     if (!allRulesPassed) { setError('Password does not meet all requirements.'); return }
     if (!passwordsMatch) { setError('Passwords do not match.'); return }
     setLoading(true); setError('')
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { full_name: fullName.trim(), business_name: businessName.trim() } },
-    })
-    if (error) { setError(error.message); setLoading(false); return }
-
-    // Save business profile immediately
-    if (data.user) {
-      await fetch('/api/settings/business', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token ?? ''}` },
-        body: JSON.stringify({ business_name: businessName.trim(), contact_email: email }),
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: fullName.trim(), business_name: businessName.trim() } },
       })
-    }
+      if (error) {
+        setError(error.message || 'Failed to create account. Please try again.')
+        setLoading(false); return
+      }
 
-    setDone(true)
+      // If we have a session (no email confirmation required), save business profile now
+      if (data.session?.access_token) {
+        await fetch('/api/settings/business', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+          body: JSON.stringify({ business_name: businessName.trim(), contact_email: email }),
+        })
+      }
+      // Otherwise, business profile is auto-created from user metadata on first login
+
+      setDone(true)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong. Please try again.'
+      setError(msg)
+    }
     setLoading(false)
   }
 
@@ -199,7 +208,12 @@ export default function Login() {
             </div>
 
             <div style={{ marginBottom: '0.875rem' }}>
-              <label style={lbl}>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+                <label style={lbl}>Password</label>
+                {mode === 'signin' && (
+                  <a href="/forgot-password" style={{ fontSize: '12px', color: '#4a9eff', textDecoration: 'none' }}>Forgot password?</a>
+                )}
+              </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
                 onKeyDown={e => mode === 'signin' && e.key === 'Enter' && handleSignIn()} />
               {mode === 'signup' && password.length > 0 && (
