@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
 import EmployeePanel from './EmployeePanel'
 import Nav from './Nav'
+import { MegaphoneIcon } from './Icons'
 
 type TimeOffRequest = {
   id: number
@@ -99,7 +100,7 @@ function AnnouncementForm() {
         <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your message here..." style={{ minHeight: '80px' }} />
       </div>
       <button className="btn" onClick={send} disabled={sending || !title.trim() || !message.trim()}>
-        {sending ? 'Sending...' : '📣 Send to all employees'}
+        {sending ? 'Sending...' : <><MegaphoneIcon size={14} />&nbsp;Send to all employees</>}
       </button>
       {result && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{result}</div>}
     </div>
