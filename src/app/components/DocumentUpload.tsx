@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { FileIcon } from './Icons'
 
 type EmployeeDoc = {
   id: number
@@ -113,7 +114,7 @@ export default function DocumentUpload({ employeeId, employeeName, userId }: Pro
         <div className="upload-list">
           {docs.map(doc => (
             <div key={doc.id} className="upload-item">
-              <div className="upload-icon">📄</div>
+              <div className="upload-icon"><FileIcon size={16} color="#185fa5" /></div>
               <div style={{ flex: 1 }}>
                 <div className="upload-name">{doc.file_name}</div>
                 <div className="upload-meta">{formatSize(doc.file_size)}</div>

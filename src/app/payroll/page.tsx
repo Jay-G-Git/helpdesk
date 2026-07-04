@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
+import { DollarIcon } from '../components/Icons'
 
 type Employee = {
   id: number
@@ -512,7 +513,7 @@ export default function PayrollPage() {
                   const emp = employees.find(e => e.id === entry.employee_id)
                   return (
                     <div key={entry.id} className="upload-item">
-                      <div className="upload-icon">💵</div>
+                      <div className="upload-icon"><DollarIcon size={16} color="#185fa5" /></div>
                       <div style={{ flex: 1 }}>
                         <div className="upload-name">{emp?.name ?? 'Unknown'}</div>
                         <div className="upload-meta">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { BellIcon } from './Icons'
 
 type Props = {
   active: 'dashboard' | 'payroll' | 'schedule' | 'jobs' | 'integrations'
@@ -84,7 +85,7 @@ export default function Nav({ active }: Props) {
             className="notif-bell"
             onClick={() => { setShowNotifs(v => !v); if (!showNotifs) markAllRead() }}
           >
-            🔔
+            <BellIcon size={18} color="currentColor" />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
           {showNotifs && (

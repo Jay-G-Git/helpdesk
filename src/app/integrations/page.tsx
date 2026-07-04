@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
 import { Suspense } from 'react'
+import { ReceiptIcon } from '../components/Icons'
 
 type GustoConnection = {
   company_uuid: string | null
@@ -97,8 +98,8 @@ function IntegrationsContent() {
             <div style={{
               width: 40, height: 40, borderRadius: '10px', background: '#f5ece8',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '20px', flexShrink: 0,
-            }}>🧾</div>
+              flexShrink: 0,
+            }}><ReceiptIcon size={20} color="#c0692b" /></div>
             <div>
               <div style={{ fontWeight: 700, fontSize: '15px' }}>Gusto</div>
               <div style={{ fontSize: '12px', color: '#888' }}>Payroll & HR platform</div>

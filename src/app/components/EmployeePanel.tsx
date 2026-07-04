@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Employee } from '../page'
 import ComplianceChecklist from './ComplianceChecklist'
+import { PaperclipIcon, DollarIcon, MailIcon } from './Icons'
 
 type Props = {
   employee: Employee
@@ -474,7 +475,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                 <input type="email" value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="jane@example.com" />
               </div>
               <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={sendWelcomePack} disabled={sending}>
-                {sending ? 'Sending...' : '✉ Send welcome pack'}
+                {sending ? 'Sending...' : <><MailIcon size={14} /> Send welcome pack</>}
               </button>
               {sendError && <div className="auth-error" style={{ marginTop: '0.5rem' }}>{sendError}</div>}
             </>
@@ -588,7 +589,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                       background: '#fafafa', border: '1px solid #eee',
                     }}>
                       <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#f0faf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: '14px' }}>📎</span>
+                        <PaperclipIcon size={14} color="#27ae60" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name}</div>
@@ -700,7 +701,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                   background: '#fafafa', border: '1px solid #eee',
                 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#e6f1fb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px' }}>
-                    💵
+                    <DollarIcon size={14} color="#185fa5" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500 }}>

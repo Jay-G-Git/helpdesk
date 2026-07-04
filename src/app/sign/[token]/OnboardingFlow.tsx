@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { FileIcon, CheckIcon } from '../../components/Icons'
 import W4Form from './W4Form'
 import I9Form from './I9Form'
 import AvailabilityForm from './AvailabilityForm'
@@ -120,7 +121,7 @@ function DocumentSignStep({ token, employeeName, docs, onComplete }: {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: signed[doc.id] ? '0' : '0.75rem' }}>
               <div style={{ width: 32, height: 32, borderRadius: '6px', background: signed[doc.id] ? '#e0f7ea' : '#e6f1fb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '16px' }}>
-                {signed[doc.id] ? '✓' : '📄'}
+                {signed[doc.id] ? <CheckIcon size={14} color="#27ae60" strokeWidth={2.5} /> : <FileIcon size={14} color="#185fa5" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: signed[doc.id] ? '#27ae60' : '#1a1a1a' }}>{doc.file_name}</div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
+import { MailIcon } from './Icons'
 import DocumentUpload from './DocumentUpload'
 
 type Props = {
@@ -433,7 +434,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
                     />
                   </div>
                   <button className="btn" onClick={sendToEmployee} disabled={sending}>
-                    {sending ? 'Sending...' : '✉ Send to employee'}
+                    {sending ? 'Sending...' : <><MailIcon size={14} /> Send to employee</>}
                   </button>
                   {sendError && <div className="auth-error" style={{ marginTop: '0.5rem' }}>{sendError}</div>}
                 </>
