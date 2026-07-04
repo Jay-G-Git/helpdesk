@@ -23,15 +23,11 @@ export default function Login() {
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0
 
   function switchMode(m: 'signin' | 'signup') {
-    setMode(m)
-    setError('')
-    setPassword('')
-    setConfirmPassword('')
+    setMode(m); setError(''); setPassword(''); setConfirmPassword('')
   }
 
   async function handleSignIn() {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setError(error.message)
     else window.location.href = '/'
@@ -41,8 +37,7 @@ export default function Login() {
   async function handleSignUp() {
     if (!allRulesPassed) { setError('Password does not meet all requirements.'); return }
     if (!passwordsMatch) { setError('Passwords do not match.'); return }
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) setError(error.message)
     else setDone(true)
@@ -50,149 +45,116 @@ export default function Login() {
   }
 
   if (done) return (
-    <div className="auth-wrap">
-      <div className="auth-header">
-        <div className="auth-brand">help<span>desk</span></div>
-        <div className="auth-header-sub">HR built for small business.</div>
-      </div>
-      <div className="auth-body">
-        <div className="auth-left">
-          <div className="auth-headline">You're almost in.</div>
-          <div className="auth-sub">Check your inbox and click the confirmation link to activate your account.</div>
+    <div style={wrap}>
+      <div style={card}>
+        <div style={logo}>help<span style={{ color: '#185fa5' }}>desk</span></div>
+        <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '0.4rem' }}>Check your email</div>
+        <div style={{ fontSize: '13px', color: '#666', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+          We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
         </div>
-        <div className="auth-right">
-          <div className="auth-card">
-            <div className="auth-title">Check your email</div>
-            <p style={{ fontSize: '13px', color: '#6b6b6b', marginTop: '0.5rem', lineHeight: 1.6 }}>
-              We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
-            </p>
-            <div className="auth-switch" style={{ marginTop: '1.5rem' }}>
-              <button onClick={() => { setDone(false); switchMode('signin') }} style={{ background: 'none', border: 'none', color: '#185fa5', cursor: 'pointer', fontSize: '13px' }}>
-                Back to sign in
-              </button>
-            </div>
-          </div>
-        </div>
+        <button onClick={() => { setDone(false); switchMode('signin') }}
+          style={{ fontSize: '13px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          ← Back to sign in
+        </button>
       </div>
     </div>
   )
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-header">
-        <div className="auth-brand">help<span>desk</span></div>
-        <div className="auth-header-sub">HR built for small business.</div>
-      </div>
-      <div className="auth-body">
-        <div className="auth-left">
-          <div>
-            <div className="auth-headline">Everything you need to run your team.</div>
-            <div className="auth-sub">From hiring to offboarding — helpdesk handles your HR so you can focus on your business.</div>
-            <div className="auth-features">
-              <div className="auth-feature">→ Digital onboarding — W-4, I-9, direct deposit, all in one link</div>
-              <div className="auth-feature">→ Compliance tracker — know exactly who's missing what</div>
-              <div className="auth-feature">→ Schedule builder — shifts, availability, and time-off requests</div>
-              <div className="auth-feature">→ Payroll visibility — track pay rates, periods, and history</div>
-              <div className="auth-feature">→ Offboarding checklists — customizable, step by step</div>
-            </div>
-            <div className="auth-stats">
-              <div className="auth-stat"><div className="auth-stat-n">2 min</div><div className="auth-stat-l">to onboard a new hire</div></div>
-              <div className="auth-stat"><div className="auth-stat-n">0 paper</div><div className="auth-stat-l">everything digital</div></div>
-              <div className="auth-stat"><div className="auth-stat-n">100%</div><div className="auth-stat-l">paper trail</div></div>
-            </div>
-          </div>
-          <div className="auth-trust">
-            <div className="auth-trust-item"><div className="auth-trust-title">No HR degree needed</div><div className="auth-trust-sub">Built for owners, not HR departments</div></div>
-            <div className="auth-trust-item"><div className="auth-trust-title">Data encrypted</div><div className="auth-trust-sub">Secured at rest and in transit</div></div>
-            <div className="auth-trust-item"><div className="auth-trust-title">Timestamped records</div><div className="auth-trust-sub">Every doc dated and saved</div></div>
-            <div className="auth-trust-item"><div className="auth-trust-title">No contracts</div><div className="auth-trust-sub">Cancel anytime, no questions</div></div>
-          </div>
+    <div style={wrap}>
+      <div style={card}>
+        <div style={logo}>help<span style={{ color: '#185fa5' }}>desk</span></div>
+
+        {/* Toggle */}
+        <div style={{ display: 'flex', background: '#f0f2f5', borderRadius: '10px', padding: '4px', marginBottom: '1.75rem' }}>
+          {(['signin', 'signup'] as const).map(m => (
+            <button key={m} onClick={() => switchMode(m)} style={{
+              flex: 1, padding: '8px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+              fontSize: '13px', fontWeight: 600, transition: 'all 0.15s',
+              background: mode === m ? '#fff' : 'transparent',
+              color: mode === m ? '#111' : '#888',
+              boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+            }}>
+              {m === 'signin' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
         </div>
 
-        <div className="auth-right">
-          <div style={{ width: '100%' }}>
-            {/* Toggle */}
-            <div style={{ display: 'flex', background: '#f0f2f5', borderRadius: '10px', padding: '4px', marginBottom: '1.5rem' }}>
-              <button
-                onClick={() => switchMode('signin')}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
-                  background: mode === 'signin' ? '#fff' : 'transparent',
-                  color: mode === 'signin' ? '#111' : '#888',
-                  boxShadow: mode === 'signin' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >Sign in</button>
-              <button
-                onClick={() => switchMode('signup')}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
-                  background: mode === 'signup' ? '#fff' : 'transparent',
-                  color: mode === 'signup' ? '#111' : '#888',
-                  boxShadow: mode === 'signup' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >Create account</button>
-            </div>
+        {/* Email */}
+        <div style={{ marginBottom: '0.875rem' }}>
+          <label style={labelStyle}>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+        </div>
 
-            {mode === 'signin' ? (
-              <>
-                <div className="auth-title">Welcome back</div>
-                <div className="auth-subtitle">Sign in to your helpdesk account</div>
-                <div className="field">
-                  <label>Email</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ background: '#ffffff' }} />
+        {/* Password */}
+        <div style={{ marginBottom: '0.875rem' }}>
+          <label style={labelStyle}>Password</label>
+          <input
+            type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+            onKeyDown={e => mode === 'signin' && e.key === 'Enter' && handleSignIn()}
+          />
+          {mode === 'signup' && password.length > 0 && (
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {RULES.map(rule => (
+                <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: rule.test(password) ? '#27ae60' : '#bbb' }}>
+                  <span>{rule.test(password) ? '✓' : '○'}</span>{rule.label}
                 </div>
-                <div className="field">
-                  <label>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleSignIn()} style={{ background: '#ffffff' }} />
-                </div>
-                {error && <div className="auth-error">{error}</div>}
-                <button className="btn auth-btn auth-btn-primary" onClick={handleSignIn} disabled={loading || !email || !password}>
-                  {loading ? 'Signing in...' : 'Sign in'}
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="auth-title">Create your account</div>
-                <div className="auth-subtitle">Free to try — no credit card required.</div>
-                <div className="field">
-                  <label>Email</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ background: '#ffffff' }} />
-                </div>
-                <div className="field">
-                  <label>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ background: '#ffffff' }} />
-                  {password.length > 0 && (
-                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      {RULES.map(rule => (
-                        <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: rule.test(password) ? '#27ae60' : '#9a9a9a' }}>
-                          <span>{rule.test(password) ? '✓' : '○'}</span>{rule.label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="field">
-                  <label>Confirm password</label>
-                  <input
-                    type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••"
-                    onKeyDown={e => e.key === 'Enter' && handleSignUp()}
-                    style={{ background: '#ffffff', borderColor: confirmPassword.length > 0 ? (passwordsMatch ? '#27ae60' : '#c0392b') : undefined }}
-                  />
-                  {confirmPassword.length > 0 && !passwordsMatch && (
-                    <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '4px' }}>Passwords don't match</div>
-                  )}
-                </div>
-                {error && <div className="auth-error">{error}</div>}
-                <button className="btn auth-btn auth-btn-primary" onClick={handleSignUp} disabled={loading || !allRulesPassed || !passwordsMatch || !email}>
-                  {loading ? 'Creating account...' : 'Create account'}
-                </button>
-              </>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Confirm password (signup only) */}
+        {mode === 'signup' && (
+          <div style={{ marginBottom: '0.875rem' }}>
+            <label style={labelStyle}>Confirm password</label>
+            <input
+              type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleSignUp()}
+              style={{ borderColor: confirmPassword.length > 0 ? (passwordsMatch ? '#27ae60' : '#c0392b') : undefined }}
+            />
+            {confirmPassword.length > 0 && !passwordsMatch && (
+              <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '4px' }}>Passwords don't match</div>
             )}
           </div>
-        </div>
+        )}
+
+        {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
+
+        <button
+          className="btn auth-btn-primary"
+          onClick={mode === 'signin' ? handleSignIn : handleSignUp}
+          disabled={loading || !email || !password || (mode === 'signup' && (!allRulesPassed || !passwordsMatch))}
+          style={{ width: '100%', marginTop: '0.25rem' }}
+        >
+          {loading ? (mode === 'signin' ? 'Signing in...' : 'Creating account...') : (mode === 'signin' ? 'Sign in' : 'Create account')}
+        </button>
+
+        {mode === 'signin' && (
+          <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '13px', color: '#888' }}>
+            No account? <button onClick={() => switchMode('signup')} style={{ color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>Sign up free</button>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+const wrap: React.CSSProperties = {
+  minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: '#f7f8fa', padding: '1.5rem',
+}
+
+const card: React.CSSProperties = {
+  width: '100%', maxWidth: '400px', background: '#fff',
+  borderRadius: '18px', padding: '2.25rem 2rem',
+  boxShadow: '0 2px 24px rgba(0,0,0,0.08)',
+}
+
+const logo: React.CSSProperties = {
+  fontSize: '22px', fontWeight: 800, marginBottom: '1.75rem', color: '#111',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 500,
 }
