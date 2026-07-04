@@ -141,11 +141,18 @@ export default function Login() {
 
       // Auto-confirm so user doesn't need to click an email link
       if (!data.session) {
-        await fetch('/api/auth/auto-confirm', {
+        const confirmRes = await fetch('/api/auth/auto-confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         })
+        const confirmData = await confirmRes.json()
+        if (!confirmRes.ok) {
+          setError(`Auto-confirm failed: ${confirmData.error ?? confirmRes.status}`)
+          setLoading(false); return
+        }
+        // Small delay to let Supabase propagate the confirmation
+        await new Promise(r => setTimeout(r, 800))
         // Sign in now that the account is confirmed
         const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
         if (!signInErr && signInData.session) {
@@ -157,6 +164,8 @@ export default function Login() {
           window.location.href = '/'
           return
         }
+        setError(`Sign-in failed after confirm: ${signInErr?.message ?? 'unknown error'}`)
+        setLoading(false); return
       } else {
         await fetch('/api/settings/business', {
           method: 'POST',
