@@ -386,10 +386,19 @@ export default function TimePage() {
                 </div>
                 {/* Open shift toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                    <input type="checkbox" checked={shiftIsOpen} onChange={e => { setShiftIsOpen(e.target.checked); if (e.target.checked) setShiftEmpId('') }} />
-                    Open shift — post to pool (no employee assigned)
-                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setShiftIsOpen(v => !v); if (!shiftIsOpen) setShiftEmpId('') }}
+                    style={{
+                      fontSize: '13px', fontWeight: 500, padding: '5px 14px', borderRadius: '20px', cursor: 'pointer',
+                      border: `1px solid ${shiftIsOpen ? '#166534' : '#dde1ea'}`,
+                      background: shiftIsOpen ? '#dcfce7' : '#fff',
+                      color: shiftIsOpen ? '#166534' : '#666',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {shiftIsOpen ? '✓ Open shift (no employee)' : 'Open shift — post to pool'}
+                  </button>
                 </div>
 
                 <div className="row2" style={{ marginBottom: '0.75rem' }}>
