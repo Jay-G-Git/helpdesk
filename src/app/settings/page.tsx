@@ -404,17 +404,17 @@ function SettingsContent() {
               <div className="card" style={{ marginTop: '1rem' }}>
                 <div className="section-label">Welcome pack template</div>
                 <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
-                  Use <strong>{'{{employee_name}}'}</strong>, <strong>{'{{startTime}}'}</strong>, etc. — filled in automatically when you onboard someone.
+                  Click a tag below to insert it — it will be replaced with the employee's actual info when you send the welcome pack.
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-                  {[{ id: 'employee_name', label: 'Name' }, { id: 'role', label: 'Role' }, { id: 'start', label: 'Start date' }, { id: 'phone', label: 'Phone' }, ...fields.map(f => ({ id: f.id, label: f.label }))].map(({ id, label }) => (
-                    <button key={id} onClick={() => setWelcomePack(prev => prev + `{{${id}}}`)}
+                  {[{ label: 'Name' }, { label: 'Role' }, { label: 'Start date' }, { label: 'Phone' }, ...fields.map(f => ({ label: f.label }))].map(({ label }) => (
+                    <button key={label} onClick={() => setWelcomePack(prev => prev + `[${label}]`)}
                       style={{ padding: '4px 10px', borderRadius: '6px', border: '1.5px solid #d0d5e8', background: '#f4f6fc', color: '#185fa5', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                       {label}
                     </button>
                   ))}
                 </div>
-                <textarea value={welcomePack} onChange={e => setWelcomePack(e.target.value)} placeholder={`Hi {{employee_name}},\n\nWelcome to the team!...`} style={{ minHeight: '200px', fontFamily: 'inherit', fontSize: '14px' }} />
+                <textarea value={welcomePack} onChange={e => setWelcomePack(e.target.value)} placeholder={`Hi [Name],\n\nWelcome to the team!...`} style={{ minHeight: '200px', fontFamily: 'inherit', fontSize: '14px' }} />
                 <button className="btn auth-btn-primary" onClick={saveTemplate} disabled={tmplSaving} style={{ marginTop: '0.75rem', width: 'auto' }}>
                   {tmplSaving ? 'Saving...' : 'Save template'}
                 </button>

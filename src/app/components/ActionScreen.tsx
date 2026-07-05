@@ -216,25 +216,23 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
   }
 
   function applyTemplate(template: string, values: Record<string, string>) {
-    // Merge employee profile fields so they're available as placeholders too
-    const allValues: Record<string, string> = {
-      employee_name: employee.name,
-      phone: employee.phone || '',
-      email: employee.email || '',
-      address: employee.address || '',
-      emergency_contact: employee.emergency_contact || '',
-      ssn_last4: employee.ssn_last4 || '',
-      date_of_birth: employee.date_of_birth || '',
-      start: employee.start || '',
-      role: employee.role || '',
-      type: employee.type || '',
-      ...values,
-    }
+    function escRe(s: string) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+    const builtIns: [string, string][] = [
+      ['[Name]', employee.name],
+      ['[Role]', employee.role || ''],
+      ['[Start date]', employee.start || ''],
+      ['[Phone]', employee.phone || ''],
+      ['[Email]', employee.email || ''],
+      ['[Address]', employee.address || ''],
+    ]
     let result = template
-    for (const [key, val] of Object.entries(allValues)) {
-      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val || `[${key}]`)
+    for (const [key, val] of builtIns) {
+      result = result.replace(new RegExp(escRe(key), 'g'), val)
     }
-    result = result.replace(/\{\{(\w+)\}\}/g, '[$1]')
+    for (const [id, val] of Object.entries(values)) {
+      const field = templateFields.find(f => f.id === id)
+      if (field) result = result.replace(new RegExp(escRe(`[${field.label}]`), 'g'), val)
+    }
     return result
   }
 
