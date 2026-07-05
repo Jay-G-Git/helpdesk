@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
+import CalloutModal from '../components/CalloutModal'
 
 type Employee = {
   id: number
@@ -29,6 +30,7 @@ type Shift = {
   start_time: string
   end_time: string
   notes: string | null
+  status?: string
 }
 
 type Availability = {
@@ -90,6 +92,10 @@ export default function SchedulePage() {
 
   // Weekly view state
   const [weekOffset, setWeekOffset] = useState(0)
+
+  // Callout modal
+  type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
+  const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -264,6 +270,7 @@ export default function SchedulePage() {
   const pending = requests.filter(r => r.status === 'pending')
 
   return (
+    <>
     <div className="dash-wrap">
       <Nav active="schedule" />
 
@@ -460,15 +467,32 @@ export default function SchedulePage() {
                             <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? '#185fa5' : '#888', marginBottom: '6px' }}>{dayName} {dayNum}</div>
                             {dayShifts.length === 0 ? (
                               <div style={{ fontSize: '10px', color: '#ccc', marginTop: '4px' }}>+ Add</div>
-                            ) : dayShifts.map(s => (
-                              <div key={s.id} style={{ marginBottom: '4px' }}>
-                                <div style={{ fontSize: '10px', background: '#e8edf8', color: '#185fa5', borderRadius: '4px', padding: '3px 5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '3px' }}>
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{empMap[s.employee_id]?.name.split(' ')[0] ?? '?'}</span>
-                                  <button onClick={e => { e.stopPropagation(); handleDeleteShift(s.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '11px', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+                            ) : dayShifts.map(s => {
+                              const isCalledOut = s.status === 'called_out'
+                              const emp = empMap[s.employee_id]
+                              return (
+                                <div key={s.id} style={{ marginBottom: '4px' }}>
+                                  <div style={{ fontSize: '10px', background: isCalledOut ? '#fff0f0' : '#e8edf8', color: isCalledOut ? '#c0392b' : '#185fa5', borderRadius: '4px', padding: '3px 5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '3px', opacity: isCalledOut ? 0.85 : 1 }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                      {emp?.name.split(' ')[0] ?? '?'}{isCalledOut ? ' ✗' : ''}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                                      {!isCalledOut && emp && (
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setCalloutTarget({ shiftId: s.id, shiftDate: s.shift_date, startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } }) }}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e67e22', fontSize: '10px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                                          title="Call out"
+                                        >!</button>
+                                      )}
+                                      <button onClick={e => { e.stopPropagation(); handleDeleteShift(s.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '11px', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: '10px', color: isCalledOut ? '#c0392b' : '#888', marginTop: '1px' }}>
+                                    {isCalledOut ? 'Called out' : `${formatTime(s.start_time)}–${formatTime(s.end_time)}`}
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: '10px', color: '#888', marginTop: '1px' }}>{formatTime(s.start_time)}–{formatTime(s.end_time)}</div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )
                       })}
@@ -481,5 +505,21 @@ export default function SchedulePage() {
         )}
       </div>
     </div>
+
+    {calloutTarget && (
+      <CalloutModal
+        shiftId={calloutTarget.shiftId}
+        shiftDate={calloutTarget.shiftDate}
+        startTime={calloutTarget.startTime}
+        endTime={calloutTarget.endTime}
+        calledOutEmployee={calloutTarget.employee}
+        onClose={() => setCalloutTarget(null)}
+        onCalloutMarked={(id) => {
+          setShifts(prev => prev.map(s => s.id === id ? { ...s, status: 'called_out' } : s))
+          setCalloutTarget(null)
+        }}
+      />
+    )}
+    </>
   )
 }

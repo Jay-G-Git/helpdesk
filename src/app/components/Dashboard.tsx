@@ -6,6 +6,7 @@ import { Employee, ActionType } from '../page'
 import EmployeePanel from './EmployeePanel'
 import Nav from './Nav'
 import { MegaphoneIcon } from './Icons'
+import CalloutModal from './CalloutModal'
 
 type TimeOffRequest = {
   id: number
@@ -153,8 +154,11 @@ export default function Dashboard({
   const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number }[]>([])
   const [weeklyMins, setWeeklyMins] = useState<Record<number, number>>({})
   const [upcomingTimeOff, setUpcomingTimeOff] = useState<TimeOffRequest[]>([])
-  const [todayShifts, setTodayShifts] = useState<{ employee_id: number; start_time: string; end_time: string }[]>([])
+  const [todayShifts, setTodayShifts] = useState<{ id: number; employee_id: number; start_time: string; end_time: string; status?: string }[]>([])
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+
+  type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
+  const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
 
   function selectEmpOnTab(emp: Employee, tab: 'info' | 'onboarding' | 'offboarding') {
     setOpenTab(tab)
@@ -270,7 +274,7 @@ export default function Dashboard({
       supabase.from('time_entries').select('employee_id').eq('user_id', session.user.id).is('clock_out', null),
       supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', session.user.id).gte('clock_in', weekStartISO()),
       supabase.from('time_off_requests').select('*').eq('user_id', session.user.id).eq('status', 'approved').gte('end_date', today).lte('start_date', twoWeeks).order('start_date'),
-      supabase.from('shifts').select('employee_id, start_time, end_time').eq('user_id', session.user.id).eq('shift_date', today).order('start_time'),
+      supabase.from('shifts').select('id, employee_id, start_time, end_time, status').eq('user_id', session.user.id).eq('shift_date', today).order('start_time'),
     ])
 
     setClockedInEntries(clockedIn ?? [])
@@ -737,8 +741,18 @@ export default function Dashboard({
                             {formatTime(s.start_time)} – {formatTime(s.end_time)}
                           </div>
                         </div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: isClockedIn ? '#27ae60' : '#c0392b', flexShrink: 0 }}>
-                          {isClockedIn ? '● In' : '○ Gap'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: isClockedIn ? '#27ae60' : '#c0392b' }}>
+                            {isClockedIn ? '● In' : '○ Gap'}
+                          </span>
+                          {!isClockedIn && emp && (
+                            <button
+                              onClick={() => setCalloutTarget({ shiftId: s.id, shiftDate: new Date().toISOString().slice(0, 10), startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } })}
+                              style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #fcd4d4', background: '#fff5f5', color: '#c0392b', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+                            >
+                              Find cover
+                            </button>
+                          )}
                         </div>
                       </div>
                     )
@@ -783,6 +797,21 @@ export default function Dashboard({
 
       </div>
     </div>
+
+    {calloutTarget && (
+      <CalloutModal
+        shiftId={calloutTarget.shiftId}
+        shiftDate={calloutTarget.shiftDate}
+        startTime={calloutTarget.startTime}
+        endTime={calloutTarget.endTime}
+        calledOutEmployee={calloutTarget.employee}
+        onClose={() => setCalloutTarget(null)}
+        onCalloutMarked={(id) => {
+          setTodayShifts(prev => prev.map(s => s.id === id ? { ...s, status: 'called_out' } : s))
+          setCalloutTarget(null)
+        }}
+      />
+    )}
 
     {showAnnouncementModal && (
       <div
