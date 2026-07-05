@@ -115,6 +115,7 @@ export default function Dashboard({
   const [firstName, setFirstName] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [complianceIssues, setComplianceIssues] = useState<{ name: string; missing: string[] }[]>([])
+  const [filterPaperwork, setFilterPaperwork] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('')
@@ -297,17 +298,13 @@ export default function Dashboard({
             <div className="stat-link">View team →</div>
           </div>
 
-          {/* Incomplete paperwork → open first affected employee */}
+          {/* Incomplete paperwork → filter team to show only affected employees */}
           <div
             className="stat stat-clickable"
             onClick={() => {
-              const first = complianceIssues[0]
-              if (!first) return
-              const emp = employees.find(e => e.name === first.name)
-              if (emp) {
-                onSelectEmp(emp)
-                setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
-              }
+              if (complianceIssues.length === 0) return
+              setFilterPaperwork(v => !v)
+              setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
             }}
           >
             <div className="stat-n" style={{ color: complianceIssues.length > 0 ? '#c0392b' : '#27ae60' }}>
@@ -315,7 +312,9 @@ export default function Dashboard({
             </div>
             <div className="stat-l">Incomplete paperwork</div>
             <div className="stat-link" style={{ color: complianceIssues.length > 0 ? '#c0392b' : '#9a9a9a' }}>
-              {complianceIssues.length > 0 ? `${complianceIssues[0].name} needs attention →` : 'All clear →'}
+              {complianceIssues.length > 0
+                ? filterPaperwork ? 'Show all employees →' : 'See who needs attention →'
+                : 'All clear →'}
             </div>
           </div>
 
@@ -417,6 +416,15 @@ export default function Dashboard({
               </div>
             )}
 
+            {filterPaperwork && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: '#fff5f5', border: '1px solid #fcd4d4', marginBottom: '0.75rem', fontSize: '13px', color: '#c0392b' }}>
+                <span>Showing {complianceIssues.length} employee{complianceIssues.length !== 1 ? 's' : ''} with incomplete paperwork</span>
+                <button onClick={() => setFilterPaperwork(false)} style={{ marginLeft: 'auto', fontSize: '12px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                  Clear filter
+                </button>
+              </div>
+            )}
+
             {loading ? (
               <div className="loading-state">Loading your team...</div>
             ) : employees.length === 0 ? (
@@ -425,6 +433,7 @@ export default function Dashboard({
               <div className="emp-grid">
                 {employees.filter(emp => {
                   if (!showTerminated && emp.status === 'terminated') return false
+                  if (filterPaperwork && !complianceIssues.find(c => c.name === emp.name)) return false
                   if (searchQuery) {
                     const q = searchQuery.toLowerCase()
                     return emp.name.toLowerCase().includes(q) || emp.role?.toLowerCase().includes(q)
@@ -491,12 +500,25 @@ export default function Dashboard({
                     { label: 'Signed', done: emp.agreed },
                   ]
                   const doneCount = steps.filter(s => s.done).length
+                  const fullEmp = employees.find(e => e.id === emp.empId)
                   return (
-                    <div key={emp.empId} style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                      padding: '0.75rem', borderRadius: '8px',
-                      background: '#fafafa', border: '1px solid #eee',
-                    }}>
+                    <div
+                      key={emp.empId}
+                      onClick={() => {
+                        if (!fullEmp) return
+                        selectEmpOnTab(fullEmp, 'onboarding')
+                        setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                        padding: '0.75rem', borderRadius: '8px',
+                        background: '#fafafa', border: '1px solid #eee',
+                        cursor: fullEmp ? 'pointer' : 'default',
+                        transition: 'border-color 0.15s, box-shadow 0.15s',
+                      }}
+                      onMouseEnter={e => { if (fullEmp) { (e.currentTarget as HTMLElement).style.borderColor = '#185fa5'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(24,95,165,0.1)' } }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#eee'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
+                    >
                       <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
                         {emp.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
                       </div>
