@@ -8,7 +8,22 @@ import DocumentLibrary from '../components/DocumentLibrary'
 import { Suspense } from 'react'
 import { ReceiptIcon, CalendarIcon, BookOpenIcon } from '../components/Icons'
 
-type Tab = 'account' | 'onboarding' | 'notifications' | 'billing' | 'team' | 'integrations' | 'danger'
+type Tab = 'account' | 'hours' | 'onboarding' | 'notifications' | 'billing' | 'team' | 'integrations' | 'danger'
+
+type DayKey = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
+type DayHours = { open: string; close: string; closed: boolean }
+type BusinessHours = Record<DayKey, DayHours>
+const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+const DAY_LABELS: Record<DayKey, string> = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' }
+const DEFAULT_HOURS: BusinessHours = {
+  sun: { open: '10:00', close: '18:00', closed: true },
+  mon: { open: '09:00', close: '17:00', closed: false },
+  tue: { open: '09:00', close: '17:00', closed: false },
+  wed: { open: '09:00', close: '17:00', closed: false },
+  thu: { open: '09:00', close: '17:00', closed: false },
+  fri: { open: '09:00', close: '17:00', closed: false },
+  sat: { open: '10:00', close: '18:00', closed: false },
+}
 
 type Field = { id: string; label: string; placeholder: string }
 const DEFAULT_FIELDS: Field[] = [
@@ -63,6 +78,11 @@ function SettingsContent() {
   const [userId, setUserId] = useState('')
   const [accessToken, setAccessToken] = useState('')
   const [userEmail, setUserEmail] = useState('')
+
+  // Business hours
+  const [bizHours, setBizHours] = useState<BusinessHours>(DEFAULT_HOURS)
+  const [hoursSaving, setHoursSaving] = useState(false)
+  const [hoursMsg, setHoursMsg] = useState('')
 
   // Account
   const [bizName, setBizName] = useState('')
@@ -120,6 +140,7 @@ function SettingsContent() {
       setAddress(bizData.profile.address ?? '')
       setTimezone(bizData.profile.timezone ?? 'America/New_York')
       setContactEmail(bizData.profile.contact_email ?? '')
+      if (bizData.profile.business_hours) setBizHours(bizData.profile.business_hours)
     }
 
     if (tmplRes.data?.fields?.length) setFields(tmplRes.data.fields)
@@ -148,6 +169,18 @@ function SettingsContent() {
     setAcctMsg(res.ok ? 'Saved.' : 'Error saving.')
     setAcctSaving(false)
     setTimeout(() => setAcctMsg(''), 2000)
+  }
+
+  async function saveHours() {
+    setHoursSaving(true); setHoursMsg('')
+    const res = await fetch('/api/settings/business', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ business_name: bizName, address, timezone, contact_email: contactEmail, business_hours: bizHours }),
+    })
+    setHoursMsg(res.ok ? 'Saved.' : 'Error saving.')
+    setHoursSaving(false)
+    setTimeout(() => setHoursMsg(''), 2000)
   }
 
   async function saveTemplate() {
@@ -221,6 +254,7 @@ function SettingsContent() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'account', label: 'Account' },
+    { key: 'hours', label: 'Hours' },
     { key: 'onboarding', label: 'Onboarding' },
     { key: 'notifications', label: 'Notifications' },
     { key: 'billing', label: 'Billing' },
@@ -278,6 +312,47 @@ function SettingsContent() {
                 {acctSaving ? 'Saving...' : 'Save'}
               </button>
               {acctMsg && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{acctMsg}</div>}
+            </div>
+          )}
+
+          {/* HOURS */}
+          {tab === 'hours' && (
+            <div className="card">
+              <div className="section-label" style={{ marginBottom: '0.25rem' }}>Business hours</div>
+              <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                Set when you're open. These times pre-fill the shift form and bound auto-generated schedules.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                {DAY_KEYS.map((day, i) => {
+                  const h = bizHours[day]
+                  return (
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i < 6 ? '1px solid #f0f0f0' : 'none' }}>
+                      <div style={{ width: '96px', fontSize: '13px', fontWeight: 500, color: h.closed ? '#bbb' : '#1a1a1a', flexShrink: 0 }}>{DAY_LABELS[day]}</div>
+                      {h.closed ? (
+                        <div style={{ flex: 1, fontSize: '13px', color: '#bbb' }}>Closed</div>
+                      ) : (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input type="time" value={h.open} onChange={e => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}
+                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', border: '1px solid #dde1ea', borderRadius: '6px' }} />
+                          <span style={{ fontSize: '12px', color: '#aaa' }}>to</span>
+                          <input type="time" value={h.close} onChange={e => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}
+                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', border: '1px solid #dde1ea', borderRadius: '6px' }} />
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], closed: !prev[day].closed } }))}
+                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: `1px solid ${h.closed ? '#dde1ea' : '#fcd4d4'}`, background: h.closed ? '#f5f5f5' : '#fff5f5', color: h.closed ? '#888' : '#c0392b', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}
+                      >
+                        {h.closed ? 'Open' : 'Close'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <button className="btn auth-btn-primary" onClick={saveHours} disabled={hoursSaving} style={{ marginTop: '1.25rem', width: 'auto' }}>
+                {hoursSaving ? 'Saving...' : 'Save hours'}
+              </button>
+              {hoursMsg && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{hoursMsg}</div>}
             </div>
           )}
 

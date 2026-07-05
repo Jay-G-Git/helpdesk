@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { business_name, address, timezone, contact_email, logo_url } = body
+  const { business_name, address, timezone, contact_email, logo_url, business_hours } = body
 
   const { error } = await supabaseAdmin
     .from('business_profiles')
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
       timezone,
       contact_email,
       logo_url: logo_url ?? null,
+      business_hours: business_hours ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 

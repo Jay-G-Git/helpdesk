@@ -8,6 +8,10 @@ import CalloutModal from '../components/CalloutModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type DayKey = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
+type BusinessHours = Record<DayKey, { open: string; close: string; closed: boolean }>
+const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
 type Employee = { id: number; name: string; role: string; pay_type: string; pay_rate: number | null }
 type Shift = { id: number; employee_id: number; shift_date: string; start_time: string; end_time: string; notes: string | null; status?: string }
 type TimeOffRequest = { id: number; employee_id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string; created_at: string }
@@ -104,6 +108,9 @@ export default function TimePage() {
     const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10)
   })
 
+  // Business hours
+  const [bizHours, setBizHours] = useState<BusinessHours | null>(null)
+
   // Callout modal
   type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
   const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
@@ -118,6 +125,10 @@ export default function TimePage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
     setUserId(session.user.id)
+
+    // Load business hours
+    fetch('/api/settings/business', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => r.json()).then(d => { if (d.profile?.business_hours) setBizHours(d.profile.business_hours) })
 
     const [{ data: emps }, { data: sh }, { data: reqs }, { data: ents }] = await Promise.all([
       supabase.from('employees').select('id, name, role, pay_type, pay_rate').eq('user_id', session.user.id).eq('status', 'active'),
@@ -164,7 +175,12 @@ export default function TimePage() {
   }
 
   function openShiftFormForDate(dateStr: string) {
-    setShiftDate(dateStr); setShiftEmpId(''); setShiftStart('09:00'); setShiftEnd('17:00'); setShiftNotes('')
+    const dayKey = DAY_KEYS[new Date(dateStr + 'T00:00:00').getDay()]
+    const hours = bizHours?.[dayKey]
+    setShiftDate(dateStr); setShiftEmpId('')
+    setShiftStart(hours && !hours.closed ? hours.open : '09:00')
+    setShiftEnd(hours && !hours.closed ? hours.close : '17:00')
+    setShiftNotes('')
     setShowShiftForm(true)
   }
 
@@ -195,8 +211,18 @@ export default function TimePage() {
     const existing = shifts.filter(s => weekDates.includes(s.shift_date))
     const newShifts: object[] = []
     weekDates.forEach((date, i) => {
+      const dayKey = DAY_KEYS[i]
+      const dayHours = bizHours?.[dayKey]
+      // Skip days the business is closed
+      if (dayHours?.closed) return
       availability.filter(a => a.day_of_week === i && !isOff(a.employee_id, date) && !existing.some(s => s.employee_id === a.employee_id && s.shift_date === date))
-        .forEach(a => newShifts.push({ user_id: userId, employee_id: a.employee_id, shift_date: date, start_time: a.start_time, end_time: a.end_time, notes: 'Auto-generated' }))
+        .forEach(a => {
+          // Clamp shift times to business hours if set
+          const start = dayHours ? (a.start_time < dayHours.open ? dayHours.open : a.start_time) : a.start_time
+          const end = dayHours ? (a.end_time > dayHours.close ? dayHours.close : a.end_time) : a.end_time
+          if (start >= end) return // skip zero-length shifts after clamping
+          newShifts.push({ user_id: userId, employee_id: a.employee_id, shift_date: date, start_time: start, end_time: end, notes: 'Auto-generated' })
+        })
     })
     if (!newShifts.length) { setGenMsg('No new shifts to generate.'); setGenerating(false); return }
     const { error } = await supabase.from('shifts').insert(newShifts)
