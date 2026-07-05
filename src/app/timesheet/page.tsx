@@ -86,7 +86,7 @@ export default function TimesheetPage() {
 
   return (
     <div className="dash-wrap">
-      <Nav active="schedule" />
+      <Nav active="timesheet" />
       <div className="dash-content">
         <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '0.25rem' }}>Timesheets</div>
         <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.5rem' }}>Week of {new Date(weekStart()).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</div>
