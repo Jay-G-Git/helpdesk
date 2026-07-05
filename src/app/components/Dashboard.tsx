@@ -152,7 +152,7 @@ export default function Dashboard({
       if (user) {
         const fullName: string = user.user_metadata?.full_name ?? ''
         // Fall back to email prefix for accounts that predate the name field
-        const first = fullName.trim().split(' ')[0] || (user.email ?? '').split('@')[0] || ''
+        const first = fullName.trim().split(' ')[0]
         if (first) setFirstName(first)
       }
 
@@ -283,12 +283,11 @@ export default function Dashboard({
         <div className="dash-greeting">
           {greeting()}{firstName ? `, ${firstName}` : ''}
         </div>
-        <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px', marginBottom: '0.25rem' }}>
-          {businessName
-            ? <>Here&apos;s how <strong>{businessName}</strong> is doing today.</>
-            : <><a href="/settings" style={{ color: '#185fa5' }}>Add your business name</a> in Settings.</>
-          }
-        </div>
+        {businessName && (
+          <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px', marginBottom: '0.25rem' }}>
+            Here&apos;s how <strong>{businessName}</strong> is doing today.
+          </div>
+        )}
 
         <div className="dash-stats">
           <div className="stat">
