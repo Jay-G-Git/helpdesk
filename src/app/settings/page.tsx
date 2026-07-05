@@ -612,7 +612,7 @@ function SettingsContent() {
                           disabled={roleUpdating === emp.id}
                           onClick={e => e.stopPropagation()}
                           onChange={e => { e.stopPropagation(); updateEmployeeRole(emp.id, e.target.value) }}
-                          style={{ fontSize: '12px', padding: '4px 7px', border: '1px solid #dde1ea', borderRadius: '6px', cursor: 'pointer', color: '#555', flexShrink: 0 }}
+                          style={{ fontSize: '12px', padding: '4px 7px', border: '1px solid #dde1ea', borderRadius: '6px', cursor: 'pointer', color: '#555', flexShrink: 0, width: 'auto' }}
                         >
                           <option value="employee">Employee</option>
                           <option value="manager">Manager</option>
