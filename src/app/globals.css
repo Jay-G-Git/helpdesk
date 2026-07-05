@@ -880,14 +880,14 @@ body:has(.dash-wrap) {
 }
 
 .user-avatar {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #e6f1fb;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #185fa5;
   flex-shrink: 0;
@@ -1172,13 +1172,23 @@ body:has(.dash-wrap) {
 }
 
 .notif-bell {
+  width: 32px;
+  height: 32px;
   background: none;
   border: none;
-  font-size: 1.1rem;
+  border-radius: 50%;
   cursor: pointer;
   position: relative;
-  padding: 4px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  color: #555;
+  transition: background 0.15s;
+}
+.notif-bell:hover {
+  background: #f0f2f5;
 }
 
 .notif-badge {
