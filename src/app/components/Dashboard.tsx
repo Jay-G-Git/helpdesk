@@ -281,7 +281,7 @@ export default function Dashboard({
 
       <div className="dash-content">
         <div className="dash-greeting">
-          {greeting()}{firstName ? `, ${firstName}` : ''}
+          {greeting()}{firstName ? `, ${firstName}` : ''}!
         </div>
         {businessName && (
           <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px', marginBottom: '0.25rem' }}>
@@ -457,17 +457,6 @@ export default function Dashboard({
               </div>
             )}
 
-            {selectedEmp && (
-              <EmployeePanel
-                employee={selectedEmp}
-                initialTab={openTab}
-                onClose={() => { onSelectEmp(null as any); setOpenTab('info') }}
-                onUpdated={onUpdateEmployee}
-                onDelete={id => { onDeleteEmployee(id); onSelectEmp(null as any) }}
-                onStartAction={onStartAction}
-              />
-            )}
-
           </div>
 
           {onboardingProgress.length > 0 && (
@@ -583,6 +572,20 @@ export default function Dashboard({
           </div>
 
         </div>
+
+        {selectedEmp && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <EmployeePanel
+              employee={selectedEmp}
+              initialTab={openTab}
+              onClose={() => { onSelectEmp(null as any); setOpenTab('info') }}
+              onUpdated={onUpdateEmployee}
+              onDelete={id => { onDeleteEmployee(id); onSelectEmp(null as any) }}
+              onStartAction={onStartAction}
+            />
+          </div>
+        )}
+
       </div>
     </div>
   )
