@@ -145,15 +145,25 @@ export default function Dashboard({
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
-      // Name: prefer full_name from metadata, fall back to email prefix
-      const fullName: string = session.user.user_metadata?.full_name ?? ''
-      const first = fullName.trim().split(' ')[0]
-      if (first) setFirstName(first)
+      const token = session.access_token
 
-      // Business name: check DB first, then metadata
-      const { data: biz } = await supabase.from('business_profiles').select('business_name').eq('user_id', session.user.id).maybeSingle()
-      const bizName = biz?.business_name || (session.user.user_metadata?.business_name as string | undefined) || ''
-      if (bizName) setBusinessName(bizName)
+      // getUser() hits the server and returns fresh metadata (not stale JWT)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const fullName: string = user.user_metadata?.full_name ?? ''
+        const first = fullName.trim().split(' ')[0]
+        if (first) setFirstName(first)
+      }
+
+      // Business name: use the server-side API route (bypasses RLS)
+      const res = await fetch('/api/settings/business', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const bizName: string = data?.profile?.business_name ?? ''
+        if (bizName) setBusinessName(bizName)
+      }
     })
   }, [])
 
