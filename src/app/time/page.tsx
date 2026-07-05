@@ -386,9 +386,9 @@ export default function TimePage() {
                 </div>
                 {/* Open shift toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                     <input type="checkbox" checked={shiftIsOpen} onChange={e => { setShiftIsOpen(e.target.checked); if (e.target.checked) setShiftEmpId('') }} />
-                    Open shift (no employee assigned — post to pool)
+                    Open shift — post to pool (no employee assigned)
                   </label>
                 </div>
 
@@ -413,7 +413,7 @@ export default function TimePage() {
 
                 {/* Repeat weekly */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                     <input type="checkbox" checked={repeatEnabled} onChange={e => { setRepeatEnabled(e.target.checked); if (!e.target.checked) setRepeatWeeks(1) }} />
                     Repeat weekly for
                   </label>
