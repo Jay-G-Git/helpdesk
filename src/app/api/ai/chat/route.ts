@@ -373,14 +373,20 @@ export async function POST(req: NextRequest) {
 
   const role = await getUserRole(user.id, user.email ?? '')
 
+  // Owners never get employee tools — even if they're also in the employees table
   const tools = [
-    ...(role.isOwner ? OWNER_TOOLS : []),
-    ...(role.isEmployee ? EMPLOYEE_TOOLS : []),
+    ...(role.isOwner ? OWNER_TOOLS : EMPLOYEE_TOOLS),
   ]
 
+  const nowStr = new Date().toLocaleString('en-US', {
+    timeZone: timezone,
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+
   const systemPrompt = role.isOwner
-    ? `You are an AI HR assistant for ${role.businessName ?? 'this business'}. You help the owner manage their team. You can list employees, check analytics, manage applicants, approve time off, generate job descriptions, and create job postings. Be concise and action-oriented. When you take an action, confirm what you did clearly.`
-    : `You are an AI HR assistant for ${role.employeeName ?? 'this employee'}. You help them with their work — clocking in/out, checking PTO, requesting time off, and viewing their schedule. Be friendly and concise. Always confirm actions clearly.`
+    ? `You are an AI HR assistant for ${role.businessName ?? 'this business'}. You help the owner manage their team. You can list employees, check analytics, manage applicants, approve time off, generate job descriptions, and create job postings. Be concise and action-oriented. When you take an action, confirm what you did clearly. The current date and time is: ${nowStr}.`
+    : `You are an AI HR assistant for ${role.employeeName ?? 'this employee'}. You help them with their work — clocking in/out, checking PTO, requesting time off, and viewing their schedule. Be friendly and concise. Always confirm actions clearly. The current date and time is: ${nowStr}.`
 
   // Agentic loop — keep calling until no more tool calls
   let currentMessages: Anthropic.MessageParam[] = messages
