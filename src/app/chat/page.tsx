@@ -63,6 +63,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false)
   const [token, setToken] = useState('')
   const [isOwner, setIsOwner] = useState<boolean | null>(null)
+  const [timezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -102,6 +103,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          timezone,
         }),
       })
       const data = await res.json()
@@ -117,7 +119,7 @@ export default function ChatPage() {
 
   return (
     <div className="dash-wrap">
-      <Nav active="chat" />
+      <Nav active="dashboard" />
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
 
         {/* Messages */}

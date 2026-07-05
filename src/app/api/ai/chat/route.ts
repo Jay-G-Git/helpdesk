@@ -162,12 +162,21 @@ const EMPLOYEE_TOOLS: Anthropic.Tool[] = [
 
 // ─── Tool execution ───────────────────────────────────────────────────────────
 
+function localTime(timezone: string): string {
+  return new Date().toLocaleTimeString('en-US', { timeZone: timezone, hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+function localDate(timezone: string): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: timezone }) // YYYY-MM-DD
+}
+
 async function executeTool(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   input: Record<string, any>,
   userId: string,
   role: Awaited<ReturnType<typeof getUserRole>>,
+  timezone: string,
 ): Promise<string> {
   const ownerId = role.ownerId ?? userId
 
@@ -209,13 +218,25 @@ async function executeTool(
       const { data: open } = await supabaseAdmin
         .from('time_entries').select('id').eq('employee_id', role.employeeId ?? 0).is('clock_out', null).maybeSingle()
       if (open) return 'You are already clocked in.'
+
+      // Check for a scheduled shift today in the user's timezone
+      const today = localDate(timezone)
+      const { data: shift } = await supabaseAdmin
+        .from('schedules').select('start_time, end_time')
+        .eq('employee_id', role.employeeId ?? 0).eq('date', today).maybeSingle()
+
       const { error } = await supabaseAdmin.from('time_entries').insert({
         employee_id: role.employeeId,
         user_id: ownerId,
         clock_in: new Date().toISOString(),
       })
       if (error) return `Error: ${error.message}`
-      return `Clocked in at ${new Date().toLocaleTimeString()}.`
+
+      const timeStr = localTime(timezone)
+      if (!shift) {
+        return `Clocked in at ${timeStr}. ⚠️ No shift is scheduled for you today — heads up, your manager will see this.`
+      }
+      return `Clocked in at ${timeStr}. Your scheduled shift is ${shift.start_time}–${shift.end_time}.`
     }
 
     case 'clock_out': {
@@ -226,11 +247,11 @@ async function executeTool(
       const now = new Date()
       const mins = Math.round((now.getTime() - clockIn.getTime()) / 60000)
       await supabaseAdmin.from('time_entries').update({ clock_out: now.toISOString(), total_minutes: mins }).eq('id', entry.id)
-      return `Clocked out at ${now.toLocaleTimeString()}. Shift duration: ${Math.floor(mins / 60)}h ${mins % 60}m.`
+      return `Clocked out at ${localTime(timezone)}. Shift duration: ${Math.floor(mins / 60)}h ${mins % 60}m.`
     }
 
     case 'get_my_schedule': {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDate(timezone)
       const { data } = await supabaseAdmin
         .from('schedules').select('date, start_time, end_time, notes')
         .eq('employee_id', role.employeeId ?? 0).gte('date', today).order('date').limit(14)
@@ -346,8 +367,9 @@ export async function POST(req: NextRequest) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { messages } = await req.json()
+  const { messages, timezone: tz } = await req.json()
   if (!messages?.length) return NextResponse.json({ error: 'No messages' }, { status: 400 })
+  const timezone = tz ?? 'UTC'
 
   const role = await getUserRole(user.id, user.email ?? '')
 
@@ -385,7 +407,7 @@ export async function POST(req: NextRequest) {
       const toolResults: Anthropic.ToolResultBlockParam[] = []
 
       for (const tb of toolUseBlocks) {
-        const result = await executeTool(tb.name, tb.input as Record<string, unknown>, user.id, role)
+        const result = await executeTool(tb.name, tb.input as Record<string, unknown>, user.id, role, timezone)
         toolResults.push({ type: 'tool_result', tool_use_id: tb.id, content: result })
       }
 
