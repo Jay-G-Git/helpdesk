@@ -451,6 +451,52 @@ export default function TimePage() {
               </div>
             </div>
 
+            {/* Open shift pool */}
+            {(() => {
+              const openPool = shifts.filter(s => s.is_open_shift && !s.employee_id)
+              if (!openPool.length) return null
+              return (
+                <div className="card" style={{ marginBottom: '1rem', border: '1px solid #d1fae5' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div className="section-label" style={{ color: '#166534' }}>Open shift pool</div>
+                    <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#166534', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>{openPool.length}</span>
+                  </div>
+                  {openPool.map(s => {
+                    const isPast = s.shift_date < today
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: '8px', background: isPast ? '#fff9f0' : '#f0fdf4', border: `1px solid ${isPast ? '#fde8c8' : '#d1fae5'}`, marginBottom: '0.5rem' }}>
+                        <div style={{ width: '110px', fontSize: '12px', flexShrink: 0, fontWeight: isPast ? 600 : 400, color: isPast ? '#c0392b' : '#555' }}>
+                          {new Date(s.shift_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {isPast && <span style={{ display: 'block', fontSize: '10px', color: '#e67e22' }}>overdue</span>}
+                        </div>
+                        <div style={{ flex: 1, fontSize: '13px', fontWeight: 500 }}>
+                          {fmt(s.start_time)} – {fmt(s.end_time)}
+                          {s.notes && <span style={{ fontWeight: 400, color: '#888', fontSize: '12px' }}> · {s.notes}</span>}
+                        </div>
+                        <select
+                          defaultValue=""
+                          onChange={async e => {
+                            const empId = Number(e.target.value)
+                            if (!empId) return
+                            await supabase.from('shifts').update({ employee_id: empId, is_open_shift: false }).eq('id', s.id)
+                            setShifts(prev => prev.map(sh => sh.id === s.id ? { ...sh, employee_id: empId, is_open_shift: false } : sh))
+                          }}
+                          style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid #dde1ea', borderRadius: '6px', cursor: 'pointer', background: '#fff' }}
+                        >
+                          <option value="">Assign to...</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                        <button
+                          onClick={() => handleDeleteShift(s.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '18px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                          title="Remove shift">×</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+
             {/* Pending swap requests */}
             {pendingSwaps.length > 0 && (
               <div className="card" style={{ marginBottom: '1rem', border: '1px solid #fde8c8' }}>
