@@ -59,6 +59,17 @@ function greeting() {
   return 'Good evening'
 }
 
+function weekStartISO() {
+  const d = new Date()
+  d.setDate(d.getDate() - d.getDay())
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
+function fmtShortDate(s: string) {
+  return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 function AnnouncementForm() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
@@ -133,6 +144,10 @@ export default function Dashboard({
   const [showTerminated, setShowTerminated] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openTab, setOpenTab] = useState<'info' | 'onboarding' | 'offboarding'>('info')
+  const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number }[]>([])
+  const [weeklyMins, setWeeklyMins] = useState<Record<number, number>>({})
+  const [upcomingTimeOff, setUpcomingTimeOff] = useState<TimeOffRequest[]>([])
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
 
   function selectEmpOnTab(emp: Employee, tab: 'info' | 'onboarding' | 'offboarding') {
     setOpenTab(tab)
@@ -174,6 +189,7 @@ export default function Dashboard({
     loadComplianceIssues()
     loadOnboardingProgress()
     loadTimeOffRequests()
+    loadOperationalData()
   }, [docsGenerated, employees])
 
   async function loadComplianceIssues() {
@@ -236,6 +252,33 @@ export default function Dashboard({
     if (data) setTimeOffRequests(data)
   }
 
+  async function loadOperationalData() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const today = new Date().toISOString().slice(0, 10)
+    const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+    const [{ data: clockedIn }, { data: weekly }, { data: upcoming }] = await Promise.all([
+      supabase.from('time_entries').select('employee_id').eq('user_id', session.user.id).is('clock_out', null),
+      supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', session.user.id).gte('clock_in', weekStartISO()),
+      supabase.from('time_off_requests').select('*').eq('user_id', session.user.id).eq('status', 'approved').gte('end_date', today).lte('start_date', twoWeeks).order('start_date'),
+    ])
+
+    setClockedInEntries(clockedIn ?? [])
+
+    const mins: Record<number, number> = {}
+    for (const e of (weekly ?? [])) {
+      const elapsed = e.clock_out
+        ? (e.total_minutes ?? 0)
+        : Math.floor((Date.now() - new Date(e.clock_in).getTime()) / 60000)
+      mins[e.employee_id] = (mins[e.employee_id] ?? 0) + elapsed
+    }
+    setWeeklyMins(mins)
+
+    setUpcomingTimeOff(upcoming ?? [])
+  }
+
   async function handleTimeOff(id: number, status: 'approved' | 'denied') {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
@@ -277,18 +320,30 @@ export default function Dashboard({
   }
 
   return (
+    <>
     <div className="dash-wrap">
       <Nav active="dashboard" />
 
       <div className="dash-content">
-        <div className="dash-greeting">
-          {greeting()}{firstName ? `, ${firstName}` : ''}!
-        </div>
-        {businessName && (
-          <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px', marginBottom: '0.25rem' }}>
-            Here&apos;s how <strong>{businessName}</strong> is doing today.
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div>
+            <div className="dash-greeting">
+              {greeting()}{firstName ? `, ${firstName}` : ''}!
+            </div>
+            {businessName && (
+              <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px' }}>
+                Here&apos;s how <strong>{businessName}</strong> is doing today.
+              </div>
+            )}
           </div>
-        )}
+          <button
+            className="btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexShrink: 0 }}
+            onClick={() => setShowAnnouncementModal(true)}
+          >
+            <MegaphoneIcon size={14} /> Send announcement
+          </button>
+        </div>
 
         <div className="dash-stats">
           {/* Active employees → scroll to team */}
@@ -318,11 +373,21 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Docs generated → analytics page */}
-          <div className="stat stat-clickable" onClick={() => window.location.href = '/analytics'}>
-            <div className="stat-n">{loading ? '–' : docsGenerated}</div>
-            <div className="stat-l">Docs generated</div>
-            <div className="stat-link">View analytics →</div>
+          {/* Clocked in now → timesheets */}
+          <div className="stat stat-clickable" onClick={() => window.location.href = '/timesheet'}>
+            <div className="stat-n">{clockedInEntries.length}</div>
+            <div className="stat-l">Clocked in now</div>
+            <div className="stat-link">
+              {clockedInEntries.length > 0
+                ? (() => {
+                    const names = employees
+                      .filter(e => clockedInEntries.some(c => c.employee_id === e.id))
+                      .map(e => e.name.split(' ')[0])
+                    return names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') + ' →'
+                  })()
+                : 'View timesheets →'
+              }
+            </div>
           </div>
         </div>
 
@@ -598,14 +663,90 @@ export default function Dashboard({
             </div>
           )}
 
-          <div className="card">
-            <div className="section-label">Announcements</div>
-            <AnnouncementForm />
-          </div>
+          {/* Overtime alerts — only shown when someone hits 32h+ */}
+          {(() => {
+            const alerts = employees
+              .filter(emp => (weeklyMins[emp.id] ?? 0) >= 32 * 60)
+              .map(emp => ({ emp, mins: weeklyMins[emp.id] ?? 0, isOver: (weeklyMins[emp.id] ?? 0) >= 40 * 60 }))
+            if (alerts.length === 0) return null
+            return (
+              <div className="card">
+                <div className="section-label" style={{ marginBottom: '0.75rem' }}>
+                  Overtime alerts
+                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#c0392b', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>{alerts.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {alerts.map(({ emp, mins, isOver }) => {
+                    const hrs = Math.floor(mins / 60)
+                    const m = mins % 60
+                    const pct = Math.min((mins / (40 * 60)) * 100, 100)
+                    return (
+                      <div key={emp.id} style={{ padding: '0.65rem 0.75rem', borderRadius: '8px', background: isOver ? '#fff5f5' : '#fffbf0', border: `1px solid ${isOver ? '#fcd4d4' : '#fde8b4'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 500 }}>{emp.name}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: isOver ? '#c0392b' : '#e67e22' }}>
+                            {hrs}h{m > 0 ? ` ${m}m` : ''} {isOver ? '· over 40h' : '· approaching'}
+                          </span>
+                        </div>
+                        <div style={{ height: 5, background: '#f0f0f0', borderRadius: 3 }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: isOver ? '#c0392b' : '#e67e22', borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Upcoming time off */}
+          {upcomingTimeOff.length > 0 && (
+            <div className="card">
+              <div className="section-label" style={{ marginBottom: '0.75rem' }}>Upcoming time off</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {upcomingTimeOff.map(req => {
+                  const emp = employees.find(e => e.id === req.employee_id)
+                  const start = fmtShortDate(req.start_date)
+                  const end = fmtShortDate(req.end_date)
+                  const range = start === end ? start : `${start} – ${end}`
+                  return (
+                    <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: '8px', background: '#fafafa', border: '1px solid #eee' }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {emp ? initials(emp.name) : '??'}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name || 'Employee'}</div>
+                        <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>{req.type} · {range}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
         </div>
 
       </div>
     </div>
+
+    {showAnnouncementModal && (
+      <div
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        onClick={() => setShowAnnouncementModal(false)}
+      >
+        <div
+          style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', width: '460px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>Send announcement</div>
+            <button onClick={() => setShowAnnouncementModal(false)} style={{ fontSize: '22px', lineHeight: 1, color: '#9a9a9a', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
+          </div>
+          <AnnouncementForm />
+        </div>
+      </div>
+    )}
+    </>
   )
 }
