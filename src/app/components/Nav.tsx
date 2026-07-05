@@ -86,6 +86,7 @@ export default function Nav({ active }: Props) {
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
+    <>
     <div className="dash-nav">
       <div className="dash-nav-left">
         <div className="logo">help<span>desk</span></div>
@@ -146,5 +147,6 @@ export default function Nav({ active }: Props) {
     </div>
 
     <ChatWidget />
+    </>
   )
 }
