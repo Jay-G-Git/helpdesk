@@ -500,7 +500,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
             <div className="doc-actions">
               <button className="doc-btn" onClick={copyDoc}>Copy</button>
               <button className="doc-btn" onClick={generate}>Regenerate</button>
-              <button className="doc-btn" onClick={markDone} disabled={saving || saved}>
+              <button className="doc-btn" onClick={() => markDone()} disabled={saving || saved}>
                 {saving ? 'Saving...' : saved ? '✓ Saved to records' : 'Save to records'}
               </button>
             </div>
