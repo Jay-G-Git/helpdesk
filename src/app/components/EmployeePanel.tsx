@@ -441,6 +441,12 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
             </button>
             {saveMsg && <div className="done-msg">{saveMsg}</div>}
           </div>
+
+          <div style={{ marginTop: '1.25rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+            <button className="action-card-sm" onClick={() => onStartAction('checkin')}>
+              <span>✓</span> Write a check-in note
+            </button>
+          </div>
         </div>
       )}
 
@@ -473,11 +479,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
               </div>
             </>
           )}
-          <div style={{ marginTop: '1.25rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-            <button className="action-card-sm" onClick={() => onStartAction('checkin')}>
-              <span>✓</span> Write a check-in note
-            </button>
-          </div>
         </div>
       )}
 
