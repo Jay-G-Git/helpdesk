@@ -34,6 +34,36 @@ function getWeekDays(offset: number) {
   const d = new Date(); d.setDate(d.getDate() - d.getDay() + offset * 7); d.setHours(0, 0, 0, 0)
   return Array.from({ length: 7 }, (_, i) => { const day = new Date(d); day.setDate(d.getDate() + i); return day.toISOString().slice(0, 10) })
 }
+// Stable per-employee color palette
+const EMP_COLORS = [
+  { bg: '#dbeafe', text: '#1e40af' },
+  { bg: '#dcfce7', text: '#166534' },
+  { bg: '#fef3c7', text: '#92400e' },
+  { bg: '#fce7f3', text: '#9d174d' },
+  { bg: '#ede9fe', text: '#6d28d9' },
+  { bg: '#ffedd5', text: '#9a3412' },
+  { bg: '#cffafe', text: '#155e75' },
+  { bg: '#d1fae5', text: '#065f46' },
+  { bg: '#fee2e2', text: '#991b1b' },
+  { bg: '#f3e8ff', text: '#7e22ce' },
+]
+
+function getMonthGrid(offset: number) {
+  const now = new Date()
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  const year = d.getFullYear(); const month = d.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const start = new Date(firstDay); start.setDate(1 - firstDay.getDay())
+  return {
+    label: firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    month,
+    days: Array.from({ length: 42 }, (_, i) => {
+      const day = new Date(start); day.setDate(start.getDate() + i)
+      return { iso: day.toISOString().slice(0, 10), inMonth: day.getMonth() === month }
+    }),
+  }
+}
+
 function shiftHours(s: Shift) {
   const [sh, sm] = s.start_time.split(':').map(Number)
   const [eh, em] = s.end_time.split(':').map(Number)
@@ -62,8 +92,10 @@ export default function TimePage() {
   const [savingShift, setSavingShift] = useState(false)
   const [shiftMsg, setShiftMsg] = useState('')
 
-  // Weekly view
+  // Weekly / monthly view
   const [weekOffset, setWeekOffset] = useState(0)
+  const [shiftView, setShiftView] = useState<'week' | 'month'>('week')
+  const [monthOffset, setMonthOffset] = useState(0)
 
   // Generate schedule
   const [generating, setGenerating] = useState(false)
@@ -308,56 +340,156 @@ export default function TimePage() {
               </div>
             </div>
 
-            {/* Weekly grid */}
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o - 1)}>←</button>
-                <div style={{ fontWeight: 600, fontSize: '14px' }}>{weekLabel}</div>
-                <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o + 1)}>→</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-                {weekDays.map((dateStr, i) => {
-                  const dayShifts = shifts.filter(s => s.shift_date === dateStr)
-                  const isToday = dateStr === today
-                  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]
-                  const dayNum = new Date(dateStr + 'T00:00:00').getDate()
-                  return (
-                    <div key={dateStr} onClick={() => openShiftFormForDate(dateStr)}
-                      style={{ minHeight: '100px', border: `1px solid ${isToday ? '#185fa5' : '#eee'}`, borderRadius: '8px', padding: '8px', background: isToday ? '#f0f6ff' : '#fafafa', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#185fa5')}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = isToday ? '#185fa5' : '#eee')}
-                    >
-                      <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? '#185fa5' : '#888', marginBottom: '6px' }}>{dayName} {dayNum}</div>
-                      {dayShifts.length === 0 ? (
-                        <div style={{ fontSize: '10px', color: '#ccc' }}>+ Add</div>
-                      ) : dayShifts.map(s => {
-                        const isCalledOut = s.status === 'called_out'
-                        const emp = empMap[s.employee_id]
-                        return (
-                          <div key={s.id} style={{ marginBottom: '4px' }}>
-                            <div style={{ fontSize: '10px', background: isCalledOut ? '#fff0f0' : '#e8edf8', color: isCalledOut ? '#c0392b' : '#185fa5', borderRadius: '4px', padding: '3px 5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '3px' }}>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                {emp?.name.split(' ')[0] ?? '?'}{isCalledOut ? ' ✗' : ''}
-                              </span>
-                              <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
-                                {!isCalledOut && emp && (
-                                  <button onClick={e => { e.stopPropagation(); setCalloutTarget({ shiftId: s.id, shiftDate: s.shift_date, startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } }) }}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e67e22', fontSize: '10px', lineHeight: 1, padding: '0 2px' }} title="Call out">!</button>
-                                )}
-                                <button onClick={e => { e.stopPropagation(); handleDeleteShift(s.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '11px', lineHeight: 1, padding: 0 }}>×</button>
+            {/* View toggle */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '0.75rem' }}>
+              {(['week', 'month'] as const).map(v => (
+                <button key={v} onClick={() => setShiftView(v)} style={{ padding: '5px 14px', fontSize: '13px', fontWeight: shiftView === v ? 600 : 400, borderRadius: '6px', border: `1px solid ${shiftView === v ? '#185fa5' : '#dde1ea'}`, background: shiftView === v ? '#185fa5' : '#fff', color: shiftView === v ? '#fff' : '#555', cursor: 'pointer' }}>
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* ── WEEK VIEW ── */}
+            {shiftView === 'week' && (
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o - 1)}>←</button>
+                  <div style={{ fontWeight: 600, fontSize: '14px' }}>{weekLabel}</div>
+                  <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o + 1)}>→</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                  {weekDays.map((dateStr, i) => {
+                    const dayShifts = shifts.filter(s => s.shift_date === dateStr)
+                    const isToday = dateStr === today
+                    const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]
+                    const dayNum = new Date(dateStr + 'T00:00:00').getDate()
+                    return (
+                      <div key={dateStr} onClick={() => openShiftFormForDate(dateStr)}
+                        style={{ minHeight: '100px', border: `1px solid ${isToday ? '#185fa5' : '#eee'}`, borderRadius: '8px', padding: '8px', background: isToday ? '#f0f6ff' : '#fafafa', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = '#185fa5')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = isToday ? '#185fa5' : '#eee')}
+                      >
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? '#185fa5' : '#888', marginBottom: '6px' }}>{dayName} {dayNum}</div>
+                        {dayShifts.length === 0 ? (
+                          <div style={{ fontSize: '10px', color: '#ccc' }}>+ Add</div>
+                        ) : dayShifts.map(s => {
+                          const isCalledOut = s.status === 'called_out'
+                          const emp = empMap[s.employee_id]
+                          const empIdx = employees.findIndex(e => e.id === s.employee_id)
+                          const color = isCalledOut ? { bg: '#fff0f0', text: '#c0392b' } : EMP_COLORS[empIdx >= 0 ? empIdx % EMP_COLORS.length : 0]
+                          return (
+                            <div key={s.id} style={{ marginBottom: '4px' }}>
+                              <div style={{ fontSize: '10px', background: color.bg, color: color.text, borderRadius: '4px', padding: '3px 5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                  {emp?.name.split(' ')[0] ?? '?'}{isCalledOut ? ' ✗' : ''}
+                                </span>
+                                <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                                  {!isCalledOut && emp && (
+                                    <button onClick={e => { e.stopPropagation(); setCalloutTarget({ shiftId: s.id, shiftDate: s.shift_date, startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } }) }}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e67e22', fontSize: '10px', lineHeight: 1, padding: '0 2px' }} title="Call out">!</button>
+                                  )}
+                                  <button onClick={e => { e.stopPropagation(); handleDeleteShift(s.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '11px', lineHeight: 1, padding: 0 }}>×</button>
+                                </div>
+                              </div>
+                              <div style={{ fontSize: '10px', color: isCalledOut ? '#c0392b' : '#888', marginTop: '1px' }}>
+                                {isCalledOut ? 'Called out' : `${fmt(s.start_time)}–${fmt(s.end_time)}`}
                               </div>
                             </div>
-                            <div style={{ fontSize: '10px', color: isCalledOut ? '#c0392b' : '#888', marginTop: '1px' }}>
-                              {isCalledOut ? 'Called out' : `${fmt(s.start_time)}–${fmt(s.end_time)}`}
-                            </div>
-                          </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── MONTH VIEW ── */}
+            {shiftView === 'month' && (() => {
+              const { label: monthLabel, month: currentMonth, days } = getMonthGrid(monthOffset)
+              const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+              return (
+                <div className="card" style={{ padding: '1rem' }}>
+                  {/* Month nav */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setMonthOffset(o => o - 1)}>←</button>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{monthLabel}</div>
+                    <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setMonthOffset(o => o + 1)}>→</button>
+                  </div>
+
+                  {/* Employee color legend */}
+                  {employees.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '0.75rem' }}>
+                      {employees.map((emp, idx) => {
+                        const color = EMP_COLORS[idx % EMP_COLORS.length]
+                        return (
+                          <span key={emp.id} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: color.bg, color: color.text, fontWeight: 500 }}>
+                            {emp.name.split(' ')[0]}
+                          </span>
                         )
                       })}
                     </div>
-                  )
-                })}
-              </div>
-            </div>
+                  )}
+
+                  {/* Day headers */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '3px' }}>
+                    {DAY_NAMES.map(d => (
+                      <div key={d} style={{ fontSize: '11px', fontWeight: 600, color: '#aaa', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+                    ))}
+                  </div>
+
+                  {/* Calendar grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+                    {days.map(({ iso, inMonth }) => {
+                      const dayShifts = shifts.filter(s => s.shift_date === iso)
+                      const isToday = iso === today
+                      const dayNum = new Date(iso + 'T00:00:00').getDate()
+                      const visible = dayShifts.slice(0, 3)
+                      const overflow = dayShifts.length - 3
+                      return (
+                        <div
+                          key={iso}
+                          onClick={() => openShiftFormForDate(iso)}
+                          style={{
+                            minHeight: '80px',
+                            border: `1px solid ${isToday ? '#185fa5' : '#eee'}`,
+                            borderRadius: '6px',
+                            padding: '5px',
+                            background: isToday ? '#f0f6ff' : inMonth ? '#fff' : '#f8f8f8',
+                            cursor: 'pointer',
+                            opacity: inMonth ? 1 : 0.45,
+                            transition: 'border-color 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#185fa5')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = isToday ? '#185fa5' : '#eee')}
+                        >
+                          <div style={{ fontSize: '11px', fontWeight: isToday ? 700 : 500, color: isToday ? '#185fa5' : inMonth ? '#333' : '#bbb', marginBottom: '3px' }}>
+                            {dayNum}
+                          </div>
+                          {visible.map(s => {
+                            const empIdx = employees.findIndex(e => e.id === s.employee_id)
+                            const color = s.status === 'called_out' ? { bg: '#fee2e2', text: '#991b1b' } : EMP_COLORS[empIdx >= 0 ? empIdx % EMP_COLORS.length : 0]
+                            const emp = empMap[s.employee_id]
+                            return (
+                              <div
+                                key={s.id}
+                                title={`${emp?.name ?? 'Unknown'} · ${fmt(s.start_time)}–${fmt(s.end_time)}${s.status === 'called_out' ? ' · Called out' : ''}`}
+                                style={{ fontSize: '10px', background: color.bg, color: color.text, borderRadius: '3px', padding: '2px 4px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}
+                              >
+                                {emp?.name.split(' ')[0] ?? '?'} {s.status !== 'called_out' ? fmt(s.start_time).replace(' AM','a').replace(' PM','p') : '✗'}
+                              </div>
+                            )
+                          })}
+                          {overflow > 0 && (
+                            <div style={{ fontSize: '10px', color: '#999', fontWeight: 500 }}>+{overflow} more</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )}
 
