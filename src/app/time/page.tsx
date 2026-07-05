@@ -1,0 +1,525 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../lib/supabase'
+import Nav from '../components/Nav'
+import CalloutModal from '../components/CalloutModal'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Employee = { id: number; name: string; role: string; pay_type: string; pay_rate: number | null }
+type Shift = { id: number; employee_id: number; shift_date: string; start_time: string; end_time: string; notes: string | null; status?: string }
+type TimeOffRequest = { id: number; employee_id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string; created_at: string }
+type TimeEntry = { id: number; employee_id: number; clock_in: string; clock_out: string | null; total_minutes: number | null }
+type Availability = { employee_id: number; day_of_week: number; start_time: string; end_time: string }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmt(t: string) {
+  const [h, m] = t.split(':'); const hr = parseInt(h)
+  return `${hr % 12 || 12}:${m} ${hr < 12 ? 'AM' : 'PM'}`
+}
+function fmtMins(mins: number) {
+  const h = Math.floor(mins / 60); const m = mins % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+function fmtDate(iso: string) { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+function elapsed(clockIn: string) { return fmtMins(Math.floor((Date.now() - new Date(clockIn).getTime()) / 60000)) }
+function weekStartISO() {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d.toISOString()
+}
+function getWeekDays(offset: number) {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay() + offset * 7); d.setHours(0, 0, 0, 0)
+  return Array.from({ length: 7 }, (_, i) => { const day = new Date(d); day.setDate(d.getDate() + i); return day.toISOString().slice(0, 10) })
+}
+function shiftHours(s: Shift) {
+  const [sh, sm] = s.start_time.split(':').map(Number)
+  const [eh, em] = s.end_time.split(':').map(Number)
+  return ((eh * 60 + em) - (sh * 60 + sm)) / 60
+}
+
+export default function TimePage() {
+  const router = useRouter()
+  const [tab, setTab] = useState<'shifts' | 'timeoff' | 'timesheets'>('shifts')
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [shifts, setShifts] = useState<Shift[]>([])
+  const [requests, setRequests] = useState<TimeOffRequest[]>([])
+  const [entries, setEntries] = useState<TimeEntry[]>([])
+  const [availability, setAvailability] = useState<Availability[]>([])
+  const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [ticker, setTicker] = useState(0)
+
+  // Shift form
+  const [showShiftForm, setShowShiftForm] = useState(false)
+  const [shiftEmpId, setShiftEmpId] = useState<number | ''>('')
+  const [shiftDate, setShiftDate] = useState('')
+  const [shiftStart, setShiftStart] = useState('09:00')
+  const [shiftEnd, setShiftEnd] = useState('17:00')
+  const [shiftNotes, setShiftNotes] = useState('')
+  const [savingShift, setSavingShift] = useState(false)
+  const [shiftMsg, setShiftMsg] = useState('')
+
+  // Weekly view
+  const [weekOffset, setWeekOffset] = useState(0)
+
+  // Generate schedule
+  const [generating, setGenerating] = useState(false)
+  const [genMsg, setGenMsg] = useState('')
+  const [genWeekStart, setGenWeekStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10)
+  })
+
+  // Callout modal
+  type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
+  const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
+
+  useEffect(() => {
+    load()
+    const t = setInterval(() => setTicker(n => n + 1), 60000)
+    return () => clearInterval(t)
+  }, [])
+
+  async function load() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.push('/login'); return }
+    setUserId(session.user.id)
+
+    const [{ data: emps }, { data: sh }, { data: reqs }, { data: ents }] = await Promise.all([
+      supabase.from('employees').select('id, name, role, pay_type, pay_rate').eq('user_id', session.user.id).eq('status', 'active'),
+      supabase.from('shifts').select('*').eq('user_id', session.user.id).order('shift_date'),
+      supabase.from('time_off_requests').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }),
+      supabase.from('time_entries').select('*').eq('user_id', session.user.id).gte('clock_in', weekStartISO()).order('clock_in', { ascending: false }),
+    ])
+
+    const empList = emps ?? []
+    setEmployees(empList)
+    setShifts(sh ?? [])
+    setRequests(reqs ?? [])
+    setEntries(ents ?? [])
+
+    if (empList.length > 0) {
+      const { data: avail } = await supabase.from('employee_availability').select('*').in('employee_id', empList.map(e => e.id))
+      if (avail) setAvailability(avail)
+    }
+    setLoading(false)
+  }
+
+  // ── Shift actions ─────────────────────────────────────────────────────────
+
+  async function handleAddShift() {
+    if (!shiftEmpId || !shiftDate) { setShiftMsg('Select an employee and date.'); return }
+    setSavingShift(true)
+    const { data, error } = await supabase.from('shifts').insert([{
+      user_id: userId, employee_id: shiftEmpId, shift_date: shiftDate,
+      start_time: shiftStart, end_time: shiftEnd, notes: shiftNotes.trim() || null,
+    }]).select().single()
+    if (error) { setShiftMsg('Error saving.') }
+    else {
+      setShifts(prev => [...prev, data].sort((a, b) => a.shift_date.localeCompare(b.shift_date)))
+      setShiftMsg('Shift added.')
+      setShowShiftForm(false); setShiftEmpId(''); setShiftDate(''); setShiftNotes('')
+      setTimeout(() => setShiftMsg(''), 2000)
+    }
+    setSavingShift(false)
+  }
+
+  async function handleDeleteShift(id: number) {
+    await supabase.from('shifts').delete().eq('id', id)
+    setShifts(prev => prev.filter(s => s.id !== id))
+  }
+
+  function openShiftFormForDate(dateStr: string) {
+    setShiftDate(dateStr); setShiftEmpId(''); setShiftStart('09:00'); setShiftEnd('17:00'); setShiftNotes('')
+    setShowShiftForm(true)
+  }
+
+  // ── Time off actions ──────────────────────────────────────────────────────
+
+  async function handleTimeOff(id: number, status: 'approved' | 'denied') {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`/api/time-off/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ status }),
+    })
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+  }
+
+  // ── Generate schedule ─────────────────────────────────────────────────────
+
+  async function generateSchedule() {
+    if (!availability.length) { setGenMsg('No employee availability set yet.'); return }
+    setGenerating(true); setGenMsg('')
+    const weekStart = new Date(genWeekStart + 'T00:00:00')
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d.toISOString().slice(0, 10)
+    })
+    const approvedOff = requests.filter(r => r.status === 'approved')
+    const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
+    const existing = shifts.filter(s => weekDates.includes(s.shift_date))
+    const newShifts: object[] = []
+    weekDates.forEach((date, i) => {
+      availability.filter(a => a.day_of_week === i && !isOff(a.employee_id, date) && !existing.some(s => s.employee_id === a.employee_id && s.shift_date === date))
+        .forEach(a => newShifts.push({ user_id: userId, employee_id: a.employee_id, shift_date: date, start_time: a.start_time, end_time: a.end_time, notes: 'Auto-generated' }))
+    })
+    if (!newShifts.length) { setGenMsg('No new shifts to generate.'); setGenerating(false); return }
+    const { error } = await supabase.from('shifts').insert(newShifts)
+    if (error) setGenMsg('Error generating schedule.')
+    else { setGenMsg(`Generated ${newShifts.length} shift${newShifts.length !== 1 ? 's' : ''}.`); load() }
+    setGenerating(false); setTimeout(() => setGenMsg(''), 4000)
+  }
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+
+  const empMap = Object.fromEntries(employees.map(e => [e.id, e]))
+  const today = new Date().toISOString().slice(0, 10)
+  const weekDays = getWeekDays(weekOffset)
+  const weekStart = new Date(weekDays[0] + 'T00:00:00')
+  const weekEnd = new Date(weekDays[6] + 'T00:00:00')
+  const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+  // Scheduled hours + estimated cost this week
+  const weekShifts = shifts.filter(s => weekDays.includes(s.shift_date) && s.status !== 'called_out')
+  const scheduledHours = weekShifts.reduce((sum, s) => sum + shiftHours(s), 0)
+  const estimatedCost = weekShifts.reduce((sum, s) => {
+    const emp = empMap[s.employee_id]
+    if (!emp?.pay_rate) return sum
+    const hrs = shiftHours(s)
+    return sum + (emp.pay_type === 'salary' ? (emp.pay_rate / 52 / 40) * hrs : emp.pay_rate * hrs)
+  }, 0)
+
+  // Timesheet data
+  const clockedIn = entries.filter(e => !e.clock_out)
+  const completed = entries.filter(e => e.clock_out)
+  const weeklyHours = new Map<number, number>()
+  for (const e of completed) weeklyHours.set(e.employee_id, (weeklyHours.get(e.employee_id) ?? 0) + (e.total_minutes ?? 0))
+
+  // Flagged: active entries > 10h
+  const flagged = clockedIn.filter(e => (Date.now() - new Date(e.clock_in).getTime()) > 10 * 60 * 60 * 1000)
+
+  // On-time rate: clock_in within 10 min of scheduled start
+  let onTimeCount = 0; let onTimeTotal = 0
+  for (const e of [...completed, ...clockedIn]) {
+    const matchingShift = shifts.find(s => s.employee_id === e.employee_id && s.shift_date === e.clock_in.slice(0, 10))
+    if (!matchingShift) continue
+    onTimeTotal++
+    const [sh, sm] = matchingShift.start_time.split(':').map(Number)
+    const scheduledMs = new Date(e.clock_in.slice(0, 10) + 'T00:00:00').getTime() + (sh * 60 + sm) * 60000
+    if (new Date(e.clock_in).getTime() <= scheduledMs + 10 * 60000) onTimeCount++
+  }
+  const onTimeRate = onTimeTotal > 0 ? Math.round((onTimeCount / onTimeTotal) * 100) : null
+
+  const pendingRequests = requests.filter(r => r.status === 'pending')
+
+  if (loading) return (
+    <div className="dash-wrap"><Nav active="time" />
+      <div className="dash-content"><div className="loading-state">Loading...</div></div>
+    </div>
+  )
+
+  return (
+    <>
+    <div className="dash-wrap">
+      <Nav active="time" />
+      <div className="dash-content">
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700 }}>Time</div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-ghost" onClick={() => { setShowShiftForm(true); setTab('shifts') }}>+ Add shift</button>
+          </div>
+        </div>
+
+        {/* Stat row */}
+        <div className="dash-stats" style={{ marginBottom: '1.25rem' }}>
+          <div className="stat">
+            <div className="stat-n">{scheduledHours % 1 === 0 ? scheduledHours : scheduledHours.toFixed(1)}h</div>
+            <div className="stat-l">Scheduled this week</div>
+          </div>
+          <div className="stat">
+            <div className="stat-n" style={{ fontSize: '20px' }}>{estimatedCost > 0 ? `$${estimatedCost.toFixed(0)}` : '—'}</div>
+            <div className="stat-l">Est. labor cost</div>
+          </div>
+          <div className="stat">
+            <div className="stat-n" style={{ color: clockedIn.length > 0 ? '#27ae60' : '#aaa' }}>{clockedIn.length}</div>
+            <div className="stat-l">Clocked in now</div>
+          </div>
+          {onTimeRate !== null && (
+            <div className="stat">
+              <div className="stat-n" style={{ color: onTimeRate >= 80 ? '#27ae60' : '#e67e22' }}>{onTimeRate}%</div>
+              <div className="stat-l">On-time this week</div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #eee', marginBottom: '1.25rem' }}>
+          {([['shifts', 'Shifts'], ['timeoff', `Time Off${pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}`], ['timesheets', 'Timesheets']] as [typeof tab, string][]).map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{ padding: '8px 18px', fontWeight: tab === key ? 700 : 400, fontSize: '14px', color: tab === key ? '#185fa5' : '#666', background: 'none', border: 'none', borderBottom: tab === key ? '2px solid #185fa5' : '2px solid transparent', marginBottom: '-2px', cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── SHIFTS TAB ── */}
+        {tab === 'shifts' && (
+          <div>
+            {showShiftForm && (
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '14px' }}>
+                  {shiftDate ? `New shift — ${new Date(shiftDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}` : 'New shift'}
+                </div>
+                <div className="row2" style={{ marginBottom: '0.75rem' }}>
+                  <div className="field"><label>Employee</label>
+                    <select value={shiftEmpId} onChange={e => setShiftEmpId(Number(e.target.value))}>
+                      <option value="">Select...</option>
+                      {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Date</label><input type="date" value={shiftDate} onChange={e => setShiftDate(e.target.value)} /></div>
+                </div>
+                <div className="row2" style={{ marginBottom: '0.75rem' }}>
+                  <div className="field"><label>Start time</label><input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)} /></div>
+                  <div className="field"><label>End time</label><input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)} /></div>
+                </div>
+                <div className="field" style={{ marginBottom: '0.75rem' }}>
+                  <label>Notes (optional)</label><input value={shiftNotes} onChange={e => setShiftNotes(e.target.value)} placeholder="e.g. Opening shift" />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={handleAddShift} disabled={savingShift}>{savingShift ? 'Saving...' : 'Save shift'}</button>
+                  <button className="btn" style={{ width: 'auto' }} onClick={() => setShowShiftForm(false)}>Cancel</button>
+                  {shiftMsg && <div className="done-msg">{shiftMsg}</div>}
+                </div>
+              </div>
+            )}
+
+            {/* Generate */}
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>Auto-generate from availability</div>
+                <input type="date" value={genWeekStart} onChange={e => setGenWeekStart(e.target.value)} style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid #dde1ea', borderRadius: '6px' }} />
+                <button className="btn" style={{ width: 'auto', fontSize: '12px' }} onClick={generateSchedule} disabled={generating}>{generating ? 'Generating...' : 'Generate week'}</button>
+                {genMsg && <div className={genMsg.startsWith('Error') || genMsg.startsWith('No employee') || genMsg.startsWith('No new') ? 'auth-error' : 'done-msg'} style={{ fontSize: '12px' }}>{genMsg}</div>}
+              </div>
+            </div>
+
+            {/* Weekly grid */}
+            <div className="card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o - 1)}>←</button>
+                <div style={{ fontWeight: 600, fontSize: '14px' }}>{weekLabel}</div>
+                <button className="btn" style={{ padding: '4px 10px', fontSize: '14px' }} onClick={() => setWeekOffset(o => o + 1)}>→</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                {weekDays.map((dateStr, i) => {
+                  const dayShifts = shifts.filter(s => s.shift_date === dateStr)
+                  const isToday = dateStr === today
+                  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]
+                  const dayNum = new Date(dateStr + 'T00:00:00').getDate()
+                  return (
+                    <div key={dateStr} onClick={() => openShiftFormForDate(dateStr)}
+                      style={{ minHeight: '100px', border: `1px solid ${isToday ? '#185fa5' : '#eee'}`, borderRadius: '8px', padding: '8px', background: isToday ? '#f0f6ff' : '#fafafa', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#185fa5')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = isToday ? '#185fa5' : '#eee')}
+                    >
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? '#185fa5' : '#888', marginBottom: '6px' }}>{dayName} {dayNum}</div>
+                      {dayShifts.length === 0 ? (
+                        <div style={{ fontSize: '10px', color: '#ccc' }}>+ Add</div>
+                      ) : dayShifts.map(s => {
+                        const isCalledOut = s.status === 'called_out'
+                        const emp = empMap[s.employee_id]
+                        return (
+                          <div key={s.id} style={{ marginBottom: '4px' }}>
+                            <div style={{ fontSize: '10px', background: isCalledOut ? '#fff0f0' : '#e8edf8', color: isCalledOut ? '#c0392b' : '#185fa5', borderRadius: '4px', padding: '3px 5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '3px' }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                {emp?.name.split(' ')[0] ?? '?'}{isCalledOut ? ' ✗' : ''}
+                              </span>
+                              <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                                {!isCalledOut && emp && (
+                                  <button onClick={e => { e.stopPropagation(); setCalloutTarget({ shiftId: s.id, shiftDate: s.shift_date, startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } }) }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e67e22', fontSize: '10px', lineHeight: 1, padding: '0 2px' }} title="Call out">!</button>
+                                )}
+                                <button onClick={e => { e.stopPropagation(); handleDeleteShift(s.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: '11px', lineHeight: 1, padding: 0 }}>×</button>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '10px', color: isCalledOut ? '#c0392b' : '#888', marginTop: '1px' }}>
+                              {isCalledOut ? 'Called out' : `${fmt(s.start_time)}–${fmt(s.end_time)}`}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TIME OFF TAB ── */}
+        {tab === 'timeoff' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {pendingRequests.length > 0 && (
+              <div className="card">
+                <div className="section-label" style={{ marginBottom: '0.75rem' }}>
+                  Pending requests
+                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#185fa5', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>{pendingRequests.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {pendingRequests.map(req => {
+                    const emp = employees.find(e => e.id === req.employee_id)
+                    return (
+                      <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem', borderRadius: '8px', background: '#fafafa', border: '1px solid #eee' }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {emp ? emp.name.split(' ').map(w => w[0]).join('').slice(0, 2) : '??'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name || 'Employee'} — <span style={{ fontWeight: 400, color: '#555' }}>{req.type}</span></div>
+                          <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}{req.reason ? ` · ${req.reason}` : ''}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                          <button onClick={() => handleTimeOff(req.id, 'approved')} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #27ae60', background: '#f0faf4', color: '#27ae60', cursor: 'pointer', fontWeight: 500 }}>Approve</button>
+                          <button onClick={() => handleTimeOff(req.id, 'denied')} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e0e0e0', background: '#fafafa', color: '#c0392b', cursor: 'pointer', fontWeight: 500 }}>Deny</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="card">
+              <div className="section-label" style={{ marginBottom: '0.75rem' }}>All requests</div>
+              {requests.length === 0 ? <div className="empty-state">No time off requests yet.</div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {requests.map(req => {
+                    const emp = employees.find(e => e.id === req.employee_id)
+                    const statusColor = req.status === 'approved' ? '#27ae60' : req.status === 'denied' ? '#c0392b' : '#e67e22'
+                    return (
+                      <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: '#fafafa', border: '1px solid #eee' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name || 'Employee'} — <span style={{ fontWeight: 400 }}>{req.type}</span></div>
+                          <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '1px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}</div>
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: statusColor, textTransform: 'capitalize' }}>{req.status}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TIMESHEETS TAB ── */}
+        {tab === 'timesheets' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+            {/* Flagged anomalies */}
+            {flagged.length > 0 && (
+              <div className="card" style={{ border: '1px solid #fcd4d4', background: '#fff9f9' }}>
+                <div className="section-label" style={{ marginBottom: '0.75rem', color: '#c0392b' }}>⚠ Anomalies — still clocked in after 10h</div>
+                {flagged.map(e => {
+                  const emp = empMap[e.employee_id]
+                  return (
+                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fce8e8', fontSize: '13px' }}>
+                      <span style={{ fontWeight: 500 }}>{emp?.name ?? 'Unknown'}</span>
+                      <span style={{ color: '#c0392b', fontWeight: 700 }}>{elapsed(e.clock_in)} — clocked in at {fmtTime(e.clock_in)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Clocked in now */}
+            {clockedIn.length > 0 && (
+              <div className="card">
+                <div className="section-label" style={{ marginBottom: '0.75rem' }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#27ae60', marginRight: '6px' }} />
+                  Clocked in now ({clockedIn.length})
+                </div>
+                {clockedIn.filter(e => !flagged.find(f => f.id === e.id)).map(e => {
+                  const emp = empMap[e.employee_id]
+                  return (
+                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{emp?.name ?? 'Unknown'}</div>
+                        <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Since {fmtTime(e.clock_in)}</div>
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: '#27ae60' }}>{elapsed(e.clock_in)}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Weekly hours per employee */}
+            {weeklyHours.size > 0 && (
+              <div className="card">
+                <div className="section-label" style={{ marginBottom: '0.75rem' }}>Weekly hours</div>
+                {[...weeklyHours.entries()].sort((a, b) => b[1] - a[1]).map(([empId, mins]) => {
+                  const emp = empMap[empId]
+                  const pct = Math.min((mins / (40 * 60)) * 100, 100)
+                  const isOver = mins >= 40 * 60
+                  return (
+                    <div key={empId} style={{ marginBottom: '0.875rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name ?? 'Unknown'}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: isOver ? '#c0392b' : '#185fa5' }}>{fmtMins(mins)}{isOver ? ' · OT' : ''}</span>
+                      </div>
+                      <div style={{ height: 6, background: '#f0f0f0', borderRadius: 3 }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: isOver ? '#c0392b' : '#185fa5', borderRadius: 3, transition: 'width 0.3s' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* All entries */}
+            <div className="card">
+              <div className="section-label" style={{ marginBottom: '0.75rem' }}>All entries this week</div>
+              {entries.length === 0 ? (
+                <div className="empty-state">No time entries this week.</div>
+              ) : [...clockedIn, ...completed].map(e => {
+                const emp = empMap[e.employee_id]
+                return (
+                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{emp?.name ?? 'Unknown'}</div>
+                      <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
+                        {new Date(e.clock_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span style={{ color: '#27ae60' }}>now</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: e.clock_out ? '#111' : '#27ae60', minWidth: '40px', textAlign: 'right' }}>
+                      {e.clock_out && e.total_minutes ? fmtMins(e.total_minutes) : elapsed(e.clock_in)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+
+    {calloutTarget && (
+      <CalloutModal
+        shiftId={calloutTarget.shiftId}
+        shiftDate={calloutTarget.shiftDate}
+        startTime={calloutTarget.startTime}
+        endTime={calloutTarget.endTime}
+        calledOutEmployee={calloutTarget.employee}
+        onClose={() => setCalloutTarget(null)}
+        onCalloutMarked={id => { setShifts(prev => prev.map(s => s.id === id ? { ...s, status: 'called_out' } : s)); setCalloutTarget(null) }}
+      />
+    )}
+    </>
+  )
+}

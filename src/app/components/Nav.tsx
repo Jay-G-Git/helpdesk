@@ -6,7 +6,7 @@ import { BellIcon, SettingsIcon, SignOutIcon } from './Icons'
 import ChatWidget from './ChatWidget'
 
 type Props = {
-  active: 'dashboard' | 'payroll' | 'schedule' | 'timesheet' | 'jobs' | 'applications' | 'analytics' | 'integrations' | 'settings'
+  active: 'dashboard' | 'time' | 'hiring' | 'payroll' | 'reports' | 'settings'
 }
 
 type Notification = { id: number; message: string; created_at: string; read: boolean }
@@ -92,13 +92,10 @@ export default function Nav({ active }: Props) {
         <div className="logo">help<span>desk</span></div>
         <nav className="dash-nav-links">
           <a href="/" className={`dash-nav-link${active === 'dashboard' ? ' active' : ''}`}>Dashboard</a>
+          <a href="/time" className={`dash-nav-link${active === 'time' ? ' active' : ''}`}>Time</a>
+          <a href="/hiring" className={`dash-nav-link${active === 'hiring' ? ' active' : ''}`}>Hiring</a>
           <a href="/payroll" className={`dash-nav-link${active === 'payroll' ? ' active' : ''}`}>Payroll</a>
-          <a href="/schedule" className={`dash-nav-link${active === 'schedule' ? ' active' : ''}`}>Schedule</a>
-          <a href="/timesheet" className={`dash-nav-link${active === 'timesheet' ? ' active' : ''}`}>Timesheets</a>
-          <a href="/jobs" className={`dash-nav-link${active === 'jobs' ? ' active' : ''}`}>Jobs</a>
-          <a href="/applications" className={`dash-nav-link${active === 'applications' ? ' active' : ''}`}>Applicants</a>
-          <a href="/analytics" className={`dash-nav-link${active === 'analytics' ? ' active' : ''}`}>Analytics</a>
-          <a href="/integrations" className={`dash-nav-link${active === 'integrations' ? ' active' : ''}`}>Integrations</a>
+          <a href="/reports" className={`dash-nav-link${active === 'reports' ? ' active' : ''}`}>Reports</a>
         </nav>
       </div>
 

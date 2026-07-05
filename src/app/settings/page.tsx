@@ -6,8 +6,9 @@ import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
 import DocumentLibrary from '../components/DocumentLibrary'
 import { Suspense } from 'react'
+import { ReceiptIcon, CalendarIcon, BookOpenIcon } from '../components/Icons'
 
-type Tab = 'account' | 'onboarding' | 'notifications' | 'billing' | 'team' | 'danger'
+type Tab = 'account' | 'onboarding' | 'notifications' | 'billing' | 'team' | 'integrations' | 'danger'
 
 type Field = { id: string; label: string; placeholder: string }
 const DEFAULT_FIELDS: Field[] = [
@@ -224,6 +225,7 @@ function SettingsContent() {
     { key: 'notifications', label: 'Notifications' },
     { key: 'billing', label: 'Billing' },
     { key: 'team', label: 'Team' },
+    { key: 'integrations', label: 'Integrations' },
     { key: 'danger', label: 'Danger zone' },
   ]
 
@@ -415,6 +417,11 @@ function SettingsContent() {
             </div>
           )}
 
+          {/* INTEGRATIONS */}
+          {tab === 'integrations' && (
+            <IntegrationsTab />
+          )}
+
           {/* DANGER ZONE */}
           {tab === 'danger' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -457,6 +464,140 @@ function SettingsContent() {
           )}
 
         </div>
+      </div>
+    </div>
+  )
+}
+
+function IntegrationsTab() {
+  const [gusto, setGusto] = useState<{ company_uuid: string | null; connected_at: string } | null>(null)
+  const [google, setGoogle] = useState<{ connected_at: string } | null>(null)
+  const [qb, setQb] = useState<{ realm_id: string; connected_at: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [accessToken, setAccessToken] = useState('')
+  const [syncing, setSyncing] = useState<string | null>(null)
+  const [syncMsg, setSyncMsg] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      setAccessToken(session.access_token)
+      const uid = session.user.id
+      const [g, gc, qbr] = await Promise.all([
+        supabase.from('gusto_connections').select('company_uuid, connected_at').eq('user_id', uid).single(),
+        supabase.from('google_connections').select('connected_at').eq('user_id', uid).single(),
+        supabase.from('quickbooks_connections').select('realm_id, connected_at').eq('user_id', uid).single(),
+      ])
+      if (g.data) setGusto(g.data)
+      if (gc.data) setGoogle(gc.data)
+      if (qbr.data) setQb(qbr.data)
+      setLoading(false)
+    })
+  }, [])
+
+  async function handleConnect(service: 'gusto' | 'google' | 'quickbooks') {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    window.location.href = `/api/${service}/connect?token=${session.access_token}`
+  }
+
+  async function handleDisconnect(service: 'gusto' | 'google' | 'quickbooks') {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const table = service === 'gusto' ? 'gusto_connections' : service === 'google' ? 'google_connections' : 'quickbooks_connections'
+    await supabase.from(table).delete().eq('user_id', session.user.id)
+    if (service === 'gusto') setGusto(null)
+    if (service === 'google') setGoogle(null)
+    if (service === 'quickbooks') setQb(null)
+    setSyncMsg('')
+  }
+
+  async function sync(action: string, endpoint: string, body: object) {
+    setSyncing(action); setSyncMsg('')
+    const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify(body) })
+    const data = await res.json()
+    setSyncMsg(res.ok ? (data.message ?? `✓ Done.`) : `Error: ${data.error}`)
+    setSyncing(null)
+  }
+
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const connectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#e8f8ef', color: '#27ae60' }}>● Connected</span>
+  const notConnectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#f5f6fa', color: '#9a9a9a' }}>○ Not connected</span>
+
+  return (
+    <div>
+      <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.25rem' }}>Connect your tools to keep data in sync.</div>
+      {syncMsg && <div style={{ fontSize: '13px', color: syncMsg.startsWith('Error') ? '#c0392b' : '#27ae60', marginBottom: '1rem' }}>{syncMsg}</div>}
+      <div style={{ display: 'grid', gap: '1rem', maxWidth: '560px' }}>
+
+        {/* Gusto */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#f5ece8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ReceiptIcon size={18} color="#c0692b" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Gusto</div><div style={{ fontSize: '12px', color: '#888' }}>Payroll &amp; HR</div></div>
+            {!loading && <div style={{ marginLeft: 'auto' }}>{gusto ? connectedBadge : notConnectedBadge}</div>}
+          </div>
+          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : gusto ? (
+            <>
+              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(gusto.connected_at)}</div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_employees', '/api/gusto/sync', { action: 'push_employees' })} disabled={!!syncing}>{syncing === 'push_employees' ? 'Syncing…' : '↑ Push employees'}</button>
+                <button className="btn" style={{ fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('pull_payrolls', '/api/gusto/sync', { action: 'pull_payrolls' })} disabled={!!syncing}>{syncing === 'pull_payrolls' ? 'Importing…' : '↓ Pull payrolls'}</button>
+              </div>
+              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('gusto')}>Disconnect</button>
+            </>
+          ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('gusto')}>Connect Gusto</button>}
+        </div>
+
+        {/* Google Calendar */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#e8f0fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CalendarIcon size={18} color="#1a73e8" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Google Calendar</div><div style={{ fontSize: '12px', color: '#888' }}>Schedule sync</div></div>
+            {!loading && <div style={{ marginLeft: 'auto' }}>{google ? connectedBadge : notConnectedBadge}</div>}
+          </div>
+          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : google ? (
+            <>
+              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(google.connected_at)}</div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_shifts', '/api/google/sync', {})} disabled={!!syncing}>{syncing === 'push_shifts' ? 'Syncing…' : '↑ Push this week\'s shifts'}</button>
+              </div>
+              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('google')}>Disconnect</button>
+            </>
+          ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('google')}>Connect Google Calendar</button>}
+        </div>
+
+        {/* QuickBooks */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><BookOpenIcon size={18} color="#2e7d32" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>QuickBooks</div><div style={{ fontSize: '12px', color: '#888' }}>Accounting sync</div></div>
+            {!loading && <div style={{ marginLeft: 'auto' }}>{qb ? connectedBadge : notConnectedBadge}</div>}
+          </div>
+          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : qb ? (
+            <>
+              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(qb.connected_at)}</div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_payroll', '/api/quickbooks/sync', {})} disabled={!!syncing}>{syncing === 'push_payroll' ? 'Syncing…' : '↑ Push this month\'s payroll'}</button>
+              </div>
+              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('quickbooks')}>Disconnect</button>
+            </>
+          ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('quickbooks')}>Connect QuickBooks</button>}
+        </div>
+
+        {/* Indeed */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.75rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#fff3e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1.5" fill="#e65100" stroke="none"/><line x1="12" y1="9" x2="12" y2="20"/><path d="M8 20h8"/></svg>
+            </div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Indeed</div><div style={{ fontSize: '12px', color: '#888' }}>Job board publishing</div></div>
+            <div style={{ marginLeft: 'auto' }}><span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#fff8f0', color: '#e65100' }}>Via Hiring page</span></div>
+          </div>
+          <div style={{ fontSize: '13px', color: '#555', marginBottom: '0.75rem', lineHeight: '1.5' }}>Post jobs to Indeed directly from the Hiring page.</div>
+          <a href="/hiring" className="btn" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px', display: 'inline-block', textDecoration: 'none' }}>Go to Hiring →</a>
+        </div>
+
       </div>
     </div>
   )

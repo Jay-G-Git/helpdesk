@@ -60,9 +60,9 @@ function greeting() {
   return 'Good evening'
 }
 
-function weekStartISO() {
+function weekStartISO(offsetWeeks = 0) {
   const d = new Date()
-  d.setDate(d.getDate() - d.getDay())
+  d.setDate(d.getDate() - d.getDay() - offsetWeeks * 7)
   d.setHours(0, 0, 0, 0)
   return d.toISOString()
 }
@@ -151,8 +151,9 @@ export default function Dashboard({
   const [showTerminated, setShowTerminated] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openTab, setOpenTab] = useState<'info' | 'onboarding' | 'offboarding'>('info')
-  const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number }[]>([])
+  const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number; clock_in: string }[]>([])
   const [weeklyMins, setWeeklyMins] = useState<Record<number, number>>({})
+  const [lastWeekTotalMins, setLastWeekTotalMins] = useState(0)
   const [upcomingTimeOff, setUpcomingTimeOff] = useState<TimeOffRequest[]>([])
   const [todayShifts, setTodayShifts] = useState<{ id: number; employee_id: number; start_time: string; end_time: string; status?: string }[]>([])
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
@@ -270,14 +271,16 @@ export default function Dashboard({
     const today = new Date().toISOString().slice(0, 10)
     const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    const [{ data: clockedIn }, { data: weekly }, { data: upcoming }, { data: todayScheduled }] = await Promise.all([
-      supabase.from('time_entries').select('employee_id').eq('user_id', session.user.id).is('clock_out', null),
-      supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', session.user.id).gte('clock_in', weekStartISO()),
+    const [{ data: clockedIn }, { data: weekly }, { data: lastWeekly }, { data: upcoming }, { data: todayScheduled }] = await Promise.all([
+      supabase.from('time_entries').select('employee_id, clock_in').eq('user_id', session.user.id).is('clock_out', null),
+      supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', session.user.id).gte('clock_in', weekStartISO(0)),
+      supabase.from('time_entries').select('total_minutes').eq('user_id', session.user.id).gte('clock_in', weekStartISO(1)).lt('clock_in', weekStartISO(0)).not('total_minutes', 'is', null),
       supabase.from('time_off_requests').select('*').eq('user_id', session.user.id).eq('status', 'approved').gte('end_date', today).lte('start_date', twoWeeks).order('start_date'),
       supabase.from('shifts').select('id, employee_id, start_time, end_time, status').eq('user_id', session.user.id).eq('shift_date', today).order('start_time'),
     ])
 
     setClockedInEntries(clockedIn ?? [])
+    setLastWeekTotalMins((lastWeekly ?? []).reduce((s, e) => s + (e.total_minutes ?? 0), 0))
 
     const mins: Record<number, number> = {}
     for (const e of (weekly ?? [])) {
@@ -358,51 +361,85 @@ export default function Dashboard({
           </button>
         </div>
 
-        <div className="dash-stats">
-          {/* Active employees → scroll to team */}
-          <div className="stat stat-clickable" onClick={() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' })}>
-            <div className="stat-n">{loading ? '–' : employees.filter(e => !e.status || e.status === 'active').length}</div>
-            <div className="stat-l">Active employees</div>
-            <div className="stat-link">View team →</div>
-          </div>
+        {(() => {
+          // Running labor cost: sum of (elapsed hours × hourly pay_rate) for all currently clocked-in employees
+          const runningCost = clockedInEntries.reduce((sum, entry) => {
+            const emp = employees.find(e => e.id === entry.employee_id)
+            if (!emp || emp.pay_type !== 'hourly' || !emp.pay_rate) return sum
+            const elapsedHrs = (Date.now() - new Date(entry.clock_in).getTime()) / 3600000
+            return sum + elapsedHrs * emp.pay_rate
+          }, 0)
 
-          {/* Incomplete paperwork → filter team to show only affected employees */}
-          <div
-            className="stat stat-clickable"
-            onClick={() => {
-              if (complianceIssues.length === 0) return
-              setFilterPaperwork(v => !v)
-              setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
-            }}
-          >
-            <div className="stat-n" style={{ color: complianceIssues.length > 0 ? '#c0392b' : '#27ae60' }}>
-              {loading ? '–' : complianceIssues.length}
-            </div>
-            <div className="stat-l">Incomplete paperwork</div>
-            <div className="stat-link" style={{ color: complianceIssues.length > 0 ? '#c0392b' : '#9a9a9a' }}>
-              {complianceIssues.length > 0
-                ? filterPaperwork ? 'Show all employees →' : 'See who needs attention →'
-                : 'All clear →'}
-            </div>
-          </div>
+          const thisWeekTotalMins = Object.values(weeklyMins).reduce((s, m) => s + m, 0)
+          const thisWeekHrs = Math.round(thisWeekTotalMins / 60)
+          const lastWeekHrs = Math.round(lastWeekTotalMins / 60)
+          const weekDiff = thisWeekHrs - lastWeekHrs
 
-          {/* Clocked in now → timesheets */}
-          <div className="stat stat-clickable" onClick={() => window.location.href = '/timesheet'}>
-            <div className="stat-n">{clockedInEntries.length}</div>
-            <div className="stat-l">Clocked in now</div>
-            <div className="stat-link">
-              {clockedInEntries.length > 0
-                ? (() => {
-                    const names = employees
-                      .filter(e => clockedInEntries.some(c => c.employee_id === e.id))
-                      .map(e => e.name.split(' ')[0])
-                    return names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') + ' →'
-                  })()
-                : 'View timesheets →'
-              }
+          const pendingCount = timeOffRequests.length + complianceIssues.length
+          const pendingColor = pendingCount > 0 ? '#c0392b' : '#27ae60'
+
+          return (
+            <div className="dash-stats">
+              {/* Active employees */}
+              <div className="stat stat-clickable" onClick={() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                <div className="stat-n">{loading ? '–' : employees.filter(e => !e.status || e.status === 'active').length}</div>
+                <div className="stat-l">Active employees</div>
+                <div className="stat-link">View team →</div>
+              </div>
+
+              {/* Pending actions (paperwork + time-off requests) */}
+              <div
+                className="stat stat-clickable"
+                onClick={() => {
+                  if (complianceIssues.length > 0) { setFilterPaperwork(v => !v); setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50) }
+                  else window.location.href = '/time'
+                }}
+              >
+                <div className="stat-n" style={{ color: pendingColor }}>{loading ? '–' : pendingCount}</div>
+                <div className="stat-l">Pending actions</div>
+                <div className="stat-link" style={{ color: pendingCount > 0 ? pendingColor : '#9a9a9a' }}>
+                  {pendingCount > 0
+                    ? [timeOffRequests.length > 0 && `${timeOffRequests.length} time-off`, complianceIssues.length > 0 && `${complianceIssues.length} paperwork`].filter(Boolean).join(', ')
+                    : 'All clear →'}
+                </div>
+              </div>
+
+              {/* Clocked in now */}
+              <div className="stat stat-clickable" onClick={() => window.location.href = '/time'}>
+                <div className="stat-n">{clockedInEntries.length}</div>
+                <div className="stat-l">Clocked in now</div>
+                <div className="stat-link">
+                  {clockedInEntries.length > 0
+                    ? (() => {
+                        const names = employees.filter(e => clockedInEntries.some(c => c.employee_id === e.id)).map(e => e.name.split(' ')[0])
+                        return names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') + ' →'
+                      })()
+                    : 'View timesheets →'}
+                </div>
+              </div>
+
+              {/* This week hours vs last week */}
+              <div className="stat stat-clickable" onClick={() => window.location.href = '/time'}>
+                <div className="stat-n" style={{ fontSize: '20px' }}>{thisWeekHrs}h</div>
+                <div className="stat-l">Hours this week</div>
+                <div className="stat-link" style={{ color: weekDiff >= 0 ? '#27ae60' : '#c0392b' }}>
+                  {lastWeekHrs > 0
+                    ? `${weekDiff >= 0 ? '+' : ''}${weekDiff}h vs last week`
+                    : 'View time →'}
+                </div>
+              </div>
+
+              {/* Running labor cost today */}
+              {runningCost > 0 && (
+                <div className="stat">
+                  <div className="stat-n" style={{ fontSize: '20px' }}>${runningCost.toFixed(0)}</div>
+                  <div className="stat-l">Running cost today</div>
+                  <div className="stat-link" style={{ color: '#9a9a9a' }}>hourly wages clocked in</div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          )
+        })()}
 
         <div className="dash-grid">
           <div className="card" id="team-section">
