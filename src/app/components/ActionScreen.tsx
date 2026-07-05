@@ -279,13 +279,15 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
     })
   }
 
-  async function markDone() {
+  async function markDone(content?: string) {
     if (saved) return
+    const textToSave = content ?? output
+    if (!textToSave.trim()) return
     setSaving(true)
     const { error } = await supabase.from('documents').insert([{
       type: action,
       employee_name: employee.name,
-      content: output,
+      content: textToSave,
       user_id: userId,
     }])
     if (!error) {
@@ -405,9 +407,17 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
           )}
 
           {action === 'checkin' && (
-            <div className="actions-row">
+            <div className="actions-row" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <button className="btn" onClick={generate} disabled={loading}>
                 {loading ? 'Generating...' : '✦ Generate with AI'}
+              </button>
+              <button
+                className="doc-btn"
+                onClick={() => markDone(notes)}
+                disabled={!notes.trim() || saving || saved}
+                style={{ fontSize: '13px', padding: '7px 14px' }}
+              >
+                {saved ? '✓ Saved' : 'Save note directly'}
               </button>
               {loading && <div className="spinner" />}
             </div>
@@ -482,7 +492,11 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
                 ))}
               </div>
             )}
-            <div className="output">{output}</div>
+            <textarea
+              value={output}
+              onChange={e => { setOutput(e.target.value); setSaved(false) }}
+              style={{ width: '100%', minHeight: '120px', border: '1px solid #e8eaf0', borderRadius: '8px', padding: '12px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
+            />
             <div className="doc-actions">
               <button className="doc-btn" onClick={copyDoc}>Copy</button>
               <button className="doc-btn" onClick={generate}>Regenerate</button>
