@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import OnboardingFlow from '../sign/[token]/OnboardingFlow'
 
@@ -79,6 +79,10 @@ export default function PortalPage() {
   const [onboardingData, setOnboardingData] = useState<{ token: string; employeeId: number; userId: string; employeeName: string; welcomePack: string | null; docs: { id: number; file_name: string; file_size: number; url: string | null }[] } | null>(null)
   const [onboardingLoading, setOnboardingLoading] = useState(false)
 
+  // Bell / notifications
+  const [showBell, setShowBell] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { window.location.href = '/login'; return }
@@ -86,7 +90,12 @@ export default function PortalPage() {
       await loadAll(session.access_token)
     })
     const t = setInterval(() => setTicker(n => n + 1), 60000)
-    return () => clearInterval(t)
+
+    function handleClick(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setShowBell(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => { clearInterval(t); document.removeEventListener('mousedown', handleClick) }
   }, [])
 
   async function loadAll(tk: string) {
@@ -110,7 +119,15 @@ export default function PortalPage() {
     if (!me.employee) { window.location.href = '/'; return }
 
     setEmployee(me.employee)
-    if (onboard?.token) setOnboardingToken(onboard.token)
+    if (onboard?.token) {
+      setOnboardingToken(onboard.token)
+      // Auto-open once per session
+      if (!sessionStorage.getItem('onboarding_shown')) {
+        const dataRes = await fetch(`/api/portal/onboarding-data?token=${onboard.token}`, { headers })
+        const dataJson = await dataRes.json()
+        if (dataRes.ok) { setOnboardingData(dataJson); setShowOnboarding(true) }
+      }
+    }
     setShifts(sh.shifts ?? [])
     setOpenShifts(open.shifts ?? [])
     setSwapRequests(swaps.swaps ?? [])
@@ -244,6 +261,37 @@ export default function PortalPage() {
       <div style={{ background: '#fff', borderBottom: '1px solid #eee', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.5px' }}>help<span style={{ color: '#185fa5' }}>desk</span></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+
+          {/* Bell */}
+          <div ref={bellRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowBell(v => !v)}
+              style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px', display: 'flex', alignItems: 'center' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {onboardingToken && <span style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', background: '#c0392b', border: '1.5px solid #fff' }} />}
+            </button>
+            {showBell && (
+              <div style={{ position: 'absolute', right: 0, top: '120%', width: 280, background: '#fff', borderRadius: '10px', border: '1px solid #eee', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 100 }}>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0', fontSize: '12px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notifications</div>
+                {onboardingToken ? (
+                  <div
+                    onClick={() => { setShowBell(false); openOnboarding() }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 14px', cursor: 'pointer', borderBottom: '1px solid #f5f5f5' }}
+                  >
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#185fa5', flexShrink: 0, marginTop: 5 }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>Complete your onboarding</div>
+                      <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>W-4, I-9, direct deposit, and more.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '16px 14px', fontSize: '13px', color: '#bbb' }}>No new notifications.</div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>{employee?.name}</div>
             <div style={{ fontSize: '11px', color: '#999' }}>{employee?.role}</div>
@@ -291,7 +339,7 @@ export default function PortalPage() {
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem 1rem' }}>
               <div style={{ width: '100%', maxWidth: '600px', background: '#fff', borderRadius: '16px', overflow: 'hidden', position: 'relative' }}>
                 <button
-                  onClick={() => setShowOnboarding(false)}
+                  onClick={() => { setShowOnboarding(false); sessionStorage.setItem('onboarding_shown', '1') }}
                   style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', fontSize: '20px', color: '#aaa', cursor: 'pointer', zIndex: 1, lineHeight: 1 }}
                 >✕</button>
                 <OnboardingFlow
@@ -302,7 +350,7 @@ export default function PortalPage() {
                   welcomePack={onboardingData.welcomePack}
                   docs={onboardingData.docs}
                   isModal
-                  onComplete={() => { setShowOnboarding(false); setOnboardingToken(null) }}
+                  onComplete={() => { setShowOnboarding(false); setOnboardingToken(null); sessionStorage.removeItem('onboarding_shown') }}
                 />
               </div>
             </div>
