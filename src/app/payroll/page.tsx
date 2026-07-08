@@ -125,6 +125,7 @@ export default function PayrollPage() {
 
   // Payroll runs state
   const [sessionToken, setSessionToken] = useState<string | null>(null)
+  const [accountantEmail, setAccountantEmail] = useState<string>('')
   const [runs, setRuns] = useState<PayrollRun[]>([])
   const [expandedRun, setExpandedRun] = useState<number | null>(null)
   const [runItems, setRunItems] = useState<Record<number, PayrollRunItem[]>>({})
@@ -145,10 +146,11 @@ export default function PayrollPage() {
     const token = session.access_token
     setSessionToken(token)
 
-    const [{ data: emps }, { data: payroll }, runsRes] = await Promise.all([
+    const [{ data: emps }, { data: payroll }, runsRes, bizRes] = await Promise.all([
       supabase.from('employees').select('id, name, role, type, status, pay_type, pay_rate, pay_period').eq('user_id', session.user.id).eq('status', 'active'),
       supabase.from('payroll_entries').select('*').eq('user_id', session.user.id).order('period_start', { ascending: false }),
       fetch('/api/payroll/run', { headers: { Authorization: `Bearer ${token}` } }),
+      fetch('/api/settings/business', { headers: { Authorization: `Bearer ${token}` } }),
     ])
 
     if (emps) setEmployees(emps)
@@ -156,6 +158,10 @@ export default function PayrollPage() {
     if (runsRes.ok) {
       const d = await runsRes.json()
       setRuns(d.runs ?? [])
+    }
+    if (bizRes.ok) {
+      const biz = await bizRes.json()
+      setAccountantEmail(biz.profile?.accountant_email ?? '')
     }
     setLoading(false)
   }
@@ -357,6 +363,25 @@ export default function PayrollPage() {
     a.download = `payroll-${run.period_end}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
+  }
+
+  async function sendToAccountant(run: PayrollRun) {
+    if (!sessionToken) return
+    // Download the PDF first
+    const res = await fetch(`/api/payroll/run/${run.id}/report`, { headers: { Authorization: `Bearer ${sessionToken}` } })
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `payroll-report-${run.period_end}.pdf`
+    a.click()
+    URL.revokeObjectURL(a.href)
+    // Open email client
+    const subject = encodeURIComponent(`Payroll Report — ${formatDate(run.period_start)} – ${formatDate(run.period_end)}`)
+    const body = encodeURIComponent(
+      `Hi,\n\nPlease find the attached payroll report for the pay period ${formatDate(run.period_start)} – ${formatDate(run.period_end)}.\n\nGross total: ${formatMoney(run.total_gross)}\nEmployees: ${run.employee_count}\n\nPlease review and let me know what deductions to apply for each employee.\n\nThank you`
+    )
+    const to = accountantEmail ? encodeURIComponent(accountantEmail) : ''
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
   }
 
   const totalThisPeriod = entries
@@ -829,9 +854,9 @@ export default function PayrollPage() {
                                 </table>
                               </div>
                               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }}
-                                  onClick={() => downloadReport(run)}>
-                                  Accountant report (PDF)
+                                <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '12px', padding: '6px 14px' }}
+                                  onClick={() => sendToAccountant(run)}>
+                                  {accountantEmail ? `Send to accountant` : 'Email to accountant'}
                                 </button>
                                 <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }}
                                   onClick={() => exportRunCSV(run, items)}>

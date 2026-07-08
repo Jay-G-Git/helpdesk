@@ -115,6 +115,7 @@ function SettingsContent() {
   const [address, setAddress] = useState('')
   const [timezone, setTimezone] = useState('America/New_York')
   const [contactEmail, setContactEmail] = useState('')
+  const [accountantEmail, setAccountantEmail] = useState('')
   const [acctSaving, setAcctSaving] = useState(false)
   const [acctMsg, setAcctMsg] = useState('')
 
@@ -195,6 +196,7 @@ function SettingsContent() {
       setAddress(bizData.profile.address ?? '')
       setTimezone(bizData.profile.timezone ?? 'America/New_York')
       setContactEmail(bizData.profile.contact_email ?? '')
+      setAccountantEmail(bizData.profile.accountant_email ?? '')
       if (bizData.profile.business_hours) setBizHours(bizData.profile.business_hours)
     }
 
@@ -225,7 +227,7 @@ function SettingsContent() {
     const res = await fetch('/api/settings/business', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ business_name: bizName, address, timezone, contact_email: contactEmail }),
+      body: JSON.stringify({ business_name: bizName, address, timezone, contact_email: contactEmail, accountant_email: accountantEmail }),
     })
     setAcctMsg(res.ok ? 'Saved.' : 'Error saving.')
     setAcctSaving(false)
@@ -426,6 +428,10 @@ function SettingsContent() {
                 <div>
                   <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Contact email</label>
                   <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder={userEmail} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Accountant email</label>
+                  <input type="email" value={accountantEmail} onChange={e => setAccountantEmail(e.target.value)} placeholder="accountant@example.com" />
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Timezone</label>
