@@ -312,6 +312,53 @@ export default function PayrollPage() {
       })
   }
 
+  function downloadReport(run: PayrollRun) {
+    if (!sessionToken) return
+    fetch(`/api/payroll/run/${run.id}/report`, { headers: { Authorization: `Bearer ${sessionToken}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `payroll-report-${run.period_end}.pdf`
+        a.click()
+        URL.revokeObjectURL(a.href)
+      })
+  }
+
+  function exportRunCSV(run: PayrollRun, items: PayrollRunItem[]) {
+    const rows = [
+      ['Employee', 'Pay Type', 'Hours Worked', 'Pay Rate', 'Gross Pay', 'Federal Tax', 'State Tax', 'Other Deductions', 'Net Pay'],
+      ...items.map(item => {
+        const d = (item.deductions ?? {}) as Record<string, number>
+        return [
+          item.employee_name,
+          item.pay_type,
+          item.hours_worked != null ? item.hours_worked : '',
+          item.pay_rate,
+          item.gross_pay,
+          d.federal ?? 0,
+          d.state ?? 0,
+          d.other ?? 0,
+          item.net_pay,
+        ]
+      }),
+      ['TOTAL', '', '', '',
+        items.reduce((s, i) => s + i.gross_pay, 0),
+        items.reduce((s, i) => s + ((i.deductions as any)?.federal ?? 0), 0),
+        items.reduce((s, i) => s + ((i.deductions as any)?.state ?? 0), 0),
+        items.reduce((s, i) => s + ((i.deductions as any)?.other ?? 0), 0),
+        items.reduce((s, i) => s + i.net_pay, 0),
+      ],
+    ]
+    const csv = rows.map(r => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `payroll-${run.period_end}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   const totalThisPeriod = entries
     .filter(e => e.period_start === defaultPeriod.start)
     .reduce((sum, e) => sum + e.gross_pay, 0)
@@ -783,8 +830,16 @@ export default function PayrollPage() {
                               </div>
                               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }}
+                                  onClick={() => downloadReport(run)}>
+                                  Accountant report (PDF)
+                                </button>
+                                <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }}
+                                  onClick={() => exportRunCSV(run, items)}>
+                                  Export CSV
+                                </button>
+                                <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }}
                                   onClick={() => downloadPayStubs(run.id)}>
-                                  Download all pay stubs
+                                  All pay stubs
                                 </button>
                                 {run.status === 'draft' && (
                                   <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '12px', padding: '6px 12px' }}
