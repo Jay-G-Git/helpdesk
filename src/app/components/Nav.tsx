@@ -272,6 +272,7 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
     : 'Employee'
 
   return (
+    <>
     <div className="dash-nav">
 
       {/* ── Logo ── */}
@@ -603,5 +604,6 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
         </div>
       )
     })()}
+    </>
   )
 }
