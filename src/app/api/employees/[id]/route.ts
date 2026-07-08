@@ -28,6 +28,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   await supabaseAdmin.from('shifts').delete().eq('employee_id', empId)
   await supabaseAdmin.from('shift_swaps').delete().eq('requester_id', empId)
   await supabaseAdmin.from('shift_swaps').delete().eq('target_id', empId)
+  await supabaseAdmin.from('payroll_entries').delete().eq('employee_id', empId)
 
   const { error } = await supabaseAdmin.from('employees').delete().eq('id', empId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
