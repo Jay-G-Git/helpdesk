@@ -35,6 +35,7 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
   const [showNotifs, setShowNotifs] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [trialBanner, setTrialBanner] = useState<{ daysLeft: number; status: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const notifsRef = useRef<HTMLDivElement>(null)
 
@@ -44,6 +45,18 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
       setUserEmail(session.user.email ?? '')
+
+      // Load billing status for trial banner
+      fetch('/api/billing/status', { headers: { Authorization: `Bearer ${session.access_token}` } })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'trialing' && data.trialDaysLeft <= 7) {
+            setTrialBanner({ daysLeft: data.trialDaysLeft, status: 'trialing' })
+          } else if (data.status === 'past_due' || data.status === 'canceled') {
+            setTrialBanner({ daysLeft: 0, status: data.status })
+          }
+        })
+        .catch(() => {})
 
       // Load unread message count
       fetch('/api/messages/channels', { headers: { Authorization: `Bearer ${session.access_token}` } })
@@ -169,6 +182,30 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
         </div>
       </div>
     </div>
+
+    {trialBanner && (
+      <div style={{
+        background: trialBanner.status === 'trialing' ? '#fff8e6' : '#fef2f2',
+        borderBottom: `1px solid ${trialBanner.status === 'trialing' ? '#fde68a' : '#fecaca'}`,
+        padding: '8px 1.5rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        fontSize: '13px',
+      }}>
+        <span style={{ color: trialBanner.status === 'trialing' ? '#92400e' : '#991b1b' }}>
+          {trialBanner.status === 'trialing'
+            ? `Your free trial ends in ${trialBanner.daysLeft} day${trialBanner.daysLeft !== 1 ? 's' : ''}.`
+            : trialBanner.status === 'past_due'
+            ? 'Your payment failed — please update your billing info to avoid losing access.'
+            : 'Your subscription has ended. Add a plan to restore access.'}
+        </span>
+        <a href="/settings?tab=billing" style={{
+          color: trialBanner.status === 'trialing' ? '#b45309' : '#b91c1c',
+          fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '1rem',
+        }}>
+          {trialBanner.status === 'trialing' ? 'Choose a plan →' : 'Fix billing →'}
+        </a>
+      </div>
+    )}
 
     <ChatWidget />
     </>

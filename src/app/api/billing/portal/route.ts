@@ -1,40 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { stripe } from '../../../lib/stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get('token')
-  if (!token) return NextResponse.redirect(new URL('/login', req.url))
+export async function POST(req: NextRequest) {
+  const token = req.headers.get('authorization')?.replace('Bearer ', '')
+  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  if (!user) return NextResponse.redirect(new URL('/login', req.url))
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Get or create Stripe customer
-  const { data: profile } = await supabaseAdmin
+  const { data: biz } = await supabaseAdmin
     .from('business_profiles')
     .select('stripe_customer_id')
     .eq('user_id', user.id)
     .single()
 
-  let customerId = profile?.stripe_customer_id
-
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email,
-      metadata: { user_id: user.id },
-    })
-    customerId = customer.id
-    await supabaseAdmin
-      .from('business_profiles')
-      .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: 'user_id' })
+  if (!biz?.stripe_customer_id) {
+    return NextResponse.json({ error: 'No billing account found' }, { status: 400 })
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://helpdesk.vercel.app'
+
   const session = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=billing`,
+    customer: biz.stripe_customer_id,
+    return_url: `${appUrl}/settings?tab=billing`,
   })
 
-  return NextResponse.redirect(session.url)
+  return NextResponse.json({ url: session.url })
 }

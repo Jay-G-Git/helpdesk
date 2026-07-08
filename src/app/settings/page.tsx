@@ -155,6 +155,18 @@ function SettingsContent() {
   const [permSaving, setPermSaving] = useState(false)
   const [permSaved, setPermSaved] = useState(false)
 
+  // Billing
+  type BillingStatus = {
+    status: string; plan: string; planName: string; planPrice: number
+    employeeLimit: number | null; employeeCount: number
+    trialDaysLeft: number; trialEndsAt: string; currentPeriodEnd: string | null
+    hasSubscription: boolean
+  }
+  const [billing, setBilling] = useState<BillingStatus | null>(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+
   // Danger
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -199,6 +211,12 @@ function SettingsContent() {
 
     if (empRes.data) setTeamEmployees(empRes.data)
     if (deptRes.data) setDepartments(deptRes.data)
+
+    // Load billing status
+    setBillingLoading(true)
+    fetch('/api/billing/status', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => r.json()).then(d => { if (!d.error) setBilling(d) }).catch(() => {})
+      .finally(() => setBillingLoading(false))
   }
 
   async function saveAccount() {
@@ -530,28 +548,142 @@ function SettingsContent() {
 
           {/* BILLING */}
           {tab === 'billing' && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '1rem' }}>Subscription & billing</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', background: '#f7f9fc', borderRadius: '10px', marginBottom: '1.25rem' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#185fa5' }}>Free plan</div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Up to 10 employees · Core features</div>
-                </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#e8f0fe', color: '#185fa5' }}>Active</span>
-              </div>
-              <div style={{ fontSize: '13px', color: '#555', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-                Upgrade to <strong>Pro</strong> for unlimited employees, priority support, and advanced reporting.
-              </div>
-              <button
-                className="btn auth-btn-primary"
-                style={{ width: 'auto', fontSize: '13px', padding: '8px 18px' }}
-                onClick={async () => {
-                  const { data: { session } } = await supabase.auth.getSession()
-                  if (session) window.location.href = `/api/billing/portal?token=${session.access_token}`
-                }}
-              >
-                Manage billing →
-              </button>
+            <div>
+              {billingLoading || !billing ? (
+                <div className="card" style={{ color: '#bbb', fontSize: '14px' }}>Loading billing info…</div>
+              ) : (
+                <>
+                  {/* Current plan card */}
+                  <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div className="section-label" style={{ marginBottom: '1rem' }}>Current plan</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: '#f7f9fc', borderRadius: '10px', marginBottom: '1.25rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '16px', color: '#185fa5' }}>{billing.planName}</div>
+                        <div style={{ fontSize: '12px', color: '#888', marginTop: '3px' }}>
+                          ${billing.planPrice}/mo · {billing.employeeLimit ? `up to ${billing.employeeLimit} employees` : 'unlimited employees'}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', textTransform: 'capitalize',
+                        background: billing.status === 'active' ? '#e6f9f0' : billing.status === 'trialing' ? '#fff8e6' : billing.status === 'past_due' ? '#fef2f2' : '#f5f5f5',
+                        color: billing.status === 'active' ? '#15803d' : billing.status === 'trialing' ? '#b45309' : billing.status === 'past_due' ? '#b91c1c' : '#666',
+                      }}>
+                        {billing.status === 'trialing' ? `Trial · ${billing.trialDaysLeft} days left` : billing.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '24px', marginBottom: '1.25rem' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active employees</div>
+                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1a1a1a' }}>
+                          {billing.employeeCount}
+                          {billing.employeeLimit && <span style={{ fontSize: '13px', color: '#bbb', fontWeight: 400 }}> / {billing.employeeLimit}</span>}
+                        </div>
+                      </div>
+                      {billing.currentPeriodEnd && (
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Next billing date</div>
+                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>
+                            {new Date(billing.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        </div>
+                      )}
+                      {billing.status === 'trialing' && !billing.hasSubscription && (
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trial ends</div>
+                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#b45309' }}>
+                            {new Date(billing.trialEndsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {billing.hasSubscription && (
+                      <button
+                        className="btn"
+                        style={{ fontSize: '13px', padding: '8px 18px', background: '#f5f6fa', color: '#333', border: '1px solid #e5e7eb' }}
+                        disabled={portalLoading}
+                        onClick={async () => {
+                          setPortalLoading(true)
+                          const res = await fetch('/api/billing/portal', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${accessToken}` },
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                          setPortalLoading(false)
+                        }}
+                      >
+                        {portalLoading ? 'Redirecting…' : 'Manage billing & invoices →'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Plan picker (shown on trial or if not on pro) */}
+                  {(billing.status === 'trialing' || billing.plan !== 'pro') && (
+                    <div className="card">
+                      <div className="section-label" style={{ marginBottom: '1rem' }}>
+                        {billing.status === 'trialing' ? 'Choose a plan to continue after your trial' : 'Upgrade your plan'}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                        {([
+                          { key: 'starter', name: 'Starter', price: 29, limit: '10 employees', features: ['Scheduling & time tracking', 'Employee portal', 'Hiring pipeline', 'Team messaging'] },
+                          { key: 'growth',  name: 'Growth',  price: 69, limit: '30 employees', features: ['Everything in Starter', 'PTO management', 'Payroll tracking', 'Advanced reports'] },
+                          { key: 'pro',     name: 'Pro',     price: 129, limit: 'Unlimited employees', features: ['Everything in Growth', 'AI assistant', 'Priority support', 'Custom onboarding'] },
+                        ] as const).map(p => {
+                          const isCurrent = billing.plan === p.key && billing.status !== 'trialing'
+                          const isPopular = p.key === 'growth'
+                          return (
+                            <div key={p.key} style={{
+                              border: `1.5px solid ${isPopular ? '#185fa5' : '#e5e7eb'}`,
+                              borderRadius: '12px', padding: '20px', position: 'relative',
+                              background: isPopular ? '#f0f6ff' : '#fff',
+                            }}>
+                              {isPopular && (
+                                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#185fa5', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
+                                  MOST POPULAR
+                                </div>
+                              )}
+                              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>{p.name}</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', marginBottom: '2px' }}>${p.price}<span style={{ fontSize: '13px', fontWeight: 400, color: '#888' }}>/mo</span></div>
+                              <div style={{ fontSize: '11px', color: '#888', marginBottom: '14px' }}>{p.limit}</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
+                                {p.features.map(f => (
+                                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#444' }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    {f}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                className="btn auth-btn-primary"
+                                style={{ width: '100%', fontSize: '13px', padding: '9px', background: isPopular ? '#185fa5' : '#1a1a1a', opacity: isCurrent ? 0.5 : 1 }}
+                                disabled={isCurrent || checkoutLoading === p.key}
+                                onClick={async () => {
+                                  setCheckoutLoading(p.key)
+                                  const res = await fetch('/api/billing/create-checkout', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+                                    body: JSON.stringify({ plan: p.key }),
+                                  })
+                                  const data = await res.json()
+                                  if (data.url) window.location.href = data.url
+                                  setCheckoutLoading(null)
+                                }}
+                              >
+                                {isCurrent ? 'Current plan' : checkoutLoading === p.key ? 'Loading…' : billing.status === 'trialing' ? `Start with ${p.name}` : `Switch to ${p.name}`}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#aaa', marginTop: '12px', textAlign: 'center' }}>
+                        14-day free trial included · Cancel anytime · No setup fees
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
