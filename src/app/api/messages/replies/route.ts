@@ -12,56 +12,37 @@ function buildReactions(reactions: any[], msgId: number, userId: string) {
   return Object.entries(byReaction).map(([reaction, data]) => ({ reaction, ...data }))
 }
 
+// GET /api/messages/replies?parentId=xxx&businessId=xxx
 export async function GET(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const channel = req.nextUrl.searchParams.get('channel')
+  const parentId = req.nextUrl.searchParams.get('parentId')
   const businessId = req.nextUrl.searchParams.get('businessId')
-  if (!channel || !businessId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+  if (!parentId || !businessId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 
-  const { data: biz } = await supabaseAdmin.from('business_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
-  const isOwner = !!biz && user.id === businessId
-
-  if (!isOwner) {
-    const { data: emp } = await supabaseAdmin.from('employees').select('id').eq('email', user.email ?? '').eq('user_id', businessId).single()
-    if (!emp) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    if (channel !== 'general' && channel !== `dm_emp_${emp.id}`) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  // Only top-level messages (no replies)
-  const { data: messages, error } = await supabaseAdmin
+  const { data: messages } = await supabaseAdmin
     .from('chat_messages')
-    .select('id, sender_id, sender_name, content, created_at, edited_at, is_deleted, is_pinned, parent_id')
+    .select('id, sender_id, sender_name, content, created_at, edited_at, is_deleted, parent_id')
     .eq('business_id', businessId)
-    .eq('channel', channel)
-    .is('parent_id', null)
+    .eq('parent_id', parentId)
     .order('created_at', { ascending: true })
-    .limit(200)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!messages?.length) return NextResponse.json({ messages: [] })
 
   const msgIds = messages.map(m => m.id)
-
-  const [{ data: reactions }, { data: attachments }, { data: replies }] = await Promise.all([
+  const [{ data: reactions }, { data: attachments }] = await Promise.all([
     supabaseAdmin.from('message_reactions').select('*').in('message_id', msgIds),
     supabaseAdmin.from('message_attachments').select('*').in('message_id', msgIds),
-    supabaseAdmin.from('chat_messages').select('parent_id').in('parent_id', msgIds),
   ])
-
-  const replyCountMap: Record<number, number> = {}
-  for (const r of replies ?? []) {
-    if (r.parent_id) replyCountMap[r.parent_id] = (replyCountMap[r.parent_id] ?? 0) + 1
-  }
 
   const enriched = messages.map(msg => ({
     ...msg,
     reactions: buildReactions(reactions ?? [], msg.id, user.id),
     attachments: (attachments ?? []).filter((a: any) => a.message_id === msg.id),
-    reply_count: replyCountMap[msg.id] ?? 0,
+    reply_count: 0,
   }))
 
   return NextResponse.json({ messages: enriched })

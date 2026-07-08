@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { channel, businessId, content } = await req.json()
+  const { channel, businessId, content, parentId, attachments } = await req.json()
   if (!channel || !businessId || !content?.trim()) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
@@ -47,10 +47,19 @@ export async function POST(req: NextRequest) {
       sender_id: user.id,
       sender_name: senderName,
       content: content.trim(),
+      parent_id: parentId ?? null,
     })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ message })
+
+  // Link any pre-uploaded attachments to this message
+  if (attachments?.length && message) {
+    await supabaseAdmin.from('message_attachments').insert(
+      attachments.map((a: any) => ({ ...a, message_id: message.id, business_id: businessId }))
+    )
+  }
+
+  return NextResponse.json({ message: { ...message, reactions: [], attachments: attachments ?? [], reply_count: 0 } })
 }

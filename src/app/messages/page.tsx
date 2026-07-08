@@ -4,6 +4,24 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
 
+type Attachment = { id?: number; file_name: string; file_type: string; file_size: number; url: string; storage_path?: string }
+type ReactionGroup = { reaction: string; count: number; users: string[]; reacted: boolean }
+
+type Message = {
+  id: number
+  sender_id: string
+  sender_name: string
+  content: string
+  created_at: string
+  parent_id?: number | null
+  edited_at?: string | null
+  is_deleted?: boolean
+  is_pinned?: boolean
+  reply_count?: number
+  reactions?: ReactionGroup[]
+  attachments?: Attachment[]
+}
+
 type Channel = {
   id: string
   name: string
@@ -13,13 +31,13 @@ type Channel = {
   unreadCount: number
 }
 
-type Message = {
-  id: number
-  sender_id: string
-  sender_name: string
-  content: string
-  created_at: string
-}
+// ── SVG reaction icons ──────────────────────────────────────────────────────
+const REACTIONS = [
+  { key: 'thumbs_up', label: 'Thumbs up', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg> },
+  { key: 'check', label: 'Check', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> },
+  { key: 'heart', label: 'Heart', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> },
+  { key: 'plus_one', label: '+1', icon: <span style={{ fontSize: '11px', fontWeight: 700, lineHeight: 1 }}>+1</span> },
+]
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -28,8 +46,6 @@ function timeAgo(iso: string) {
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
@@ -37,23 +53,37 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
+function fmtBytes(n: number) {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
+
+function isImage(type: string) { return type.startsWith('image/') }
+
 function groupByDate(messages: Message[]) {
   const groups: { date: string; messages: Message[] }[] = []
   for (const msg of messages) {
     const date = new Date(msg.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     const last = groups[groups.length - 1]
-    if (last?.date === date) {
-      last.messages.push(msg)
-    } else {
-      groups.push({ date, messages: [msg] })
-    }
+    if (last?.date === date) last.messages.push(msg)
+    else groups.push({ date, messages: [msg] })
   }
   return groups
+}
+
+// Render @mention highlighted content
+function renderContent(content: string) {
+  const parts = content.split(/(@\w[\w\s]*)/g)
+  return parts.map((part, i) =>
+    part.startsWith('@') ? <span key={i} style={{ color: '#185fa5', fontWeight: 600 }}>{part}</span> : part
+  )
 }
 
 export default function MessagesPage() {
   const [token, setToken] = useState('')
   const [userId, setUserId] = useState('')
+  const [isOwner, setIsOwner] = useState(false)
   const [businessId, setBusinessId] = useState('')
   const [channels, setChannels] = useState<Channel[]>([])
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
@@ -62,10 +92,38 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false)
   const [loadingChannels, setLoadingChannels] = useState(true)
   const [loadingThread, setLoadingThread] = useState(false)
+
+  // Search
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<{ id: number; channel: string; sender_name: string; content: string; created_at: string }[]>([])
   const [searching, setSearching] = useState(false)
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hover actions
+  const [hoveredMsgId, setHoveredMsgId] = useState<number | null>(null)
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<number | null>(null)
+
+  // Edit
+  const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
+  const [editContent, setEditContent] = useState('')
+
+  // Thread panel
+  const [threadParent, setThreadParent] = useState<Message | null>(null)
+  const [threadMessages, setThreadMessages] = useState<Message[]>([])
+  const [threadInput, setThreadInput] = useState('')
+  const [loadingThreadPanel, setLoadingThreadPanel] = useState(false)
+  const threadBottomRef = useRef<HTMLDivElement>(null)
+
+  // File upload
+  const [pendingFiles, setPendingFiles] = useState<Attachment[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // @mention autocomplete
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+  const [mentionIndex, setMentionIndex] = useState(0)
+
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -73,96 +131,99 @@ export default function MessagesPage() {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior }), 50)
   }, [])
 
+  // ── Load employees for @mention ──────────────────────────────────────────
+  async function loadEmployees(bid: string, tk: string) {
+    const res = await fetch('/api/messages/channels', { headers: { Authorization: `Bearer ${tk}` } })
+    // employees are loaded separately
+    const { data } = await supabase.from('employees').select('id, name').eq('user_id', bid).neq('status', 'terminated')
+    if (data) setEmployees(data)
+  }
+
+  // ── Auth + initial load ──────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { window.location.href = '/login'; return }
+      setToken(session.access_token)
+      setUserId(session.user.id)
+      // Check if owner
+      const { data: biz } = await supabase.from('business_profiles').select('user_id').eq('user_id', session.user.id).maybeSingle()
+      setIsOwner(!!biz)
+      loadChannels(session.access_token)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Search ───────────────────────────────────────────────────────────────
   function handleSearch(q: string, tk = token, bid = businessId) {
     setSearch(q)
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
     if (!q.trim() || q.length < 2) { setSearchResults([]); setSearching(false); return }
     setSearching(true)
     searchTimeout.current = setTimeout(async () => {
-      const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}&businessId=${bid}`, {
-        headers: { Authorization: `Bearer ${tk}` },
-      })
+      const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}&businessId=${bid}`, { headers: { Authorization: `Bearer ${tk}` } })
       const data = await res.json()
       setSearchResults(data.results ?? [])
       setSearching(false)
     }, 300)
   }
 
+  // ── Channels ─────────────────────────────────────────────────────────────
   async function loadChannels(tk: string) {
     setLoadingChannels(true)
-    const res = await fetch('/api/messages/channels', {
-      headers: { Authorization: `Bearer ${tk}` },
-    })
+    const res = await fetch('/api/messages/channels', { headers: { Authorization: `Bearer ${tk}` } })
     const data = await res.json()
     if (res.ok) {
       setBusinessId(data.businessId)
       setChannels(data.channels)
-      if (data.channels.length > 0) {
-        openChannel(data.channels[0], tk, data.businessId)
-      }
+      if (data.channels.length > 0) openChannel(data.channels[0], tk, data.businessId)
+      loadEmployees(data.businessId, tk)
     }
     setLoadingChannels(false)
   }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { window.location.href = '/login'; return }
-      setToken(session.access_token)
-      setUserId(session.user.id)
-      loadChannels(session.access_token)
-    })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   async function openChannel(ch: Channel, tk = token, bid = businessId) {
     setActiveChannel(ch)
+    setThreadParent(null)
     setLoadingThread(true)
     setMessages([])
-    const res = await fetch(`/api/messages/thread?channel=${ch.id}&businessId=${bid}`, {
-      headers: { Authorization: `Bearer ${tk}` },
-    })
+    const res = await fetch(`/api/messages/thread?channel=${ch.id}&businessId=${bid}`, { headers: { Authorization: `Bearer ${tk}` } })
     const data = await res.json()
     if (res.ok) setMessages(data.messages)
     setLoadingThread(false)
     scrollToBottom('auto')
-    // Mark as read
     if (ch.unreadCount > 0) {
-      fetch('/api/messages/mark-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ channel: ch.id, businessId: bid }),
-      })
+      fetch('/api/messages/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` }, body: JSON.stringify({ channel: ch.id, businessId: bid }) })
       setChannels(prev => prev.map(c => c.id === ch.id ? { ...c, unreadCount: 0 } : c))
     }
   }
 
-  // Realtime: subscribe to new messages for this business
+  // ── Realtime ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!businessId) return
-    const sub = supabase
-      .channel(`chat:${businessId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `business_id=eq.${businessId}`,
-      }, (payload) => {
+    const sub = supabase.channel(`chat:${businessId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `business_id=eq.${businessId}` }, (payload) => {
         const msg = payload.new as Message & { channel: string }
-        // Update thread if viewing this channel
         setActiveChannel(ch => {
-          if (ch?.id === msg.channel) {
-            setMessages(prev => [...prev, msg])
+          if (ch?.id === msg.channel && !msg.parent_id) {
+            setMessages(prev => [...prev, { ...msg, reactions: [], attachments: [], reply_count: 0 }])
             scrollToBottom()
+          }
+          // If this is a reply and we have the thread panel open for its parent
+          if (msg.parent_id) {
+            setThreadParent(tp => {
+              if (tp?.id === msg.parent_id) {
+                setThreadMessages(prev => [...prev, { ...msg, reactions: [], attachments: [] }])
+                setTimeout(() => threadBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+                // Update reply count on parent
+                setMessages(prev => prev.map(m => m.id === msg.parent_id ? { ...m, reply_count: (m.reply_count ?? 0) + 1 } : m))
+              }
+              return tp
+            })
           }
           return ch
         })
-        // Update channel list last message
         setChannels(prev => prev.map(c => {
-          if (c.id === msg.channel) {
-            return {
-              ...c,
-              lastMessage: { sender_name: msg.sender_name, content: msg.content, created_at: msg.created_at },
-              unreadCount: msg.sender_id !== userId ? c.unreadCount + 1 : c.unreadCount,
-            }
+          if (c.id === msg.channel && !msg.parent_id) {
+            return { ...c, lastMessage: { sender_name: msg.sender_name, content: msg.content, created_at: msg.created_at }, unreadCount: msg.sender_id !== userId ? c.unreadCount + 1 : c.unreadCount }
           }
           return c
         }))
@@ -171,29 +232,283 @@ export default function MessagesPage() {
     return () => { supabase.removeChannel(sub) }
   }, [businessId, userId, scrollToBottom])
 
-  async function send() {
-    const content = input.trim()
+  // ── Send message ─────────────────────────────────────────────────────────
+  async function send(parentId?: number) {
+    const content = (parentId ? threadInput : input).trim()
     if (!content || sending || !activeChannel) return
-    setInput('')
+    if (parentId) setThreadInput('') else setInput('')
     setSending(true)
 
     const res = await fetch('/api/messages/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ channel: activeChannel.id, businessId, content }),
+      body: JSON.stringify({ channel: activeChannel.id, businessId, content, parentId: parentId ?? null, attachments: parentId ? [] : pendingFiles }),
     })
     const data = await res.json()
-    if (res.ok) {
+    if (res.ok && !parentId) {
       setMessages(prev => [...prev, data.message])
+      setPendingFiles([])
       scrollToBottom()
-      setChannels(prev => prev.map(c =>
-        c.id === activeChannel.id
-          ? { ...c, lastMessage: { sender_name: data.message.sender_name, content: data.message.content, created_at: data.message.created_at } }
-          : c
-      ))
+      setChannels(prev => prev.map(c => c.id === activeChannel.id ? { ...c, lastMessage: { sender_name: data.message.sender_name, content: data.message.content, created_at: data.message.created_at } } : c))
+    }
+    if (res.ok && parentId) {
+      setThreadMessages(prev => [...prev, data.message])
+      setTimeout(() => threadBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      setMessages(prev => prev.map(m => m.id === parentId ? { ...m, reply_count: (m.reply_count ?? 0) + 1 } : m))
     }
     setSending(false)
     setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  // ── React ────────────────────────────────────────────────────────────────
+  async function toggleReaction(msgId: number, reaction: string, inThread = false) {
+    setReactionPickerMsgId(null)
+    const res = await fetch('/api/messages/react', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messageId: msgId, businessId, reaction }),
+    })
+    if (!res.ok) return
+    const { toggled } = await res.json()
+
+    const updateMsg = (msg: Message): Message => {
+      const reactions = msg.reactions ? [...msg.reactions] : []
+      const idx = reactions.findIndex(r => r.reaction === reaction)
+      if (toggled === 'on') {
+        if (idx >= 0) { reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1, reacted: true, users: [...reactions[idx].users, 'You'] } }
+        else reactions.push({ reaction, count: 1, reacted: true, users: ['You'] })
+      } else {
+        if (idx >= 0) {
+          const updated = { ...reactions[idx], count: reactions[idx].count - 1, reacted: false, users: reactions[idx].users.filter(u => u !== 'You') }
+          if (updated.count <= 0) reactions.splice(idx, 1) else reactions[idx] = updated
+        }
+      }
+      return { ...msg, reactions }
+    }
+
+    if (inThread) setThreadMessages(prev => prev.map(m => m.id === msgId ? updateMsg(m) : m))
+    else setMessages(prev => prev.map(m => m.id === msgId ? updateMsg(m) : m))
+  }
+
+  // ── Edit ─────────────────────────────────────────────────────────────────
+  async function submitEdit(msgId: number) {
+    if (!editContent.trim()) return
+    await fetch(`/api/messages/${msgId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: editContent.trim() }),
+    })
+    const now = new Date().toISOString()
+    const update = (m: Message) => m.id === msgId ? { ...m, content: editContent.trim(), edited_at: now } : m
+    setMessages(prev => prev.map(update))
+    setThreadMessages(prev => prev.map(update))
+    setEditingMsgId(null)
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+  async function deleteMsg(msgId: number, inThread = false) {
+    await fetch(`/api/messages/${msgId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    const update = (m: Message) => m.id === msgId ? { ...m, is_deleted: true } : m
+    if (inThread) setThreadMessages(prev => prev.map(update))
+    else setMessages(prev => prev.map(update))
+  }
+
+  // ── Pin ───────────────────────────────────────────────────────────────────
+  async function pinMsg(msgId: number, pin: boolean) {
+    await fetch('/api/messages/pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messageId: msgId, pin }),
+    })
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_pinned: pin } : m))
+  }
+
+  // ── Thread panel ──────────────────────────────────────────────────────────
+  async function openThread(msg: Message) {
+    setThreadParent(msg)
+    setLoadingThreadPanel(true)
+    setThreadMessages([])
+    const res = await fetch(`/api/messages/replies?parentId=${msg.id}&businessId=${businessId}`, { headers: { Authorization: `Bearer ${token}` } })
+    const data = await res.json()
+    if (res.ok) setThreadMessages(data.messages)
+    setLoadingThreadPanel(false)
+    setTimeout(() => threadBottomRef.current?.scrollIntoView({ behavior: 'auto' }), 100)
+  }
+
+  // ── File upload ───────────────────────────────────────────────────────────
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('businessId', businessId)
+    const res = await fetch('/api/messages/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form })
+    if (res.ok) {
+      const data = await res.json()
+      setPendingFiles(prev => [...prev, data])
+    }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // ── @mention autocomplete ─────────────────────────────────────────────────
+  function handleInputChange(val: string) {
+    setInput(val)
+    const atIdx = val.lastIndexOf('@')
+    if (atIdx >= 0 && atIdx === val.length - 1 || (atIdx >= 0 && !val.slice(atIdx + 1).includes(' '))) {
+      const query = val.slice(atIdx + 1).toLowerCase()
+      if (employees.some(e => e.name.toLowerCase().includes(query))) {
+        setMentionQuery(query)
+        setMentionIndex(0)
+        return
+      }
+    }
+    setMentionQuery(null)
+  }
+
+  function selectMention(name: string) {
+    const atIdx = input.lastIndexOf('@')
+    setInput(input.slice(0, atIdx) + `@${name} `)
+    setMentionQuery(null)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  const filteredEmployees = mentionQuery !== null ? employees.filter(e => e.name.toLowerCase().includes(mentionQuery)) : []
+
+  const pinnedMsgs = messages.filter(m => m.is_pinned && !m.is_deleted)
+  const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0)
+
+  // ── Message bubble ────────────────────────────────────────────────────────
+  function MsgBubble({ msg, inThread = false }: { msg: Message; inThread?: boolean }) {
+    const isMe = msg.sender_id === userId
+    const isHovered = hoveredMsgId === msg.id
+    const isEditing = editingMsgId === msg.id
+    const showReactionPicker = reactionPickerMsgId === msg.id
+
+    return (
+      <div
+        style={{ position: 'relative', display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: '6px' }}
+        onMouseEnter={() => setHoveredMsgId(msg.id)}
+        onMouseLeave={() => { setHoveredMsgId(null); setReactionPickerMsgId(null) }}
+      >
+        {!isMe && (
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8f0fe', color: '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, marginRight: '8px', alignSelf: 'flex-end' }}>
+            {msg.sender_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        <div style={{ maxWidth: '68%' }}>
+          {/* Hover action toolbar */}
+          {isHovered && !isEditing && !msg.is_deleted && (
+            <div style={{ position: 'absolute', top: -34, right: isMe ? 0 : 'auto', left: isMe ? 'auto' : 38, display: 'flex', gap: '4px', background: '#fff', border: '0.5px solid #e8eaed', borderRadius: '8px', padding: '4px 6px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', zIndex: 10 }}>
+              {/* Reaction trigger */}
+              <button title="React" onClick={() => setReactionPickerMsgId(showReactionPicker ? null : msg.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              </button>
+              {/* Reply */}
+              {!inThread && (
+                <button title="Reply in thread" onClick={() => openThread(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                </button>
+              )}
+              {/* Edit — own messages only */}
+              {isMe && (
+                <button title="Edit" onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+              )}
+              {/* Delete — own messages only */}
+              {isMe && (
+                <button title="Delete" onClick={() => deleteMsg(msg.id, inThread)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+              )}
+              {/* Pin — owner only */}
+              {isOwner && !inThread && (
+                <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => pinMsg(msg.id, !msg.is_pinned)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: msg.is_pinned ? '#185fa5' : '#666', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Reaction picker */}
+          {showReactionPicker && (
+            <div style={{ position: 'absolute', top: -72, right: isMe ? 0 : 'auto', left: isMe ? 'auto' : 38, display: 'flex', gap: '6px', background: '#fff', border: '0.5px solid #e8eaed', borderRadius: '10px', padding: '6px 10px', boxShadow: '0 2px 12px rgba(0,0,0,0.1)', zIndex: 20 }}>
+              {REACTIONS.map(r => (
+                <button key={r.key} title={r.label} onClick={() => toggleReaction(msg.id, r.key, inThread)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '4px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {r.icon}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Message content */}
+          {msg.is_deleted ? (
+            <div style={{ padding: '8px 12px', borderRadius: '10px', background: '#f5f6fa', color: '#bbb', fontSize: '13px', fontStyle: 'italic', border: '0.5px solid #e8eaed' }}>
+              This message was deleted
+            </div>
+          ) : isEditing ? (
+            <div>
+              <textarea value={editContent} onChange={e => setEditContent(e.target.value)} autoFocus
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '10px', border: '1.5px solid #185fa5', fontSize: '14px', fontFamily: 'inherit', resize: 'none', outline: 'none', lineHeight: 1.5 }}
+                rows={2}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(msg.id) } if (e.key === 'Escape') setEditingMsgId(null) }}
+              />
+              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                <button onClick={() => submitEdit(msg.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#185fa5', color: '#fff', border: 'none', cursor: 'pointer' }}>Save</button>
+                <button onClick={() => setEditingMsgId(null)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#f0f2f7', color: '#666', border: 'none', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '9px 13px', borderRadius: isMe ? '14px 14px 4px 14px' : '4px 14px 14px 14px', background: isMe ? '#185fa5' : '#fff', color: isMe ? '#fff' : '#1a1a1a', fontSize: '14px', lineHeight: 1.5, border: isMe ? 'none' : '0.5px solid #e8eaed', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+              {renderContent(msg.content)}
+              {msg.attachments?.map((att, i) => (
+                <div key={i} style={{ marginTop: '8px' }}>
+                  {isImage(att.file_type) ? (
+                    <img src={att.url} alt={att.file_name} style={{ maxWidth: '240px', maxHeight: '180px', borderRadius: '8px', display: 'block' }} />
+                  ) : (
+                    <a href={att.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: isMe ? 'rgba(255,255,255,0.15)' : '#f5f6fa', borderRadius: '8px', textDecoration: 'none', color: isMe ? '#fff' : '#185fa5', fontSize: '12px' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <span>{att.file_name}</span>
+                      <span style={{ opacity: 0.6 }}>{fmtBytes(att.file_size)}</span>
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Timestamp + edited */}
+          {!msg.is_deleted && (
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '3px', textAlign: isMe ? 'right' : 'left', paddingLeft: isMe ? 0 : '2px', paddingRight: isMe ? '2px' : 0 }}>
+              {fmtTime(msg.created_at)}{msg.edited_at ? ' · edited' : ''}
+            </div>
+          )}
+
+          {/* Reactions */}
+          {!msg.is_deleted && msg.reactions && msg.reactions.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+              {msg.reactions.map(r => (
+                <button key={r.reaction} onClick={() => toggleReaction(msg.id, r.reaction, inThread)} title={r.users.join(', ')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '99px', border: `1px solid ${r.reacted ? '#185fa5' : '#e8eaed'}`, background: r.reacted ? '#e8f0fe' : '#fafafa', cursor: 'pointer', fontSize: '12px', color: r.reacted ? '#185fa5' : '#555' }}>
+                  {REACTIONS.find(rx => rx.key === r.reaction)?.icon}
+                  <span>{r.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Reply count */}
+          {!msg.is_deleted && !inThread && (msg.reply_count ?? 0) > 0 && (
+            <button onClick={() => openThread(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#185fa5', fontSize: '12px', padding: '4px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+              {msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   useEffect(() => {
@@ -201,69 +516,44 @@ export default function MessagesPage() {
   }, [activeChannel?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grouped = groupByDate(messages)
-  const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0)
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="dash-wrap">
       <Nav active="messages" />
 
       <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: '#f5f6fa' }}>
 
-        {/* Sidebar */}
-        <div style={{
-          width: '280px',
-          flexShrink: 0,
-          background: '#fff',
-          borderRight: '0.5px solid #e8eaed',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}>
+        {/* ── Sidebar ── */}
+        <div style={{ width: '260px', flexShrink: 0, background: '#fff', borderRight: '0.5px solid #e8eaed', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1rem 0.75rem', borderBottom: '0.5px solid #f0f0f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a' }}>Messages</div>
-              {totalUnread > 0 && (
-                <div style={{ fontSize: '11px', color: '#888' }}>{totalUnread} unread</div>
-              )}
+              {totalUnread > 0 && <div style={{ fontSize: '11px', color: '#888' }}>{totalUnread} unread</div>}
             </div>
-            {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f5f6fa', borderRadius: '8px', padding: '6px 10px', border: '0.5px solid #e8eaed' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input
-                value={search}
-                onChange={e => handleSearch(e.target.value)}
-                placeholder="Search messages…"
-                style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '13px', outline: 'none', color: '#1a1a1a' }}
-              />
-              {search && (
-                <button onClick={() => { setSearch(''); setSearchResults([]) }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#bbb', padding: 0, display: 'flex', alignItems: 'center' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              )}
+              <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Search messages…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '13px', outline: 'none', color: '#1a1a1a' }} />
+              {search && <button onClick={() => { setSearch(''); setSearchResults([]) }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#bbb', padding: 0, display: 'flex' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
             </div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {search.length >= 2 ? (
-              searching ? (
-                <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>Searching…</div>
-              ) : searchResults.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>No results for "{search}"</div>
-              ) : searchResults.map(result => {
+              searching ? <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>Searching…</div>
+              : searchResults.length === 0 ? <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>No results for "{search}"</div>
+              : searchResults.map(result => {
                 const ch = channels.find(c => c.id === result.channel)
-                const chName = ch?.name ?? result.channel
                 const idx = result.content.toLowerCase().indexOf(search.toLowerCase())
                 const start = Math.max(0, idx - 30)
                 const snippet = (start > 0 ? '…' : '') + result.content.slice(start, idx + search.length + 40) + (idx + search.length + 40 < result.content.length ? '…' : '')
                 return (
-                  <div key={result.id}
-                    onClick={() => { if (ch) { openChannel(ch); setSearch(''); setSearchResults([]) } }}
+                  <div key={result.id} onClick={() => { if (ch) { openChannel(ch); setSearch(''); setSearchResults([]) } }}
                     style={{ padding: '10px 14px', borderBottom: '0.5px solid #f0f2f7', cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#fafafa'}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                  >
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#185fa5' }}>{chName}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#185fa5' }}>{ch?.name ?? result.channel}</div>
                       <div style={{ fontSize: '11px', color: '#bbb' }}>{timeAgo(result.created_at)}</div>
                     </div>
                     <div style={{ fontSize: '12px', color: '#555', marginBottom: '2px', fontWeight: 500 }}>{result.sender_name}</div>
@@ -271,128 +561,65 @@ export default function MessagesPage() {
                   </div>
                 )
               })
-            ) : loadingChannels ? (
-              <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>Loading…</div>
-            ) : channels.map(ch => (
-              <div
-                key={ch.id}
-                onClick={() => openChannel(ch)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  cursor: 'pointer',
-                  background: activeChannel?.id === ch.id ? '#f0f6ff' : 'transparent',
-                  borderLeft: `3px solid ${activeChannel?.id === ch.id ? '#185fa5' : 'transparent'}`,
-                  transition: 'background 0.1s',
-                }}
+            ) : loadingChannels ? <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>Loading…</div>
+            : channels.map(ch => (
+              <div key={ch.id} onClick={() => openChannel(ch)}
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', cursor: 'pointer', background: activeChannel?.id === ch.id ? '#f0f6ff' : 'transparent', borderLeft: `3px solid ${activeChannel?.id === ch.id ? '#185fa5' : 'transparent'}`, transition: 'background 0.1s' }}
                 onMouseEnter={e => { if (activeChannel?.id !== ch.id) (e.currentTarget as HTMLDivElement).style.background = '#fafafa' }}
-                onMouseLeave={e => { if (activeChannel?.id !== ch.id) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-              >
-                {/* Avatar */}
-                <div style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: ch.type === 'group' ? '10px' : '50%',
-                  background: ch.type === 'group' ? '#185fa5' : '#e8f0fe',
-                  color: ch.type === 'group' ? '#fff' : '#185fa5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: ch.type === 'group' ? '16px' : '13px',
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}>
-                  {ch.type === 'group' ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  ) : ch.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                onMouseLeave={e => { if (activeChannel?.id !== ch.id) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}>
+                <div style={{ width: 38, height: 38, borderRadius: ch.type === 'group' ? '10px' : '50%', background: ch.type === 'group' ? '#185fa5' : '#e8f0fe', color: ch.type === 'group' ? '#fff' : '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+                  {ch.type === 'group' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  : ch.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
-
-                {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: ch.unreadCount > 0 ? 700 : 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ch.name}
-                    </div>
-                    {ch.lastMessage && (
-                      <div style={{ fontSize: '11px', color: '#bbb', flexShrink: 0, marginLeft: '6px' }}>
-                        {timeAgo(ch.lastMessage.created_at)}
-                      </div>
-                    )}
+                    <div style={{ fontSize: '13px', fontWeight: ch.unreadCount > 0 ? 700 : 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</div>
+                    {ch.lastMessage && <div style={{ fontSize: '11px', color: '#bbb', flexShrink: 0, marginLeft: '6px' }}>{timeAgo(ch.lastMessage.created_at)}</div>}
                   </div>
-                  {ch.lastMessage ? (
-                    <div style={{ fontSize: '12px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ch.lastMessage.sender_name}: {ch.lastMessage.content}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '12px', color: '#bbb', fontStyle: 'italic' }}>No messages yet</div>
-                  )}
+                  {ch.lastMessage ? <div style={{ fontSize: '12px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.lastMessage.sender_name}: {ch.lastMessage.content}</div>
+                  : <div style={{ fontSize: '12px', color: '#bbb', fontStyle: 'italic' }}>No messages yet</div>}
                 </div>
-
-                {/* Unread badge */}
-                {ch.unreadCount > 0 && (
-                  <div style={{
-                    minWidth: 18, height: 18, borderRadius: '99px',
-                    background: '#185fa5', color: '#fff',
-                    fontSize: '11px', fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 5px', flexShrink: 0,
-                  }}>
-                    {ch.unreadCount}
-                  </div>
-                )}
+                {ch.unreadCount > 0 && <div style={{ minWidth: 18, height: 18, borderRadius: '99px', background: '#185fa5', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', flexShrink: 0 }}>{ch.unreadCount}</div>}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Thread */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* ── Main thread ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
-          {/* Thread header */}
+          {/* Channel header */}
           {activeChannel && (
-            <div style={{
-              background: '#fff',
-              borderBottom: '0.5px solid #e8eaed',
-              padding: '0 1.5rem',
-              height: '56px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexShrink: 0,
-            }}>
-              <div style={{
-                width: 32, height: 32,
-                borderRadius: activeChannel.type === 'group' ? '8px' : '50%',
-                background: activeChannel.type === 'group' ? '#185fa5' : '#e8f0fe',
-                color: activeChannel.type === 'group' ? '#fff' : '#185fa5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: activeChannel.type === 'group' ? '14px' : '11px', fontWeight: 700,
-              }}>
-                {activeChannel.type === 'group' ? (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                ) : activeChannel.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+            <div style={{ background: '#fff', borderBottom: '0.5px solid #e8eaed', padding: '0 1.5rem', height: '56px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: activeChannel.type === 'group' ? '8px' : '50%', background: activeChannel.type === 'group' ? '#185fa5' : '#e8f0fe', color: activeChannel.type === 'group' ? '#fff' : '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
+                {activeChannel.type === 'group' ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                : activeChannel.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>{activeChannel.name}</div>
-                <div style={{ fontSize: '11px', color: '#999' }}>
-                  {activeChannel.type === 'group' ? 'Team group chat' : 'Direct message'}
-                </div>
+                <div style={{ fontSize: '11px', color: '#999' }}>{activeChannel.type === 'group' ? 'Team group chat' : 'Direct message'}</div>
               </div>
+              {threadParent && <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '12px', padding: '4px 8px', borderRadius: '6px' }}>Close thread</button>}
+            </div>
+          )}
+
+          {/* Pinned message banner */}
+          {pinnedMsgs.length > 0 && (
+            <div style={{ background: '#fffbea', borderBottom: '0.5px solid #f5e07a', padding: '8px 1.5rem', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c77700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+              <div style={{ flex: 1, fontSize: '12px', color: '#7a5c00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <strong>Pinned:</strong> {pinnedMsgs[pinnedMsgs.length - 1].content}
+              </div>
+              {pinnedMsgs.length > 1 && <span style={{ fontSize: '11px', color: '#c77700' }}>+{pinnedMsgs.length - 1} more</span>}
             </div>
           )}
 
           {/* Messages area */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
             {!activeChannel ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#bbb', fontSize: '14px' }}>
-                Select a conversation
-              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#bbb', fontSize: '14px' }}>Select a conversation</div>
             ) : loadingThread ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#bbb', fontSize: '14px' }}>
-                Loading…
-              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#bbb', fontSize: '14px' }}>Loading…</div>
             ) : messages.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#bbb', gap: '10px' }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#d0d4dc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -401,65 +628,18 @@ export default function MessagesPage() {
             ) : (
               grouped.map(group => (
                 <div key={group.date}>
-                  {/* Date divider */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '1.25rem 0 1rem' }}>
                     <div style={{ flex: 1, height: '0.5px', background: '#e8eaed' }} />
                     <div style={{ fontSize: '11px', color: '#bbb', fontWeight: 500, whiteSpace: 'nowrap' }}>{group.date}</div>
                     <div style={{ flex: 1, height: '0.5px', background: '#e8eaed' }} />
                   </div>
-
                   {group.messages.map((msg, i) => {
-                    const isMe = msg.sender_id === userId
                     const prevMsg = i > 0 ? group.messages[i - 1] : null
-                    const showName = !isMe && (prevMsg?.sender_id !== msg.sender_id)
-
+                    const showName = msg.sender_id !== userId && prevMsg?.sender_id !== msg.sender_id
                     return (
-                      <div
-                        key={msg.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: isMe ? 'flex-end' : 'flex-start',
-                          marginBottom: '6px',
-                          marginTop: showName ? '12px' : '0',
-                        }}
-                      >
-                        {!isMe && (
-                          <div style={{
-                            width: 30, height: 30,
-                            borderRadius: '50%',
-                            background: '#e8f0fe',
-                            color: '#185fa5',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: 700,
-                            flexShrink: 0, marginRight: '8px', alignSelf: 'flex-end',
-                            opacity: showName ? 1 : 0,
-                          }}>
-                            {msg.sender_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div style={{ maxWidth: '68%' }}>
-                          {showName && (
-                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 600, marginBottom: '4px', marginLeft: '2px' }}>
-                              {msg.sender_name}
-                            </div>
-                          )}
-                          <div style={{
-                            padding: '9px 13px',
-                            borderRadius: isMe ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-                            background: isMe ? '#185fa5' : '#fff',
-                            color: isMe ? '#fff' : '#1a1a1a',
-                            fontSize: '14px',
-                            lineHeight: 1.5,
-                            border: isMe ? 'none' : '0.5px solid #e8eaed',
-                            wordBreak: 'break-word',
-                            whiteSpace: 'pre-wrap',
-                          }}>
-                            {msg.content}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '3px', textAlign: isMe ? 'right' : 'left', paddingLeft: isMe ? 0 : '2px', paddingRight: isMe ? '2px' : 0 }}>
-                            {fmtTime(msg.created_at)}
-                          </div>
-                        </div>
+                      <div key={msg.id} style={{ marginBottom: '6px', marginTop: showName ? '12px' : '0' }}>
+                        {showName && <div style={{ fontSize: '11px', color: '#888', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
+                        <MsgBubble msg={msg} />
                       </div>
                     )
                   })}
@@ -469,50 +649,127 @@ export default function MessagesPage() {
             <div ref={bottomRef} />
           </div>
 
+          {/* Pending file previews */}
+          {pendingFiles.length > 0 && (
+            <div style={{ background: '#fff', borderTop: '0.5px solid #e8eaed', padding: '8px 1.5rem', display: 'flex', gap: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
+              {pendingFiles.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f0f6ff', border: '0.5px solid #c2d4f0', borderRadius: '8px', padding: '6px 10px', fontSize: '12px' }}>
+                  <span style={{ color: '#185fa5' }}>{f.file_name}</span>
+                  <span style={{ color: '#aaa' }}>{fmtBytes(f.file_size)}</span>
+                  <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: 0, display: 'flex' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Input */}
           {activeChannel && (
-            <div style={{ background: '#fff', borderTop: '0.5px solid #e8eaed', padding: '1rem 1.5rem', flexShrink: 0 }}>
+            <div style={{ background: '#fff', borderTop: '0.5px solid #e8eaed', padding: '1rem 1.5rem', flexShrink: 0, position: 'relative' }}>
+              {/* @mention dropdown */}
+              {mentionQuery !== null && filteredEmployees.length > 0 && (
+                <div style={{ position: 'absolute', bottom: '100%', left: '1.5rem', background: '#fff', border: '0.5px solid #e8eaed', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', overflow: 'hidden', zIndex: 50, minWidth: '180px' }}>
+                  {filteredEmployees.map((emp, i) => (
+                    <div key={emp.id} onClick={() => selectMention(emp.name)}
+                      style={{ padding: '9px 14px', cursor: 'pointer', fontSize: '13px', fontWeight: 500, background: i === mentionIndex ? '#f0f6ff' : 'transparent', color: '#1a1a1a' }}
+                      onMouseEnter={() => setMentionIndex(i)}>
+                      @{emp.name}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', background: '#f5f6fa', borderRadius: '12px', padding: '8px 12px', border: '0.5px solid #e8eaed' }}>
+                {/* File attach button */}
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                  style={{ width: 30, height: 30, borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {uploading ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185fa5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>}
+                </button>
+                <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileSelect} />
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                  onChange={e => handleInputChange(e.target.value)}
+                  onKeyDown={e => {
+                    if (mentionQuery !== null && filteredEmployees.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, filteredEmployees.length - 1)); return }
+                      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); return }
+                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectMention(filteredEmployees[mentionIndex].name); return }
+                      if (e.key === 'Escape') { setMentionQuery(null); return }
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+                  }}
                   placeholder={`Message ${activeChannel.name}…`}
                   rows={1}
                   disabled={sending}
-                  style={{
-                    flex: 1, resize: 'none', fontSize: '14px', padding: '4px 2px',
-                    border: 'none', background: 'transparent',
-                    fontFamily: 'inherit', outline: 'none', lineHeight: 1.5,
-                    maxHeight: '120px', overflowY: 'auto', color: '#1a1a1a',
-                  }}
-                  onInput={e => {
-                    const t = e.currentTarget
-                    t.style.height = 'auto'
-                    t.style.height = `${Math.min(t.scrollHeight, 120)}px`
-                  }}
+                  style={{ flex: 1, resize: 'none', fontSize: '14px', padding: '4px 2px', border: 'none', background: 'transparent', fontFamily: 'inherit', outline: 'none', lineHeight: 1.5, maxHeight: '120px', overflowY: 'auto', color: '#1a1a1a' }}
+                  onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 120)}px` }}
                 />
-                <button
-                  onClick={send}
-                  disabled={sending || !input.trim()}
-                  style={{
-                    width: 34, height: 34, borderRadius: '8px', border: 'none', flexShrink: 0,
-                    background: input.trim() && !sending ? '#185fa5' : '#dde1ea',
-                    color: '#fff', cursor: input.trim() && !sending ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.15s',
-                  }}
-                >
+                <button onClick={() => send()} disabled={sending || (!input.trim() && pendingFiles.length === 0)}
+                  style={{ width: 34, height: 34, borderRadius: '8px', border: 'none', flexShrink: 0, background: (input.trim() || pendingFiles.length > 0) && !sending ? '#185fa5' : '#dde1ea', color: '#fff', cursor: (input.trim() || pendingFiles.length > 0) && !sending ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
-              <div style={{ fontSize: '11px', color: '#bbb', marginTop: '5px', textAlign: 'center' }}>
-                Enter to send · Shift+Enter for new line
-              </div>
+              <div style={{ fontSize: '11px', color: '#bbb', marginTop: '5px', textAlign: 'center' }}>Enter to send · Shift+Enter for new line</div>
             </div>
           )}
         </div>
+
+        {/* ── Thread panel ── */}
+        {threadParent && (
+          <div style={{ width: '320px', flexShrink: 0, background: '#fff', borderLeft: '0.5px solid #e8eaed', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>Thread</div>
+              <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', display: 'flex', alignItems: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Parent message */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f0f2f7', background: '#fafbfc' }}>
+              <MsgBubble msg={threadParent} inThread />
+            </div>
+
+            {/* Thread replies */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+              {loadingThreadPanel ? (
+                <div style={{ textAlign: 'center', fontSize: '13px', color: '#bbb', paddingTop: '1rem' }}>Loading…</div>
+              ) : threadMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', fontSize: '13px', color: '#bbb', paddingTop: '1rem' }}>No replies yet</div>
+              ) : threadMessages.map((msg, i) => {
+                const prevMsg = i > 0 ? threadMessages[i - 1] : null
+                const showName = msg.sender_id !== userId && prevMsg?.sender_id !== msg.sender_id
+                return (
+                  <div key={msg.id} style={{ marginBottom: '6px', marginTop: showName ? '12px' : '0' }}>
+                    {showName && <div style={{ fontSize: '11px', color: '#888', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
+                    <MsgBubble msg={msg} inThread />
+                  </div>
+                )
+              })}
+              <div ref={threadBottomRef} />
+            </div>
+
+            {/* Thread reply input */}
+            <div style={{ borderTop: '0.5px solid #e8eaed', padding: '0.75rem 1.25rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', background: '#f5f6fa', borderRadius: '10px', padding: '6px 10px', border: '0.5px solid #e8eaed' }}>
+                <textarea
+                  value={threadInput}
+                  onChange={e => setThreadInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(threadParent.id) } }}
+                  placeholder="Reply…"
+                  rows={1}
+                  style={{ flex: 1, resize: 'none', fontSize: '13px', padding: '3px 2px', border: 'none', background: 'transparent', fontFamily: 'inherit', outline: 'none', lineHeight: 1.5, maxHeight: '80px', overflowY: 'auto', color: '#1a1a1a' }}
+                  onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 80)}px` }}
+                />
+                <button onClick={() => send(threadParent.id)} disabled={sending || !threadInput.trim()}
+                  style={{ width: 30, height: 30, borderRadius: '6px', border: 'none', background: threadInput.trim() && !sending ? '#185fa5' : '#dde1ea', color: '#fff', cursor: threadInput.trim() && !sending ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
