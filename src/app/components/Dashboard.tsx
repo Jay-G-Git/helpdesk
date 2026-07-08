@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
 import EmployeePanel from './EmployeePanel'
 import Nav from './Nav'
-import { MegaphoneIcon } from './Icons'
 import CalloutModal from './CalloutModal'
 
 type TimeOffRequest = {
@@ -17,6 +16,29 @@ type TimeOffRequest = {
   reason: string | null
   status: string
   created_at: string
+}
+
+type ShiftSwap = {
+  id: number
+  requester_id: number
+  target_id: number
+  requester_shift_id: number
+  target_shift_id: number
+  status: string
+  created_at: string
+  requester_name?: string
+  target_name?: string
+  shift_date?: string
+  start_time?: string
+  end_time?: string
+}
+
+type ActivityItem = {
+  id: string
+  type: 'clock_in' | 'callout' | 'pto_request' | 'swap_request' | 'pto_approved'
+  text: string
+  sub: string
+  time: string
 }
 
 type Props = {
@@ -34,25 +56,7 @@ type Props = {
 }
 
 function initials(name: string) {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2)
-}
-
-function tenure(start: string) {
-  const months = Math.floor((Date.now() - new Date(start).getTime()) / 2629800000)
-  if (months < 1) return 'New'
-  if (months < 12) return `${months}mo`
-  return `${Math.floor(months / 12)}yr ${months % 12}mo`
-}
-
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  return `${Math.floor(days / 7)}w ago`
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
 function greeting() {
@@ -79,54 +83,15 @@ function formatTime(t: string) {
   return `${hour % 12 || 12}:${m} ${hour < 12 ? 'AM' : 'PM'}`
 }
 
-function AnnouncementForm() {
-  const [title, setTitle] = useState('')
-  const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [result, setResult] = useState('')
-
-  async function send() {
-    if (!title.trim() || !message.trim()) return
-    setSending(true)
-    setResult('')
-    const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch('/api/announcements', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-      body: JSON.stringify({ title, message }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setResult(`Sent to ${data.sent} employee${data.sent !== 1 ? 's' : ''}.`)
-      setTitle('')
-      setMessage('')
-    } else {
-      setResult(data.error || 'Something went wrong.')
-    }
-    setSending(false)
-  }
-
-  return (
-    <div>
-      <div className="field" style={{ marginBottom: '0.6rem' }}>
-        <label>Title</label>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Schedule change this Friday" />
-      </div>
-      <div className="field" style={{ marginBottom: '0.75rem' }}>
-        <label>Message</label>
-        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your message here..." style={{ minHeight: '80px' }} />
-      </div>
-      <button className="btn" onClick={send} disabled={sending || !title.trim() || !message.trim()}>
-        {sending ? 'Sending...' : <><MegaphoneIcon size={14} />&nbsp;Send to all employees</>}
-      </button>
-      {result && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{result}</div>}
-    </div>
-  )
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }
-
 
 export default function Dashboard({
   employees, selectedEmp, docsGenerated, loading, viewerRole, viewerPerms,
@@ -134,81 +99,139 @@ export default function Dashboard({
 }: Props) {
   const [firstName, setFirstName] = useState('')
   const [businessName, setBusinessName] = useState('')
-  const [complianceIssues, setComplianceIssues] = useState<{ name: string; missing: string[] }[]>([])
-  const [filterPaperwork, setFilterPaperwork] = useState(false)
+  const [token, setToken] = useState('')
+
+  // Operational data
+  const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number; clock_in: string }[]>([])
+  const [todayShifts, setTodayShifts] = useState<{ id: number; employee_id: number; start_time: string; end_time: string; status?: string }[]>([])
+  const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([])
+  const [pendingSwaps, setPendingSwaps] = useState<ShiftSwap[]>([])
+  const [upcomingTimeOff, setUpcomingTimeOff] = useState<TimeOffRequest[]>([])
+  const [weeklyMins, setWeeklyMins] = useState<Record<number, number>>({})
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
+  const [recentAnnouncement, setRecentAnnouncement] = useState<{ title: string; sent_count: number; created_at: string } | null>(null)
+
+  // UI state
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const [showTerminated, setShowTerminated] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [openTab, setOpenTab] = useState<'info' | 'onboarding' | 'offboarding'>('info')
+  const [departments, setDepartments] = useState<{ id: number; name: string; color: string }[]>([])
+  const [deptMembers, setDeptMembers] = useState<Record<number, number[]>>({})
+  const [filterDept, setFilterDept] = useState<number | null>(null)
+  const [approving, setApproving] = useState<Record<string, boolean>>({})
+
+  type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
+  const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
+
+  // Add employee form
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('')
   const [newStart, setNewStart] = useState('')
   const [newType, setNewType] = useState('Full-time')
   const [newPhone, setNewPhone] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [newAddress, setNewAddress] = useState('')
-  const [newEmergencyContact, setNewEmergencyContact] = useState('')
-  const [newSsnLast4, setNewSsnLast4] = useState('')
-  const [newDob, setNewDob] = useState('')
-  const [newStatus, setNewStatus] = useState('active')
-  const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([])
   const [saving, setSaving] = useState(false)
-  const [showTerminated, setShowTerminated] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [openTab, setOpenTab] = useState<'info' | 'onboarding' | 'offboarding'>('info')
-  const [clockedInEntries, setClockedInEntries] = useState<{ employee_id: number; clock_in: string }[]>([])
-  const [weeklyMins, setWeeklyMins] = useState<Record<number, number>>({})
-  const [lastWeekTotalMins, setLastWeekTotalMins] = useState(0)
-  const [upcomingTimeOff, setUpcomingTimeOff] = useState<TimeOffRequest[]>([])
-  const [todayShifts, setTodayShifts] = useState<{ id: number; employee_id: number; start_time: string; end_time: string; status?: string }[]>([])
-  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
-  const [departments, setDepartments] = useState<{ id: number; name: string; color: string }[]>([])
-  const [deptMembers, setDeptMembers] = useState<Record<number, number[]>>({}) // employee_id → dept_ids
-  const [filterDept, setFilterDept] = useState<number | null>(null)
 
-  type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
-  const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
-
-  function selectEmpOnTab(emp: Employee, tab: 'info' | 'onboarding' | 'offboarding') {
-    setOpenTab(tab)
-    onSelectEmp(emp)
-  }
-  const [onboardingProgress, setOnboardingProgress] = useState<{
-    empId: number; name: string; role: string; sentAt: string;
-    w4: boolean; i9: boolean; deposit: boolean; availability: boolean; agreed: boolean;
-  }[]>([])
+  // Announcement form
+  const [annTitle, setAnnTitle] = useState('')
+  const [annMsg, setAnnMsg] = useState('')
+  const [annSending, setAnnSending] = useState(false)
+  const [annResult, setAnnResult] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
-      const token = session.access_token
-
-      // getUser() hits the server and returns fresh metadata (not stale JWT)
+      setToken(session.access_token)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const fullName: string = user.user_metadata?.full_name ?? ''
-        // Fall back to email prefix for accounts that predate the name field
-        const first = fullName.trim().split(' ')[0]
+        const first = (user.user_metadata?.full_name ?? '').trim().split(' ')[0]
         if (first) setFirstName(first)
       }
-
-      // Business name: use the server-side API route (bypasses RLS)
-      const res = await fetch('/api/settings/business', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch('/api/settings/business', { headers: { Authorization: `Bearer ${session.access_token}` } })
       if (res.ok) {
         const d = await res.json()
-        // profile.business_name may exist but be null/empty for old accounts
-        const bizName: string = d?.profile?.business_name ?? ''
-        if (bizName) setBusinessName(bizName)
+        if (d?.profile?.business_name) setBusinessName(d.profile.business_name)
       }
     })
   }, [])
 
   useEffect(() => {
-    loadComplianceIssues()
-    loadOnboardingProgress()
-    loadTimeOffRequests()
-    loadOperationalData()
-    loadDepartments()
-  }, [docsGenerated, employees])
+    if (token) {
+      loadOperationalData()
+      loadDepartments()
+    }
+  }, [token, employees])
+
+  async function loadOperationalData() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const uid = session.user.id
+    const today = new Date().toISOString().slice(0, 10)
+    const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+    const [
+      { data: clockedIn },
+      { data: weekly },
+      { data: todayScheduled },
+      { data: ptoRequests },
+      { data: swaps },
+      { data: upcoming },
+      { data: recentClockIns },
+      { data: announcements },
+    ] = await Promise.all([
+      supabase.from('time_entries').select('employee_id, clock_in').eq('user_id', uid).is('clock_out', null),
+      supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', uid).gte('clock_in', weekStartISO(0)),
+      supabase.from('shifts').select('id, employee_id, start_time, end_time, status').eq('user_id', uid).eq('shift_date', today).order('start_time'),
+      supabase.from('time_off_requests').select('*').eq('user_id', uid).eq('status', 'pending').order('created_at', { ascending: false }),
+      supabase.from('shift_swaps').select('*').eq('user_id', uid).eq('status', 'pending').order('created_at', { ascending: false }),
+      supabase.from('time_off_requests').select('*').eq('user_id', uid).eq('status', 'approved').gte('end_date', today).lte('start_date', twoWeeks).order('start_date'),
+      supabase.from('time_entries').select('employee_id, clock_in').eq('user_id', uid).gte('clock_in', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).order('clock_in', { ascending: false }).limit(10),
+      supabase.from('announcements').select('title, sent_count, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(1),
+    ])
+
+    setClockedInEntries(clockedIn ?? [])
+    setTodayShifts(todayScheduled ?? [])
+    setTimeOffRequests(ptoRequests ?? [])
+    setUpcomingTimeOff(upcoming ?? [])
+    if (announcements?.[0]) setRecentAnnouncement(announcements[0])
+
+    // Enrich swaps with employee names
+    const enrichedSwaps: ShiftSwap[] = (swaps ?? []).map((s: ShiftSwap) => ({
+      ...s,
+      requester_name: employees.find(e => e.id === s.requester_id)?.name ?? 'Employee',
+      target_name: employees.find(e => e.id === s.target_id)?.name ?? 'Employee',
+    }))
+    setPendingSwaps(enrichedSwaps)
+
+    // Weekly mins
+    const mins: Record<number, number> = {}
+    for (const e of (weekly ?? [])) {
+      const elapsed = e.clock_out ? (e.total_minutes ?? 0) : Math.floor((Date.now() - new Date(e.clock_in).getTime()) / 60000)
+      mins[e.employee_id] = (mins[e.employee_id] ?? 0) + elapsed
+    }
+    setWeeklyMins(mins)
+
+    // Build activity feed from recent clock-ins + PTO requests + swaps
+    const feed: ActivityItem[] = []
+    for (const c of (recentClockIns ?? []).slice(0, 5)) {
+      const emp = employees.find(e => e.id === c.employee_id)
+      if (emp) feed.push({ id: `ci_${c.employee_id}_${c.clock_in}`, type: 'clock_in', text: `${emp.name} clocked in`, sub: '', time: c.clock_in })
+    }
+    for (const r of (ptoRequests ?? []).slice(0, 3)) {
+      const emp = employees.find(e => e.id === r.employee_id)
+      if (emp) feed.push({ id: `pto_${r.id}`, type: 'pto_request', text: `${emp.name} requested time off`, sub: `${fmtShortDate(r.start_date)} – ${fmtShortDate(r.end_date)}`, time: r.created_at })
+    }
+    for (const s of (swaps ?? []).slice(0, 3)) {
+      const req = employees.find(e => e.id === s.requester_id)
+      const tgt = employees.find(e => e.id === s.target_id)
+      if (req) feed.push({ id: `swap_${s.id}`, type: 'swap_request', text: `Shift swap requested`, sub: `${req.name} → ${tgt?.name ?? 'Employee'}`, time: s.created_at })
+    }
+    // Sort by time desc
+    feed.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    setActivityFeed(feed.slice(0, 8))
+  }
 
   async function loadDepartments() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -228,136 +251,81 @@ export default function Dashboard({
     }
   }
 
-  async function loadComplianceIssues() {
-    const active = employees.filter(e => !e.status || e.status === 'active')
-    if (!active.length) { setComplianceIssues([]); return }
-
-    const issues = active.map(emp => {
-      const missing: string[] = []
-      if (!emp.w4_status || emp.w4_status === 'pending') missing.push('W-4')
-      if (!emp.i9_status || emp.i9_status === 'pending') missing.push('I-9')
-      if (!emp.direct_deposit_status || emp.direct_deposit_status === 'pending') missing.push('Direct deposit')
-      return { name: emp.name, missing }
-    }).filter(e => e.missing.length > 0)
-
-    setComplianceIssues(issues)
-  }
-
-  async function loadOnboardingProgress() {
-    const active = employees.filter(e => !e.status || e.status === 'active')
-    if (!active.length) { setOnboardingProgress([]); return }
-
-    const empIds = active.map(e => e.id)
-    const [{ data: links }, { data: avail }] = await Promise.all([
-      supabase.from('onboarding_links').select('employee_id, created_at, acknowledged_at').in('employee_id', empIds).order('created_at', { ascending: false }),
-      supabase.from('employee_availability').select('employee_id').in('employee_id', empIds),
-    ])
-    if (!links) return
-
-    const latestByEmp: Record<number, { created_at: string; acknowledged_at: string | null }> = {}
-    links.forEach(l => { if (!latestByEmp[l.employee_id]) latestByEmp[l.employee_id] = l })
-    const availSet = new Set((avail ?? []).map(a => a.employee_id))
-
-    const inProgress = active
-      .filter(emp => latestByEmp[emp.id])
-      .map(emp => ({
-        empId: emp.id,
-        name: emp.name,
-        role: emp.role,
-        sentAt: latestByEmp[emp.id].created_at,
-        w4: emp.w4_status === 'complete',
-        i9: emp.i9_status === 'complete',
-        deposit: emp.direct_deposit_status === 'complete',
-        availability: availSet.has(emp.id),
-        agreed: !!latestByEmp[emp.id].acknowledged_at,
-      }))
-      .filter(e => !e.w4 || !e.i9 || !e.deposit || !e.availability || !e.agreed)
-    setOnboardingProgress(inProgress)
-  }
-
-
-  async function loadTimeOffRequests() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const { data } = await supabase
-      .from('time_off_requests')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-    if (data) setTimeOffRequests(data)
-  }
-
-  async function loadOperationalData() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-
-    const today = new Date().toISOString().slice(0, 10)
-    const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
-    const [{ data: clockedIn }, { data: weekly }, { data: lastWeekly }, { data: upcoming }, { data: todayScheduled }] = await Promise.all([
-      supabase.from('time_entries').select('employee_id, clock_in').eq('user_id', session.user.id).is('clock_out', null),
-      supabase.from('time_entries').select('employee_id, total_minutes, clock_in, clock_out').eq('user_id', session.user.id).gte('clock_in', weekStartISO(0)),
-      supabase.from('time_entries').select('total_minutes').eq('user_id', session.user.id).gte('clock_in', weekStartISO(1)).lt('clock_in', weekStartISO(0)).not('total_minutes', 'is', null),
-      supabase.from('time_off_requests').select('*').eq('user_id', session.user.id).eq('status', 'approved').gte('end_date', today).lte('start_date', twoWeeks).order('start_date'),
-      supabase.from('shifts').select('id, employee_id, start_time, end_time, status').eq('user_id', session.user.id).eq('shift_date', today).order('start_time'),
-    ])
-
-    setClockedInEntries(clockedIn ?? [])
-    setLastWeekTotalMins((lastWeekly ?? []).reduce((s, e) => s + (e.total_minutes ?? 0), 0))
-
-    const mins: Record<number, number> = {}
-    for (const e of (weekly ?? [])) {
-      const elapsed = e.clock_out
-        ? (e.total_minutes ?? 0)
-        : Math.floor((Date.now() - new Date(e.clock_in).getTime()) / 60000)
-      mins[e.employee_id] = (mins[e.employee_id] ?? 0) + elapsed
-    }
-    setWeeklyMins(mins)
-
-    setUpcomingTimeOff(upcoming ?? [])
-    setTodayShifts(todayScheduled ?? [])
-  }
-
   async function handleTimeOff(id: number, status: 'approved' | 'denied') {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    setApproving(p => ({ ...p, [`pto_${id}`]: true }))
     await fetch(`/api/time-off/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
     })
     setTimeOffRequests(prev => prev.filter(r => r.id !== id))
+    setApproving(p => ({ ...p, [`pto_${id}`]: false }))
+  }
+
+  async function handleSwap(id: number, status: 'approved' | 'denied') {
+    setApproving(p => ({ ...p, [`swap_${id}`]: true }))
+    await fetch(`/api/shifts/swaps/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    })
+    setPendingSwaps(prev => prev.filter(s => s.id !== id))
+    setApproving(p => ({ ...p, [`swap_${id}`]: false }))
+  }
+
+  async function sendAnnouncement() {
+    if (!annTitle.trim() || !annMsg.trim()) return
+    setAnnSending(true)
+    setAnnResult('')
+    const res = await fetch('/api/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: annTitle, message: annMsg }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setAnnResult(`Sent to ${data.sent} employee${data.sent !== 1 ? 's' : ''}.`)
+      setAnnTitle(''); setAnnMsg('')
+      setRecentAnnouncement({ title: annTitle, sent_count: data.sent, created_at: new Date().toISOString() })
+      setTimeout(() => { setShowAnnouncementModal(false); setAnnResult('') }, 1500)
+    } else {
+      setAnnResult(data.error || 'Something went wrong.')
+    }
+    setAnnSending(false)
   }
 
   async function handleAdd() {
     if (!newName || !newRole) return
     setSaving(true)
     await onAddEmployee({
-      name: newName,
-      role: newRole,
+      name: newName, role: newRole,
       start: newStart || new Date().toISOString().slice(0, 10),
-      type: newType,
-      phone: newPhone,
-      email: newEmail,
-      address: newAddress,
-      emergency_contact: newEmergencyContact,
-      ssn_last4: newSsnLast4,
-      date_of_birth: newDob,
-      status: newStatus,
-      i9_status: 'pending',
-      w4_status: 'pending',
-      direct_deposit_status: 'pending',
-      pay_type: 'hourly',
-      pay_rate: null,
-      pay_period: 'biweekly',
-      access_role: 'employee',
+      type: newType, phone: newPhone, email: newEmail,
+      address: '', emergency_contact: '', ssn_last4: '', date_of_birth: '',
+      status: 'active', i9_status: 'pending', w4_status: 'pending',
+      direct_deposit_status: 'pending', pay_type: 'hourly', pay_rate: null,
+      pay_period: 'biweekly', access_role: 'employee',
     })
-    setNewName(''); setNewRole(''); setNewStart(''); setNewType('Full-time')
-    setNewPhone(''); setNewEmail(''); setNewAddress(''); setNewEmergencyContact('')
-    setNewSsnLast4(''); setNewDob(''); setNewStatus('active')
+    setNewName(''); setNewRole(''); setNewStart(''); setNewType('Full-time'); setNewPhone(''); setNewEmail('')
     setShowAddForm(false)
     setSaving(false)
+  }
+
+  // Derived values
+  const clockedInIds = new Set(clockedInEntries.map(c => c.employee_id))
+  const todayCallouts = todayShifts.filter(s => s.status === 'called_out')
+  const pendingCount = timeOffRequests.length + pendingSwaps.length
+  const activeEmployees = employees.filter(e => !e.status || e.status === 'active')
+
+  const s = {
+    card: { background: '#fff', border: '0.5px solid #e8eaed', borderRadius: '12px', overflow: 'hidden' as const },
+    cardPad: { padding: '14px 16px' },
+    sectionLabel: { fontSize: '11px', fontWeight: 500, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' },
+    row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: '0.5px solid #f0f2f7' },
+    avatar: (color = '#e6f1fb', text = '#0c447c') => ({ width: 30, height: 30, borderRadius: '50%', background: color, color: text, fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
+    pill: (bg: string, color: string) => ({ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '99px', background: bg, color, flexShrink: 0 }),
+    btnApprove: { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: '#185fa5', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 500, flexShrink: 0 },
+    btnDeny: { fontSize: '12px', padding: '5px 10px', borderRadius: '7px', background: '#f5f6fa', color: '#555', border: '0.5px solid #dde1ea', cursor: 'pointer', flexShrink: 0 },
   }
 
   return (
@@ -365,528 +333,337 @@ export default function Dashboard({
     <div className="dash-wrap">
       <Nav active="dashboard" viewerRole={viewerRole} viewerPerms={viewerPerms} />
 
-      <div className="dash-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
+      <div style={{ padding: '0 1.5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+
+        {/* ── Top bar ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 0 1rem' }}>
           <div>
-            <div className="dash-greeting">
-              {greeting()}{firstName ? `, ${firstName}` : ''}!
+            <div style={{ fontSize: '20px', fontWeight: 500, color: '#1a1a1a' }}>
+              {greeting()}{firstName ? `, ${firstName}` : ''}
             </div>
-            {businessName && (
-              <div style={{ fontSize: '14px', color: '#6b6b6b', marginTop: '2px' }}>
-                Here&apos;s how <strong>{businessName}</strong> is doing today.
-              </div>
-            )}
+            {businessName && <div style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>{businessName}</div>}
           </div>
           <button
-            className="btn-ghost"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexShrink: 0 }}
             onClick={() => setShowAnnouncementModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', background: '#185fa5', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
           >
-            <MegaphoneIcon size={14} /> Send announcement
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+            Post announcement
           </button>
         </div>
 
-        {(() => {
-          // Running labor cost: sum of (elapsed hours × hourly pay_rate) for all currently clocked-in employees
-          const runningCost = clockedInEntries.reduce((sum, entry) => {
-            const emp = employees.find(e => e.id === entry.employee_id)
-            if (!emp || emp.pay_type !== 'hourly' || !emp.pay_rate) return sum
-            const elapsedHrs = (Date.now() - new Date(entry.clock_in).getTime()) / 3600000
-            return sum + elapsedHrs * emp.pay_rate
-          }, 0)
-
-          const thisWeekTotalMins = Object.values(weeklyMins).reduce((s, m) => s + m, 0)
-          const thisWeekHrs = Math.round(thisWeekTotalMins / 60)
-          const lastWeekHrs = Math.round(lastWeekTotalMins / 60)
-          const weekDiff = thisWeekHrs - lastWeekHrs
-
-          const pendingCount = timeOffRequests.length + complianceIssues.length
-          const pendingColor = pendingCount > 0 ? '#c0392b' : '#27ae60'
-
-          return (
-            <div className="dash-stats">
-              {/* Active employees */}
-              <div className="stat stat-clickable" onClick={() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' })}>
-                <div className="stat-n">{loading ? '–' : employees.filter(e => !e.status || e.status === 'active').length}</div>
-                <div className="stat-l">Active employees</div>
-                <div className="stat-link">View team →</div>
-              </div>
-
-              {/* Pending actions (paperwork + time-off requests) */}
-              <div
-                className="stat stat-clickable"
-                onClick={() => {
-                  if (complianceIssues.length > 0) { setFilterPaperwork(v => !v); setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50) }
-                  else window.location.href = '/time'
-                }}
-              >
-                <div className="stat-n" style={{ color: pendingColor }}>{loading ? '–' : pendingCount}</div>
-                <div className="stat-l">Pending actions</div>
-                <div className="stat-link" style={{ color: pendingCount > 0 ? pendingColor : '#9a9a9a' }}>
-                  {pendingCount > 0
-                    ? [timeOffRequests.length > 0 && `${timeOffRequests.length} time-off`, complianceIssues.length > 0 && `${complianceIssues.length} paperwork`].filter(Boolean).join(', ')
-                    : 'All clear →'}
-                </div>
-              </div>
-
-              {/* Clocked in now */}
-              <div className="stat stat-clickable" onClick={() => window.location.href = '/time'}>
-                <div className="stat-n">{clockedInEntries.length}</div>
-                <div className="stat-l">Clocked in now</div>
-                <div className="stat-link">
-                  {clockedInEntries.length > 0
-                    ? (() => {
-                        const names = employees.filter(e => clockedInEntries.some(c => c.employee_id === e.id)).map(e => e.name.split(' ')[0])
-                        return names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') + ' →'
-                      })()
-                    : 'View timesheets →'}
-                </div>
-              </div>
-
-              {/* This week hours vs last week */}
-              <div className="stat stat-clickable" onClick={() => window.location.href = '/time'}>
-                <div className="stat-n" style={{ fontSize: '20px' }}>{thisWeekHrs}h</div>
-                <div className="stat-l">Hours this week</div>
-                <div className="stat-link" style={{ color: weekDiff >= 0 ? '#27ae60' : '#c0392b' }}>
-                  {lastWeekHrs > 0
-                    ? `${weekDiff >= 0 ? '+' : ''}${weekDiff}h vs last week`
-                    : 'View time →'}
-                </div>
-              </div>
-
-              {/* Running labor cost today */}
-              {runningCost > 0 && (
-                <div className="stat">
-                  <div className="stat-n" style={{ fontSize: '20px' }}>${runningCost.toFixed(0)}</div>
-                  <div className="stat-l">Running cost today</div>
-                  <div className="stat-link" style={{ color: '#9a9a9a' }}>hourly wages clocked in</div>
-                </div>
-              )}
+        {/* ── Stats row ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
+          {[
+            { val: loading ? '–' : clockedInEntries.length, label: 'Clocked in now', color: '' },
+            { val: loading ? '–' : todayCallouts.length, label: 'Called out today', color: todayCallouts.length > 0 ? '#a32d2d' : '' },
+            { val: loading ? '–' : pendingCount, label: 'Pending approvals', color: pendingCount > 0 ? '#854f0b' : '' },
+            { val: loading ? '–' : todayShifts.length, label: 'On shift today', color: '' },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: '#f5f6fa', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ fontSize: '22px', fontWeight: 500, color: stat.color || '#1a1a1a' }}>{stat.val}</div>
+              <div style={{ fontSize: '12px', color: '#888', marginTop: '3px' }}>{stat.label}</div>
             </div>
-          )
-        })()}
+          ))}
+        </div>
 
-        <div className="dash-grid">
-          <div className="card" id="team-section">
-            <div className="card-header">
-              <div className="section-label">Your team</div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {employees.length > 5 && (
-                  <input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Search name or role..."
-                    style={{ fontSize: '12px', padding: '4px 10px', border: '1px solid #dde1ea', borderRadius: '6px', width: '160px', outline: 'none' }}
-                  />
-                )}
-                {employees.some(e => e.status === 'terminated') && (
-                  <button className="btn-ghost" style={{ fontSize: '12px', color: showTerminated ? '#185fa5' : '#9a9a9a' }} onClick={() => setShowTerminated(v => !v)}>
-                    {showTerminated ? 'Hide terminated' : 'Show terminated'}
-                  </button>
-                )}
-                <button className="btn-ghost" onClick={() => setShowAddForm(v => !v)}>+ Add employee</button>
-              </div>
+        {/* ── Needs your attention ── */}
+        {pendingCount > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={s.sectionLabel}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a32d2d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span style={{ color: '#a32d2d' }}>Needs your attention</span>
+              <span style={{ background: '#e24b4a', color: '#fff', fontSize: '10px', fontWeight: 600, padding: '1px 7px', borderRadius: '99px' }}>{pendingCount}</span>
             </div>
-
-            {showAddForm && (
-              <div className="add-form">
-                <div className="row2">
-                  <div className="field">
-                    <label>Name</label>
-                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Jane Smith" />
-                  </div>
-                  <div className="field">
-                    <label>Role</label>
-                    <input value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Cashier" />
-                  </div>
-                </div>
-                <div className="row2">
-                  <div className="field">
-                    <label>Start date</label>
-                    <input type="date" value={newStart} onChange={e => setNewStart(e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Type</label>
-                    <select value={newType} onChange={e => setNewType(e.target.value)}>
-                      <option>Full-time</option>
-                      <option>Part-time</option>
-                      <option>Seasonal</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="row2">
-                  <div className="field">
-                    <label>Phone number</label>
-                    <input value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="(555) 123-4567" />
-                  </div>
-                  <div className="field">
-                    <label>Email</label>
-                    <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="jane@example.com" />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Address</label>
-                  <input value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="123 Main St, City, State" />
-                </div>
-                <div className="field">
-                  <label>Emergency contact</label>
-                  <input value={newEmergencyContact} onChange={e => setNewEmergencyContact(e.target.value)} placeholder="Jane Doe — (555) 987-6543" />
-                </div>
-                <div className="row2">
-                  <div className="field">
-                    <label>SSN (last 4)</label>
-                    <input value={newSsnLast4} onChange={e => setNewSsnLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234" maxLength={4} />
-                  </div>
-                  <div className="field">
-                    <label>Date of birth</label>
-                    <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Status</label>
-                  <select value={newStatus} onChange={e => setNewStatus(e.target.value)}>
-                    <option value="active">Active</option>
-                    <option value="on_leave">On leave</option>
-                    <option value="terminated">Terminated</option>
-                  </select>
-                </div>
-                <button className="btn" onClick={handleAdd} disabled={saving}>
-                  {saving ? 'Saving...' : 'Save employee'}
-                </button>
-              </div>
-            )}
-
-            {/* Department filter */}
-            {departments.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                <button
-                  onClick={() => setFilterDept(null)}
-                  style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 10, border: `1.5px solid ${filterDept === null ? '#185fa5' : '#dde1ea'}`, background: filterDept === null ? '#185fa5' : '#fff', color: filterDept === null ? '#fff' : '#555', fontWeight: 600, cursor: 'pointer' }}
-                >All</button>
-                {departments.map(dept => (
-                  <button
-                    key={dept.id}
-                    onClick={() => setFilterDept(filterDept === dept.id ? null : dept.id)}
-                    style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 10, border: `1.5px solid ${filterDept === dept.id ? dept.color : '#dde1ea'}`, background: filterDept === dept.id ? dept.color : '#fff', color: filterDept === dept.id ? '#fff' : '#555', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
-                  >
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: filterDept === dept.id ? 'rgba(255,255,255,0.8)' : dept.color, display: 'inline-block' }} />
-                    {dept.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {filterPaperwork && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: '#fff5f5', border: '1px solid #fcd4d4', marginBottom: '0.75rem', fontSize: '13px', color: '#c0392b' }}>
-                <span>Showing {complianceIssues.length} employee{complianceIssues.length !== 1 ? 's' : ''} with incomplete paperwork</span>
-                <button onClick={() => setFilterPaperwork(false)} style={{ marginLeft: 'auto', fontSize: '12px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
-                  Clear filter
-                </button>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="loading-state">Loading your team...</div>
-            ) : employees.length === 0 ? (
-              <div className="empty-state">No employees yet — add your first one above.</div>
-            ) : (
-              <div className="emp-grid">
-                {employees.filter(emp => {
-                  if (!showTerminated && emp.status === 'terminated') return false
-                  if (filterPaperwork && !complianceIssues.find(c => c.name === emp.name)) return false
-                  if (filterDept !== null && !deptMembers[emp.id]?.includes(filterDept)) return false
-                  if (searchQuery) {
-                    const q = searchQuery.toLowerCase()
-                    return emp.name.toLowerCase().includes(q) || emp.role?.toLowerCase().includes(q)
-                  }
-                  return true
-                }).map(emp => {
-                  const empDeptIds = deptMembers[emp.id] ?? []
-                  const empDepts = departments.filter(d => empDeptIds.includes(d.id))
-                  return (
-                    <div
-                      key={emp.id}
-                      className={`emp-card${selectedEmp?.id === emp.id ? ' selected' : ''}`}
-                      onClick={() => onSelectEmp(selectedEmp?.id === emp.id ? null as any : emp)}
-                    >
-                      <div className="emp-card-top">
-                        <div className="avatar">{initials(emp.name)}</div>
+            <div style={{ ...s.card, borderColor: '#f7c1c1' }}>
+              {/* PTO requests */}
+              {timeOffRequests.map(req => {
+                const emp = employees.find(e => e.id === req.employee_id)
+                const key = `pto_${req.id}`
+                return (
+                  <div key={req.id} style={{ ...s.row, background: '#fff' }}>
+                    <div style={s.avatar()}>{emp ? initials(emp.name) : '??'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{emp?.name ?? 'Employee'}</div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>
+                        Time off · {fmtShortDate(req.start_date)} – {fmtShortDate(req.end_date)}
+                        {req.reason ? ` · "${req.reason}"` : ''}
                       </div>
-                      <div className="emp-name">{emp.name}</div>
-                      <div className="emp-role">{emp.role}</div>
-                      <div className="emp-tenure">{emp.type} · {tenure(emp.start)}</div>
-                      {empDepts.length > 0 && (
-                        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '0.35rem' }}>
-                          {empDepts.map(d => (
-                            <span key={d.id} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 8, background: d.color + '22', color: d.color, fontWeight: 600, border: `1px solid ${d.color}44` }}>{d.name}</span>
-                          ))}
-                        </div>
+                    </div>
+                    <span style={s.pill('#e6f1fb', '#0c447c')}>Time off</span>
+                    <button onClick={() => handleTimeOff(req.id, 'approved')} disabled={!!approving[key]} style={s.btnApprove}>
+                      {approving[key] ? '…' : 'Approve'}
+                    </button>
+                    <button onClick={() => handleTimeOff(req.id, 'denied')} disabled={!!approving[key]} style={s.btnDeny}>Deny</button>
+                  </div>
+                )
+              })}
+
+              {/* Swap requests */}
+              {pendingSwaps.map(swap => {
+                const key = `swap_${swap.id}`
+                return (
+                  <div key={swap.id} style={{ ...s.row, background: '#fff' }}>
+                    <div style={s.avatar('#eaf3de', '#27500a')}>{swap.requester_name ? initials(swap.requester_name) : '??'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>
+                        {swap.requester_name} → {swap.target_name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>Shift swap request · {timeAgo(swap.created_at)}</div>
+                    </div>
+                    <span style={s.pill('#eaf3de', '#27500a')}>Swap</span>
+                    <button onClick={() => handleSwap(swap.id, 'approved')} disabled={!!approving[key]} style={s.btnApprove}>
+                      {approving[key] ? '…' : 'Approve'}
+                    </button>
+                    <button onClick={() => handleSwap(swap.id, 'denied')} disabled={!!approving[key]} style={s.btnDeny}>Deny</button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Two-column middle ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+
+          {/* Team at a glance */}
+          <div>
+            <div style={s.sectionLabel}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Team at a glance
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#888', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                {todayShifts.length} on shift
+              </span>
+            </div>
+            <div style={s.card}>
+              {todayShifts.length === 0 ? (
+                <div style={{ ...s.cardPad, fontSize: '13px', color: '#bbb', textAlign: 'center', padding: '1.5rem' }}>No shifts scheduled today</div>
+              ) : (
+                todayShifts.slice(0, 8).map(shift => {
+                  const emp = employees.find(e => e.id === shift.employee_id)
+                  const isIn = clockedInIds.has(shift.employee_id)
+                  const isCallout = shift.status === 'called_out'
+                  const statusColor = isCallout ? '#a32d2d' : isIn ? '#3b6d11' : '#888'
+                  const statusLabel = isCallout ? 'Called out' : isIn ? 'Clocked in' : 'Not yet in'
+                  const avatarBg = isCallout ? '#fcebeb' : isIn ? '#eaf3de' : '#f0f2f7'
+                  const avatarColor = isCallout ? '#a32d2d' : isIn ? '#27500a' : '#666'
+                  return (
+                    <div key={shift.id} style={{ ...s.row, cursor: 'pointer' }} onClick={() => emp && onSelectEmp(emp)}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+                      <div style={s.avatar(avatarBg, avatarColor)}>{emp ? initials(emp.name) : '??'}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name ?? 'Unknown'}</div>
+                        <div style={{ fontSize: '11px', color: '#888' }}>{emp?.role} · {formatTime(shift.start_time)}–{formatTime(shift.end_time)}</div>
+                      </div>
+                      <div style={{ fontSize: '11px', fontWeight: 500, color: statusColor, flexShrink: 0 }}>{statusLabel}</div>
+                      {isCallout && emp && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setCalloutTarget({ shiftId: shift.id, shiftDate: new Date().toISOString().slice(0, 10), startTime: shift.start_time, endTime: shift.end_time, employee: { id: emp.id, name: emp.name } }) }}
+                          style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#fcebeb', color: '#a32d2d', border: '0.5px solid #f7c1c1', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Find cover
+                        </button>
                       )}
-                      {emp.status && emp.status !== 'active' && (
-                        <div style={{ marginTop: '0.25rem' }}>
-                          <span className={`badge ${emp.status === 'terminated' ? 'badge-red' : 'badge-yellow'}`}>
-                            {emp.status === 'on_leave' ? 'On leave' : 'Terminated'}
-                          </span>
-                        </div>
-                      )}
-                      {(() => {
-                        const issue = complianceIssues.find(c => c.name === emp.name)
-                        return issue ? (
-                          <div style={{ marginTop: '0.35rem', fontSize: '11px', color: '#9a9a9a' }}>
-                            {issue.missing.join(', ')} pending
-                          </div>
-                        ) : null
-                      })()}
                     </div>
                   )
-                })}
-              </div>
-            )}
-
-
-
-            {selectedEmp && (
-              <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '1rem' }}>
-                <EmployeePanel
-                  employee={selectedEmp}
-                  initialTab={openTab}
-                  onClose={() => { onSelectEmp(null as any); setOpenTab('info') }}
-                  onUpdated={onUpdateEmployee}
-                  onDelete={id => { onDeleteEmployee(id); onSelectEmp(null as any) }}
-                  onStartAction={onStartAction}
-                />
-              </div>
-            )}
+                })
+              )}
+              {/* Show active employees not on shift today */}
+              {activeEmployees.filter(e => !todayShifts.some(s => s.employee_id === e.id)).slice(0, 4).map(emp => (
+                <div key={emp.id} style={{ ...s.row, opacity: 0.6, cursor: 'pointer' }} onClick={() => onSelectEmp(emp)}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d3d1c7', flexShrink: 0 }} />
+                  <div style={s.avatar('#f0f2f7', '#666')}>{initials(emp.name)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{emp.name}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{emp.role}</div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#aaa' }}>Off today</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {onboardingProgress.length > 0 && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '0.75rem' }}>Onboarding in progress</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                {onboardingProgress.map(emp => {
-                  const steps = [
-                    { label: 'W-4', done: emp.w4 },
-                    { label: 'I-9', done: emp.i9 },
-                    { label: 'Deposit', done: emp.deposit },
-                    { label: 'Availability', done: emp.availability },
-                    { label: 'Signed', done: emp.agreed },
-                  ]
-                  const doneCount = steps.filter(s => s.done).length
-                  const fullEmp = employees.find(e => e.id === emp.empId)
-                  return (
-                    <div
-                      key={emp.empId}
-                      onClick={() => {
-                        if (!fullEmp) return
-                        selectEmpOnTab(fullEmp, 'onboarding')
-                        setTimeout(() => document.getElementById('team-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
-                      }}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                        padding: '0.75rem', borderRadius: '8px',
-                        background: '#fafafa', border: '1px solid #eee',
-                        cursor: fullEmp ? 'pointer' : 'default',
-                        transition: 'border-color 0.15s, box-shadow 0.15s',
-                      }}
-                      onMouseEnter={e => { if (fullEmp) { (e.currentTarget as HTMLElement).style.borderColor = '#185fa5'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(24,95,165,0.1)' } }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#eee'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
-                    >
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                        {emp.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a', marginBottom: '6px' }}>
-                          {emp.name}
-                          <span style={{ fontSize: '11px', fontWeight: 400, color: '#9a9a9a', marginLeft: '6px' }}>{doneCount}/{steps.length} steps</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {steps.map(s => (
-                            <span key={s.label} style={{
-                              fontSize: '11px', padding: '2px 7px', borderRadius: '20px',
-                              background: s.done ? '#e8f8ef' : '#f0f0f0',
-                              color: s.done ? '#27ae60' : '#9a9a9a',
-                              fontWeight: s.done ? 600 : 400,
-                              border: `1px solid ${s.done ? '#c3e6cb' : '#e8e8e8'}`,
-                            }}>
-                              {s.label}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          {/* Right column: activity + announcements */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {timeOffRequests.length > 0 && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '0.75rem' }}>
-                Time-off requests
-                <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#185fa5', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>
-                  {timeOffRequests.length}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {timeOffRequests.map(req => {
-                  const emp = employees.find(e => e.id === req.employee_id)
-                  return (
-                    <div key={req.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '0.75rem',
-                      padding: '0.65rem 0.75rem', borderRadius: '8px',
-                      background: '#fafafa', border: '1px solid #eee',
-                    }}>
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {emp ? initials(emp.name) : '??'}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>
-                          {emp?.name || 'Employee'} — <span style={{ fontWeight: 400, color: '#555' }}>{req.type}</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>
-                          {req.start_date} – {req.end_date}
-                          {req.reason ? ` · ${req.reason}` : ''}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                        <button
-                          onClick={() => handleTimeOff(req.id, 'approved')}
-                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #27ae60', background: '#f0faf4', color: '#27ae60', cursor: 'pointer', fontWeight: 500 }}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleTimeOff(req.id, 'denied')}
-                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e0e0e0', background: '#fafafa', color: '#c0392b', cursor: 'pointer', fontWeight: 500 }}
-                        >
-                          Deny
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Overtime alerts — only shown when someone hits 32h+ */}
-          {(() => {
-            const alerts = employees
-              .filter(emp => (weeklyMins[emp.id] ?? 0) >= 32 * 60)
-              .map(emp => ({ emp, mins: weeklyMins[emp.id] ?? 0, isOver: (weeklyMins[emp.id] ?? 0) >= 40 * 60 }))
-            if (alerts.length === 0) return null
-            return (
-              <div className="card">
-                <div className="section-label" style={{ marginBottom: '0.75rem' }}>
-                  Overtime alerts
-                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: '#c0392b', color: '#fff', borderRadius: '10px', padding: '1px 7px' }}>{alerts.length}</span>
+            {/* Recent announcement */}
+            {recentAnnouncement && (
+              <div>
+                <div style={s.sectionLabel}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                  Last announcement
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {alerts.map(({ emp, mins, isOver }) => {
-                    const hrs = Math.floor(mins / 60)
-                    const m = mins % 60
-                    const pct = Math.min((mins / (40 * 60)) * 100, 100)
-                    return (
-                      <div key={emp.id} style={{ padding: '0.65rem 0.75rem', borderRadius: '8px', background: isOver ? '#fff5f5' : '#fffbf0', border: `1px solid ${isOver ? '#fcd4d4' : '#fde8b4'}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 500 }}>{emp.name}</span>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: isOver ? '#c0392b' : '#e67e22' }}>
-                            {hrs}h{m > 0 ? ` ${m}m` : ''} {isOver ? '· over 40h' : '· approaching'}
-                          </span>
-                        </div>
-                        <div style={{ height: 5, background: '#f0f0f0', borderRadius: 3 }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: isOver ? '#c0392b' : '#e67e22', borderRadius: 3 }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* Today's coverage */}
-          {todayShifts.length > 0 && (() => {
-            const clockedInIds = new Set(clockedInEntries.map(c => c.employee_id))
-            const covered = todayShifts.filter(s => clockedInIds.has(s.employee_id))
-            const gaps = todayShifts.filter(s => !clockedInIds.has(s.employee_id))
-            const allGood = gaps.length === 0
-            return (
-              <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <div className="section-label" style={{ marginBottom: 0 }}>Today&apos;s coverage</div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: allGood ? '#e8f8ef' : '#fff5f5', color: allGood ? '#27ae60' : '#c0392b', border: `1px solid ${allGood ? '#c3e6cb' : '#fcd4d4'}` }}>
-                    {covered.length}/{todayShifts.length} clocked in
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  {todayShifts.map((s, i) => {
-                    const emp = employees.find(e => e.id === s.employee_id)
-                    const isClockedIn = clockedInIds.has(s.employee_id)
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: isClockedIn ? '#f4fbf7' : '#fff9f9', border: `1px solid ${isClockedIn ? '#d4edda' : '#fcd4d4'}` }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: isClockedIn ? '#d4edda' : '#fcd4d4', color: isClockedIn ? '#27ae60' : '#c0392b', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {emp ? initials(emp.name) : '??'}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name ?? 'Unknown'}</div>
-                          <div style={{ fontSize: '11px', color: '#9a9a9a', marginTop: '1px' }}>
-                            {formatTime(s.start_time)} – {formatTime(s.end_time)}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: isClockedIn ? '#27ae60' : '#c0392b' }}>
-                            {isClockedIn ? '● In' : '○ Gap'}
-                          </span>
-                          {!isClockedIn && emp && (
-                            <button
-                              onClick={() => setCalloutTarget({ shiftId: s.id, shiftDate: new Date().toISOString().slice(0, 10), startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } })}
-                              style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #fcd4d4', background: '#fff5f5', color: '#c0392b', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-                            >
-                              Find cover
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {!allGood && (
-                  <div style={{ marginTop: '0.65rem', fontSize: '12px', color: '#c0392b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    ⚠ {gaps.length} scheduled employee{gaps.length !== 1 ? 's' : ''} not yet clocked in
+                <div style={{ ...s.card, ...s.cardPad, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '9px', background: '#faeeda', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#633806" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                   </div>
-                )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recentAnnouncement.title}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>
+                      {recentAnnouncement.sent_count} recipients · {timeAgo(recentAnnouncement.created_at)}
+                    </div>
+                  </div>
+                  <button onClick={() => setShowAnnouncementModal(true)} style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '7px', background: 'none', border: '0.5px solid #dde1ea', color: '#555', cursor: 'pointer', flexShrink: 0 }}>
+                    New
+                  </button>
+                </div>
               </div>
-            )
-          })()}
+            )}
 
-          {/* Upcoming time off */}
-          {upcomingTimeOff.length > 0 && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '0.75rem' }}>Upcoming time off</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                {upcomingTimeOff.map(req => {
-                  const emp = employees.find(e => e.id === req.employee_id)
-                  const start = fmtShortDate(req.start_date)
-                  const end = fmtShortDate(req.end_date)
-                  const range = start === end ? start : `${start} – ${end}`
+            {/* Activity feed */}
+            <div style={{ flex: 1 }}>
+              <div style={s.sectionLabel}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Activity feed
+              </div>
+              <div style={s.card}>
+                {activityFeed.length === 0 ? (
+                  <div style={{ ...s.cardPad, fontSize: '13px', color: '#bbb', textAlign: 'center', padding: '1.5rem' }}>No recent activity</div>
+                ) : activityFeed.map(item => {
+                  const iconMap = {
+                    clock_in: { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, bg: '#eaf3de', color: '#27500a' },
+                    callout: { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>, bg: '#fcebeb', color: '#a32d2d' },
+                    pto_request: { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>, bg: '#e6f1fb', color: '#0c447c' },
+                    swap_request: { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>, bg: '#eaf3de', color: '#27500a' },
+                    pto_approved: { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>, bg: '#eaf3de', color: '#27500a' },
+                  }
+                  const icon = iconMap[item.type]
                   return (
-                    <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: '8px', background: '#fafafa', border: '1px solid #eee' }}>
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {emp ? initials(emp.name) : '??'}
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 14px', borderBottom: '0.5px solid #f0f2f7' }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '7px', background: icon.bg, color: icon.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
+                        {icon.icon}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp?.name || 'Employee'}</div>
-                        <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>{req.type} · {range}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 500, color: '#1a1a1a' }}>{item.text}</div>
+                        {item.sub && <div style={{ fontSize: '11px', color: '#888' }}>{item.sub}</div>}
                       </div>
+                      <div style={{ fontSize: '11px', color: '#bbb', flexShrink: 0 }}>{timeAgo(item.time)}</div>
                     </div>
                   )
                 })}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ── Upcoming time off ── */}
+        {upcomingTimeOff.length > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={s.sectionLabel}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Upcoming time off
+            </div>
+            <div style={{ ...s.card, display: 'flex', flexWrap: 'wrap' as const, gap: '0' }}>
+              {upcomingTimeOff.map(req => {
+                const emp = employees.find(e => e.id === req.employee_id)
+                return (
+                  <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: '0.5px solid #f0f2f7', width: '50%', boxSizing: 'border-box' as const }}>
+                    <div style={s.avatar()}>{emp ? initials(emp.name) : '??'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{emp?.name ?? 'Employee'}</div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>{req.type} · {fmtShortDate(req.start_date)} – {fmtShortDate(req.end_date)}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Team section ── */}
+        <div style={{ ...s.card }} id="team-section">
+          <div style={{ ...s.cardPad, borderBottom: '0.5px solid #f0f2f7', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 500, color: '#1a1a1a' }}>Your team</div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+              {employees.length > 5 && (
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." style={{ fontSize: '12px', padding: '5px 10px', border: '0.5px solid #dde1ea', borderRadius: '7px', width: '140px', outline: 'none' }} />
+              )}
+              {departments.length > 0 && departments.map(dept => (
+                <button key={dept.id} onClick={() => setFilterDept(filterDept === dept.id ? null : dept.id)}
+                  style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '99px', border: `1.5px solid ${filterDept === dept.id ? dept.color : '#dde1ea'}`, background: filterDept === dept.id ? dept.color : 'transparent', color: filterDept === dept.id ? '#fff' : '#555', cursor: 'pointer' }}>
+                  {dept.name}
+                </button>
+              ))}
+              {employees.some(e => e.status === 'terminated') && (
+                <button onClick={() => setShowTerminated(v => !v)} style={{ fontSize: '12px', color: showTerminated ? '#185fa5' : '#888', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+                  {showTerminated ? 'Hide terminated' : 'Show terminated'}
+                </button>
+              )}
+              <button onClick={() => setShowAddForm(v => !v)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: '#185fa5', color: '#fff', border: 'none', cursor: 'pointer' }}>+ Add employee</button>
+            </div>
+          </div>
+
+          {showAddForm && (
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f0f2f7', background: '#fafbfc' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                {[['Name', newName, setNewName, 'Jane Smith'], ['Role', newRole, setNewRole, 'Cashier'], ['Email', newEmail, setNewEmail, 'jane@example.com'], ['Phone', newPhone, setNewPhone, '(555) 123-4567']].map(([label, val, setter, ph]) => (
+                  <div key={label as string}>
+                    <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>{label}</label>
+                    <input value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} placeholder={ph as string} style={{ width: '100%', padding: '7px 10px', border: '0.5px solid #dde1ea', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Start date</label>
+                  <input type="date" value={newStart} onChange={e => setNewStart(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '0.5px solid #dde1ea', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '4px' }}>Type</label>
+                  <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '0.5px solid #dde1ea', borderRadius: '7px', fontSize: '13px', outline: 'none' }}>
+                    <option>Full-time</option><option>Part-time</option><option>Seasonal</option>
+                  </select>
+                </div>
+              </div>
+              <button onClick={handleAdd} disabled={saving || !newName || !newRole} style={{ padding: '7px 18px', borderRadius: '7px', background: '#185fa5', color: '#fff', border: 'none', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
+                {saving ? 'Saving…' : 'Save employee'}
+              </button>
+            </div>
           )}
 
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>Loading your team…</div>
+          ) : employees.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', fontSize: '13px', color: '#bbb' }}>No employees yet — add your first one above.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1px', background: '#f0f2f7' }}>
+              {employees.filter(emp => {
+                if (!showTerminated && emp.status === 'terminated') return false
+                if (filterDept !== null && !deptMembers[emp.id]?.includes(filterDept)) return false
+                if (searchQuery) { const q = searchQuery.toLowerCase(); return emp.name.toLowerCase().includes(q) || emp.role?.toLowerCase().includes(q) }
+                return true
+              }).map(emp => {
+                const empDepts = departments.filter(d => (deptMembers[emp.id] ?? []).includes(d.id))
+                const isIn = clockedInIds.has(emp.id)
+                return (
+                  <div key={emp.id} onClick={() => onSelectEmp(selectedEmp?.id === emp.id ? null as any : emp)}
+                    style={{ background: selectedEmp?.id === emp.id ? '#f0f6ff' : '#fff', padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', position: 'relative' }}>
+                    {isIn && <div style={{ position: 'absolute', top: '10px', right: '10px', width: 7, height: 7, borderRadius: '50%', background: '#639922' }} />}
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: selectedEmp?.id === emp.id ? '#185fa5' : '#e6f1fb', color: selectedEmp?.id === emp.id ? '#fff' : '#0c447c', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initials(emp.name)}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{emp.name}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{emp.role}</div>
+                    {empDepts.length > 0 && <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {empDepts.map(d => <span key={d.id} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '99px', background: d.color + '22', color: d.color, border: `0.5px solid ${d.color}55` }}>{d.name}</span>)}
+                    </div>}
+                    {emp.status && emp.status !== 'active' && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: emp.status === 'terminated' ? '#fcebeb' : '#faeeda', color: emp.status === 'terminated' ? '#a32d2d' : '#633806' }}>{emp.status === 'on_leave' ? 'On leave' : 'Terminated'}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedEmp && (
+            <div style={{ borderTop: '0.5px solid #e8eaed', padding: '1rem 1.25rem' }}>
+              <EmployeePanel
+                employee={selectedEmp}
+                initialTab={openTab}
+                onClose={() => { onSelectEmp(null as any); setOpenTab('info') }}
+                onUpdated={onUpdateEmployee}
+                onDelete={id => { onDeleteEmployee(id); onSelectEmp(null as any) }}
+                onStartAction={onStartAction}
+              />
+            </div>
+          )}
         </div>
 
       </div>
@@ -900,27 +677,31 @@ export default function Dashboard({
         endTime={calloutTarget.endTime}
         calledOutEmployee={calloutTarget.employee}
         onClose={() => setCalloutTarget(null)}
-        onCalloutMarked={(id) => {
-          setTodayShifts(prev => prev.map(s => s.id === id ? { ...s, status: 'called_out' } : s))
-          setCalloutTarget(null)
-        }}
+        onCalloutMarked={(id) => { setTodayShifts(prev => prev.map(s => s.id === id ? { ...s, status: 'called_out' } : s)); setCalloutTarget(null) }}
       />
     )}
 
+    {/* Announcement modal */}
     {showAnnouncementModal && (
-      <div
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        onClick={() => setShowAnnouncementModal(false)}
-      >
-        <div
-          style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', width: '460px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
-          onClick={e => e.stopPropagation()}
-        >
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAnnouncementModal(false)}>
+        <div style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', width: '460px', maxWidth: '90vw' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '16px', fontWeight: 600 }}>Send announcement</div>
-            <button onClick={() => setShowAnnouncementModal(false)} style={{ fontSize: '22px', lineHeight: 1, color: '#9a9a9a', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
+            <div style={{ fontSize: '15px', fontWeight: 500 }}>Post announcement</div>
+            <button onClick={() => setShowAnnouncementModal(false)} style={{ fontSize: '20px', lineHeight: 1, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
           </div>
-          <AnnouncementForm />
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>Title</label>
+            <input value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="e.g. Schedule change this Friday" style={{ width: '100%', padding: '8px 12px', border: '0.5px solid #dde1ea', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
+          </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>Message</label>
+            <textarea value={annMsg} onChange={e => setAnnMsg(e.target.value)} placeholder="Write your message here..." style={{ width: '100%', padding: '8px 12px', border: '0.5px solid #dde1ea', borderRadius: '8px', fontSize: '13px', outline: 'none', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }} />
+          </div>
+          <button onClick={sendAnnouncement} disabled={annSending || !annTitle.trim() || !annMsg.trim()}
+            style={{ width: '100%', padding: '9px', borderRadius: '8px', background: annSending || !annTitle.trim() || !annMsg.trim() ? '#dde1ea' : '#185fa5', color: '#fff', border: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+            {annSending ? 'Sending…' : 'Send to all employees'}
+          </button>
+          {annResult && <div style={{ marginTop: '8px', fontSize: '12px', color: annResult.includes('Sent') ? '#27ae60' : '#c0392b', textAlign: 'center' }}>{annResult}</div>}
         </div>
       </div>
     )}
