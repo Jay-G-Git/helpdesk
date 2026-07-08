@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin'
+import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 
 // PATCH — edit your own message
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
