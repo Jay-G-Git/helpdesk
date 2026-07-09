@@ -377,8 +377,10 @@ export default function TimePage() {
     })
   )
 
-  // Availability lookup — no rows for an employee at all means the feature isn't in use, so skip graying
-  const hasAnyAvailability = availability.length > 0
+  // Availability lookup — graying only applies to employees who have submitted availability
+  // themselves. If this employee has zero rows at all, treat it as "no data" (don't gray any
+  // of their cells) rather than assuming every day is unavailable.
+  const employeesWithAvailability = new Set(availability.map(a => a.employee_id))
   function isAvailable(empId: number, dayIdx: number) {
     return availability.some(a => a.employee_id === empId && a.day_of_week === dayIdx)
   }
@@ -718,7 +720,7 @@ export default function TimePage() {
                           const isDragOver = dragOverCell === cellKey && !dayShift
                           // Grayed out when the employee has submitted availability but didn't mark this day — still
                           // clickable so a manager can schedule anyway, just visually flagged.
-                          const isUnavailable = !dayShift && hasAnyAvailability && !isAvailable(emp.id, dayIdx)
+                          const isUnavailable = !dayShift && employeesWithAvailability.has(emp.id) && !isAvailable(emp.id, dayIdx)
                           return (
                             <div
                               key={dateStr}
