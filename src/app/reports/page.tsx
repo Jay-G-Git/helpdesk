@@ -20,18 +20,18 @@ function HBarChart({ data }: { data: { name: string; value: number; color?: stri
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {data.map((d, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '110px', fontSize: '12px', color: '#333', textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
-          <div style={{ flex: 1, height: '18px', background: '#f0f2f5', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ width: `${(d.value / max) * 100}%`, height: '100%', background: d.color ?? '#185fa5', borderRadius: '4px', transition: 'width 0.4s' }} />
+          <div style={{ width: '110px', fontSize: '12px', color: '#94a3b8', textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+          <div style={{ flex: 1, height: '18px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ width: `${(d.value / max) * 100}%`, height: '100%', background: d.color ?? '#3b82f6', borderRadius: '4px', transition: 'width 0.4s' }} />
           </div>
-          <div style={{ width: '50px', fontSize: '12px', color: '#555', textAlign: 'right', flexShrink: 0 }}>{d.value}</div>
+          <div style={{ width: '50px', fontSize: '12px', color: '#e2e8f0', textAlign: 'right', flexShrink: 0 }}>{d.value}</div>
         </div>
       ))}
     </div>
   )
 }
 
-function BarChart({ data, color = '#185fa5', prefix = '', suffix = '' }: { data: { label: string; value: number }[]; color?: string; prefix?: string; suffix?: string }) {
+function BarChart({ data, color = '#3b82f6', prefix = '', suffix = '' }: { data: { label: string; value: number }[]; color?: string; prefix?: string; suffix?: string }) {
   const max = Math.max(...data.map(d => d.value), 1)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px', padding: '0 4px' }}>
@@ -39,9 +39,9 @@ function BarChart({ data, color = '#185fa5', prefix = '', suffix = '' }: { data:
         const pct = d.value / max
         return (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', height: '100%', justifyContent: 'flex-end' }}>
-            <div style={{ fontSize: '10px', color: '#888', whiteSpace: 'nowrap' }}>{prefix}{d.value > 0 ? (d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value) : ''}{suffix}</div>
+            <div style={{ fontSize: '10px', color: '#64748b', whiteSpace: 'nowrap' }}>{prefix}{d.value > 0 ? (d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value) : ''}{suffix}</div>
             <div style={{ width: '100%', background: color, borderRadius: '4px 4px 0 0', height: `${Math.max(pct * 85, d.value > 0 ? 4 : 0)}%`, minHeight: d.value > 0 ? '4px' : 0 }} />
-            <div style={{ fontSize: '10px', color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', textAlign: 'center' }}>{d.label}</div>
+            <div style={{ fontSize: '10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', textAlign: 'center' }}>{d.label}</div>
           </div>
         )
       })}
@@ -147,9 +147,13 @@ export default function ReportsPage() {
   for (const e of active) { const r = e.role || 'Unknown'; roleCount[r] = (roleCount[r] ?? 0) + 1 }
   const roleData = Object.entries(roleCount).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }))
 
+  const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
+  const ghostBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }
+  const emptyState: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }
+
   if (loading) return (
     <div className="dash-wrap"><Nav active="reports" />
-      <div className="dash-content"><div className="loading-state">Loading...</div></div>
+      <div className="dash-content"><div style={cardStyle}><div style={emptyState}>Loading...</div></div></div>
     </div>
   )
 
@@ -158,55 +162,55 @@ export default function ReportsPage() {
       <Nav active="reports" />
       <div className="dash-content">
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>Reports</div>
-            <div style={{ fontSize: '13px', color: '#6b6b6b', marginTop: '4px' }}>Last 12 months</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Reports</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Last 12 months</div>
           </div>
-          <button className="btn" onClick={exportCSV} disabled={exporting} style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }}>
+          <button style={ghostBtn} onClick={exportCSV} disabled={exporting}>
             {exporting ? 'Preparing...' : '↓ Export data'}
           </button>
         </div>
 
         {/* KPI row */}
-        <div className="dash-stats" style={{ marginBottom: '1.5rem' }}>
-          <div className="stat">
-            <div className="stat-n">{active.length}</div>
-            <div className="stat-l">Active employees</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '1.25rem' }}>
+          <div style={cardStyle}>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{active.length}</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Active employees</div>
           </div>
-          <div className="stat">
-            <div className="stat-n" style={{ color: turnoverRate > 20 ? '#c0392b' : '#1a1a1a' }}>{turnoverRate}%</div>
-            <div className="stat-l">Turnover rate</div>
+          <div style={cardStyle}>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: turnoverRate > 20 ? '#f87171' : '#f1f5f9' }}>{turnoverRate}%</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Turnover rate</div>
           </div>
-          <div className="stat">
-            <div className="stat-n" style={{ color: complianceScore === 100 ? '#27ae60' : complianceScore >= 80 ? '#e67e22' : '#c0392b' }}>{complianceScore}%</div>
-            <div className="stat-l">Compliance score</div>
+          <div style={cardStyle}>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: complianceScore === 100 ? '#4ade80' : complianceScore >= 80 ? '#fbbf24' : '#f87171' }}>{complianceScore}%</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Compliance score</div>
           </div>
-          <div className="stat">
-            <div className="stat-n" style={{ fontSize: '20px' }}>
+          <div style={cardStyle}>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>
               {avgTenureMonths < 12 ? `${avgTenureMonths}mo` : `${Math.floor(avgTenureMonths / 12)}yr ${avgTenureMonths % 12}mo`}
             </div>
-            <div className="stat-l">Avg. tenure</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Avg. tenure</div>
           </div>
           {totalPayroll > 0 && (
-            <div className="stat">
-              <div className="stat-n" style={{ fontSize: '20px' }}>{fmtMoney(totalPayroll)}</div>
-              <div className="stat-l">Total payroll</div>
+            <div style={cardStyle}>
+              <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>{fmtMoney(totalPayroll)}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Total payroll</div>
             </div>
           )}
         </div>
 
         {/* Compliance detail */}
         {active.some(e => e.w4_status !== 'complete' || e.i9_status !== 'complete' || e.direct_deposit_status !== 'complete') && (
-          <div className="card" style={{ marginBottom: '1rem', border: '1px solid #fcd4d4' }}>
-            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: '#c0392b' }}>Incomplete paperwork</div>
+          <div style={{ ...cardStyle, marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.28)' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: '#f87171' }}>Incomplete paperwork</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               {active.filter(e => e.w4_status !== 'complete' || e.i9_status !== 'complete' || e.direct_deposit_status !== 'complete').map(e => {
                 const missing = [e.w4_status !== 'complete' && 'W-4', e.i9_status !== 'complete' && 'I-9', e.direct_deposit_status !== 'complete' && 'Direct deposit'].filter(Boolean)
                 return (
-                  <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid #fce8e8' }}>
-                    <span style={{ fontWeight: 500 }}>{e.name}</span>
-                    <span style={{ color: '#c0392b' }}>{missing.join(', ')} pending</span>
+                  <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
+                    <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{e.name}</span>
+                    <span style={{ color: '#f87171' }}>{missing.join(', ')} pending</span>
                   </div>
                 )
               })}
@@ -215,43 +219,43 @@ export default function ReportsPage() {
         )}
 
         {/* Charts grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          <div className="card">
-            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '1rem' }}>Headcount (6 months)</div>
-            <BarChart data={monthlyHeadcount} color="#185fa5" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Headcount (6 months)</div>
+            <BarChart data={monthlyHeadcount} color="#3b82f6" />
           </div>
           {totalPayroll > 0 ? (
-            <div className="card">
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '1rem' }}>Payroll cost (6 months)</div>
-              <BarChart data={monthlyPayroll} color="#15803d" prefix="$" />
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Payroll cost (6 months)</div>
+              <BarChart data={monthlyPayroll} color="#4ade80" prefix="$" />
             </div>
           ) : (
-            <div className="card">
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.5rem' }}>Payroll cost</div>
-              <div className="empty-state">No payroll data yet.</div>
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '0.5rem' }}>Payroll cost</div>
+              <div style={emptyState}>No payroll data yet.</div>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
           {hoursData.length > 0 && (
-            <div className="card">
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '1rem' }}>Hours worked per employee</div>
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Hours worked per employee</div>
               <HBarChart data={hoursData} />
             </div>
           )}
           {roleData.length > 0 && (
-            <div className="card">
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '1rem' }}>Team by role</div>
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Team by role</div>
               <HBarChart data={roleData} />
             </div>
           )}
         </div>
 
         {ptoData.length > 0 && (
-          <div className="card" style={{ marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '1rem' }}>PTO days used (12 months)</div>
-            <HBarChart data={ptoData.map(d => ({ ...d, color: '#b45309' }))} />
+          <div style={{ ...cardStyle, marginBottom: '1rem' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>PTO days used (12 months)</div>
+            <HBarChart data={ptoData.map(d => ({ ...d, color: '#fbbf24' }))} />
           </div>
         )}
 
