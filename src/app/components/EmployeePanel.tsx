@@ -44,6 +44,20 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function initials(name: string) {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function tenure(start: string) {
+  if (!start) return null
+  const months = Math.max(0, Math.round((Date.now() - new Date(start).getTime()) / 2629800000))
+  if (months < 1) return 'New'
+  if (months < 12) return `${months} mo`
+  const years = Math.floor(months / 12)
+  const rem = months % 12
+  return rem > 0 ? `${years}y ${rem}mo` : `${years}y`
+}
+
 type EmployeeForm = {
   id: number
   form_type: string
@@ -82,6 +96,41 @@ function formatFormType(t: string) {
 
 function formatKey(k: string) {
   return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+// ── Dark-theme style constants (self-contained; this panel doesn't live inside
+// a `.dash-content` wrapper, so global input/select overrides don't reach it) ──
+const cardBg = '#1e293b'
+const border = 'rgba(255,255,255,0.08)'
+const muted = '#64748b'
+const mutedDark = '#475569'
+const text = '#e2e8f0'
+const heading = '#f1f5f9'
+const accent = '#93c5fd'
+const accentFill = '#1d4ed8'
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '8px 10px', fontSize: '13px', borderRadius: '7px',
+  background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, color: text,
+  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+}
+const labelStyle: React.CSSProperties = { fontSize: '11px', color: muted, display: 'block', marginBottom: '5px', fontWeight: 500 }
+const fieldWrap: React.CSSProperties = { marginBottom: '0.85rem' }
+const row2Style: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }
+const sectionLabelStyle: React.CSSProperties = { fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: mutedDark, margin: '1.25rem 0 0.7rem' }
+const emptyStateStyle: React.CSSProperties = { fontSize: '13px', color: mutedDark, padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: `1px dashed ${border}` }
+const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: accentFill, color: '#fff', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
+const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '6px 12px', borderRadius: '7px', border: `1px solid ${border}`, background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
+const dangerBtn: React.CSSProperties = { fontSize: '13px', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#f87171', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
+const listItemStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div style={fieldWrap}>
+      <label style={labelStyle}>{label}{hint && <span style={{ color: mutedDark, fontWeight: 400 }}> {hint}</span>}</label>
+      {children}
+    </div>
+  )
 }
 
 export default function EmployeePanel({ employee, initialTab = 'info', onClose, onUpdated, onDelete, onStartAction }: Props) {
@@ -441,36 +490,75 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
     { key: 'offboarding', label: 'Offboarding' },
   ]
 
+  const primaryDeptInfo = allDepts.find(d => d.id === primaryDept)
+  const statusInfo = employee.status === 'terminated'
+    ? { label: 'Terminated', color: '#f87171', bg: 'rgba(239,68,68,0.15)' }
+    : employee.status === 'on_leave'
+    ? { label: 'On leave', color: '#fbbf24', bg: 'rgba(245,158,11,0.15)' }
+    : { label: 'Active', color: '#4ade80', bg: 'rgba(34,197,94,0.15)' }
+
   return (
-    <div className={`emp-panel${closing ? ' closing' : ''}`}>
-      <div className="emp-panel-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="emp-panel-name">{employee.name}</div>
-            {employee.access_role === 'manager' && (
-              <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', background: '#dcfce7', color: '#166534', letterSpacing: '0.04em' }}>MANAGER</span>
-            )}
+    <div className={`emp-panel-dark${closing ? ' closing' : ''}`} style={{
+      background: cardBg, border: `1px solid ${border}`, borderRadius: '12px',
+      padding: '1.5rem', transition: 'opacity 0.4s ease, transform 0.4s ease',
+      opacity: closing ? 0 : 1, transform: closing ? 'translateY(-8px)' : 'translateY(0)',
+    }}>
+      {/* ── Header: avatar, name, status, at-a-glance facts ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+          <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(29,78,216,0.18)', color: accent, fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {initials(employee.name)}
           </div>
-          <div className="emp-panel-role">{employee.role}</div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '4px', alignItems: 'center' }}>
-            <a href={`/employees/${employee.id}`} style={{ fontSize: '12px', color: '#185fa5' }}>View full profile →</a>
-            <button
-              onClick={() => { setShowNoteBox(v => !v); setNoteSaved(false) }}
-              style={{ fontSize: '12px', color: showNoteBox ? '#185fa5' : '#6b6b6b', background: showNoteBox ? '#e8edf8' : '#f0f0f0', border: 'none', borderRadius: '6px', padding: '2px 9px', cursor: 'pointer', fontWeight: 500 }}
-            >
-              ✎ Note
-            </button>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '17px', fontWeight: 700, color: heading }}>{employee.name}</div>
+              <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: statusInfo.bg, color: statusInfo.color, letterSpacing: '0.03em' }}>{statusInfo.label.toUpperCase()}</span>
+              {employee.access_role === 'manager' && (
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: 'rgba(192,132,252,0.15)', color: '#d8b4fe', letterSpacing: '0.04em' }}>MANAGER</span>
+              )}
+            </div>
+            <div style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>{employee.role}</div>
+
+            {/* Quick facts row — tenure / pay / department at a glance, no tab click needed */}
+            <div style={{ display: 'flex', gap: '14px', marginTop: '8px', flexWrap: 'wrap' }}>
+              {employee.start && (
+                <div style={{ fontSize: '12px', color: muted }}>
+                  <span style={{ color: mutedDark }}>Tenure</span> <span style={{ color: text, fontWeight: 500 }}>{tenure(employee.start)}</span>
+                </div>
+              )}
+              {employee.pay_rate != null && (
+                <div style={{ fontSize: '12px', color: muted }}>
+                  <span style={{ color: mutedDark }}>Pay</span> <span style={{ color: text, fontWeight: 500 }}>{formatMoney(employee.pay_rate)}{employee.pay_type === 'salary' ? '/yr' : '/hr'}</span>
+                </div>
+              )}
+              {primaryDeptInfo && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: primaryDeptInfo.color }} />
+                  <span style={{ fontSize: '12px', color: text, fontWeight: 500 }}>{primaryDeptInfo.name}</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '10px', alignItems: 'center' }}>
+              <a href={`/employees/${employee.id}`} style={{ fontSize: '12px', color: accent, textDecoration: 'none' }}>View full profile →</a>
+              <button
+                onClick={() => { setShowNoteBox(v => !v); setNoteSaved(false) }}
+                style={{ fontSize: '12px', color: showNoteBox ? accent : muted, background: showNoteBox ? 'rgba(29,78,216,0.15)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '3px 10px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                ✎ Note
+              </button>
+            </div>
           </div>
         </div>
-        <button className="emp-panel-close" onClick={animateClose}>×</button>
+        <button onClick={animateClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: mutedDark, cursor: 'pointer', lineHeight: 1, padding: '0 0 0 8px', flexShrink: 0 }}>×</button>
       </div>
 
       {showNoteBox && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f8f9fb', borderRadius: '10px', border: '1px solid #e4e7f0' }}>
+        <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: `1px solid ${border}` }}>
           {noteSummary.length > 0 && (
             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
               {noteSummary.map(tag => (
-                <span key={tag} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: '#e8edf8', color: '#185fa5', fontWeight: 500 }}>{tag}</span>
+                <span key={tag} style={{ fontSize: '11px', padding: '2px 9px', borderRadius: '20px', background: 'rgba(29,78,216,0.15)', color: accent, fontWeight: 500 }}>{tag}</span>
               ))}
             </div>
           )}
@@ -478,20 +566,20 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
             value={noteText}
             onChange={e => { setNoteText(e.target.value); setNoteSaved(false) }}
             placeholder="Write a quick note about this employee, or add your observations and hit Generate..."
-            style={{ width: '100%', minHeight: '80px', border: '1px solid #e0e3eb', borderRadius: '6px', padding: '8px', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', outline: 'none', background: '#fff', lineHeight: 1.5 }}
+            style={{ ...inputStyle, minHeight: '80px', resize: 'vertical', lineHeight: 1.5 }}
           />
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={saveNote}
               disabled={!noteText.trim() || noteSaving || noteSaved}
-              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: 'none', background: noteSaved ? '#27ae60' : '#185fa5', color: '#fff', cursor: 'pointer', fontWeight: 500, opacity: (!noteText.trim() || noteSaving) ? 0.5 : 1 }}
+              style={{ ...primaryBtn, fontSize: '12px', padding: '6px 12px', background: noteSaved ? '#16a34a' : accentFill, opacity: (!noteText.trim() || noteSaving) ? 0.5 : 1 }}
             >
               {noteSaving ? 'Saving...' : noteSaved ? '✓ Saved' : 'Save note'}
             </button>
             <button
               onClick={generateNote}
               disabled={noteGenerating}
-              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #d0d5e8', background: '#fff', color: '#185fa5', cursor: 'pointer', fontWeight: 500 }}
+              style={{ ...ghostBtn, color: accent, borderColor: 'rgba(29,78,216,0.3)' }}
             >
               {noteGenerating ? 'Generating...' : '✦ Generate with AI'}
             </button>
@@ -500,17 +588,17 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #eee', marginBottom: '1.25rem', gap: 0 }}>
+      <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, marginBottom: '1.25rem', gap: '2px', flexWrap: 'wrap' }}>
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             style={{
-              padding: '7px 14px', fontSize: '13px', border: 'none', background: 'transparent', cursor: 'pointer',
-              color: tab === t.key ? '#185fa5' : '#6b6b6b',
-              borderBottom: tab === t.key ? '2px solid #185fa5' : '2px solid transparent',
+              padding: '8px 14px', fontSize: '13px', border: 'none', background: 'transparent', cursor: 'pointer',
+              color: tab === t.key ? accent : muted,
+              borderBottom: tab === t.key ? `2px solid ${accentFill}` : '2px solid transparent',
               fontWeight: tab === t.key ? 600 : 400,
-              marginBottom: '-1px', transition: 'color 0.15s',
+              marginBottom: '-1px', transition: 'color 0.15s', fontFamily: 'inherit',
             }}
           >
             {t.label}
@@ -521,70 +609,65 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       {/* Info tab */}
       {tab === 'info' && (
         <div>
-          <div className="emp-panel-section">Profile</div>
-          <div className="row2">
-            <div className="field"><label>Name</label><input value={form.name} onChange={e => set('name', e.target.value)} /></div>
-            <div className="field"><label>Role</label><input value={form.role} onChange={e => set('role', e.target.value)} /></div>
+          <div style={sectionLabelStyle}>Profile</div>
+          <div style={row2Style}>
+            <Field label="Name"><input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} /></Field>
+            <Field label="Role"><input style={inputStyle} value={form.role} onChange={e => set('role', e.target.value)} /></Field>
           </div>
-          <div className="row2">
-            <div className="field"><label>Start date</label><input type="date" value={form.start} onChange={e => set('start', e.target.value)} /></div>
-            <div className="field">
-              <label>Type</label>
-              <select value={form.type} onChange={e => set('type', e.target.value)}>
+          <div style={row2Style}>
+            <Field label="Start date"><input type="date" style={inputStyle} value={form.start} onChange={e => set('start', e.target.value)} /></Field>
+            <Field label="Type">
+              <select style={inputStyle} value={form.type} onChange={e => set('type', e.target.value)}>
                 <option>Full-time</option><option>Part-time</option><option>Seasonal</option>
               </select>
-            </div>
+            </Field>
           </div>
-          <div className="field">
-            <label>Status</label>
-            <select value={form.status || 'active'} onChange={e => set('status', e.target.value)}>
+          <Field label="Status">
+            <select style={inputStyle} value={form.status || 'active'} onChange={e => set('status', e.target.value)}>
               <option value="active">Active</option><option value="on_leave">On leave</option><option value="terminated">Terminated</option>
             </select>
-          </div>
+          </Field>
 
-          <div className="emp-panel-section">Contact</div>
-          <div className="row2">
-            <div className="field"><label>Phone</label><input value={form.phone || ''} onChange={e => set('phone', e.target.value)} placeholder="(555) 123-4567" /></div>
-            <div className="field"><label>Email</label><input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} placeholder="jane@example.com" /></div>
+          <div style={sectionLabelStyle}>Contact</div>
+          <div style={row2Style}>
+            <Field label="Phone"><input style={inputStyle} value={form.phone || ''} onChange={e => set('phone', e.target.value)} placeholder="(555) 123-4567" /></Field>
+            <Field label="Email"><input type="email" style={inputStyle} value={form.email || ''} onChange={e => set('email', e.target.value)} placeholder="jane@example.com" /></Field>
           </div>
-          <div className="field"><label>Address</label><input value={form.address || ''} onChange={e => set('address', e.target.value)} placeholder="123 Main St, City, State" /></div>
-          <div className="field"><label>Emergency contact</label><input value={form.emergency_contact || ''} onChange={e => set('emergency_contact', e.target.value)} placeholder="Jane Doe — (555) 987-6543" /></div>
+          <Field label="Address"><input style={inputStyle} value={form.address || ''} onChange={e => set('address', e.target.value)} placeholder="123 Main St, City, State" /></Field>
+          <Field label="Emergency contact"><input style={inputStyle} value={form.emergency_contact || ''} onChange={e => set('emergency_contact', e.target.value)} placeholder="Jane Doe — (555) 987-6543" /></Field>
 
-          <div className="emp-panel-section">Payroll</div>
-          <div className="row2">
-            <div className="field">
-              <label>Pay type</label>
-              <select value={form.pay_type || 'hourly'} onChange={e => set('pay_type', e.target.value)}>
+          <div style={sectionLabelStyle}>Payroll</div>
+          <div style={row2Style}>
+            <Field label="Pay type">
+              <select style={inputStyle} value={form.pay_type || 'hourly'} onChange={e => set('pay_type', e.target.value)}>
                 <option value="hourly">Hourly</option><option value="salary">Salary</option>
               </select>
-            </div>
-            <div className="field">
-              <label>{form.pay_type === 'salary' ? 'Annual salary ($)' : 'Hourly rate ($)'}</label>
-              <input type="number" value={form.pay_rate ?? ''} onChange={e => set('pay_rate', e.target.value)} placeholder="0.00" step="0.01" />
-            </div>
+            </Field>
+            <Field label={form.pay_type === 'salary' ? 'Annual salary ($)' : 'Hourly rate ($)'}>
+              <input type="number" style={inputStyle} value={form.pay_rate ?? ''} onChange={e => set('pay_rate', e.target.value)} placeholder="0.00" step="0.01" />
+            </Field>
           </div>
-          <div className="field">
-            <label>Pay period</label>
-            <select value={form.pay_period || 'biweekly'} onChange={e => set('pay_period', e.target.value)}>
+          <Field label="Pay period">
+            <select style={inputStyle} value={form.pay_period || 'biweekly'} onChange={e => set('pay_period', e.target.value)}>
               <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option>
               <option value="semi-monthly">Semi-monthly</option><option value="monthly">Monthly</option>
             </select>
-          </div>
+          </Field>
 
-          <div className="emp-panel-section">HR Info</div>
-          <div className="row2">
-            <div className="field"><label>SSN (last 4)</label><input value={form.ssn_last4 || ''} onChange={e => set('ssn_last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234" maxLength={4} /></div>
-            <div className="field"><label>Date of birth</label><input type="date" value={form.date_of_birth || ''} onChange={e => set('date_of_birth', e.target.value)} /></div>
+          <div style={sectionLabelStyle}>HR Info</div>
+          <div style={row2Style}>
+            <Field label="SSN (last 4)"><input style={inputStyle} value={form.ssn_last4 || ''} onChange={e => set('ssn_last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234" maxLength={4} /></Field>
+            <Field label="Date of birth"><input type="date" style={inputStyle} value={form.date_of_birth || ''} onChange={e => set('date_of_birth', e.target.value)} /></Field>
           </div>
 
           {allDepts.length > 0 && (
             <>
-              <div className="emp-panel-section">Departments</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
+              <div style={sectionLabelStyle}>Departments</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.6rem' }}>
                 {allDepts.map(dept => {
                   const isMember = memberDepts.has(dept.id)
                   return (
-                    <label key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: 8, background: isMember ? '#f4f6fc' : 'transparent', cursor: 'pointer', userSelect: 'none' }}>
+                    <label key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: 8, background: isMember ? 'rgba(29,78,216,0.1)' : 'transparent', cursor: 'pointer', userSelect: 'none' }}>
                       <input type="checkbox" checked={isMember} onChange={() => {
                         setMemberDepts(prev => {
                           const next = new Set(prev)
@@ -594,9 +677,9 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                         })
                       }} style={{ width: 14, height: 14, flexShrink: 0 }} />
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: dept.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '13px', flex: 1 }}>{dept.name}</span>
+                      <span style={{ fontSize: '13px', flex: 1, color: text }}>{dept.name}</span>
                       {isMember && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', color: '#888', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', color: muted, cursor: 'pointer' }}>
                           <input type="radio" name="primary_dept" checked={primaryDept === dept.id} onChange={() => setPrimaryDept(dept.id)} style={{ width: 12, height: 12 }} />
                           Primary
                         </label>
@@ -605,17 +688,17 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                   )
                 })}
               </div>
-              <button className="btn" onClick={saveDepartments} disabled={deptsSaving} style={{ fontSize: '12px', padding: '5px 12px', width: 'auto', marginBottom: '0.5rem' }}>
+              <button onClick={saveDepartments} disabled={deptsSaving} style={{ ...ghostBtn, marginBottom: '0.6rem' }}>
                 {deptsSaving ? 'Saving...' : 'Save departments'}
               </button>
             </>
           )}
 
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', alignItems: 'center' }}>
-            <button className="btn auth-btn-primary" onClick={save} disabled={saving} style={{ width: 'auto' }}>
+            <button onClick={save} disabled={saving} style={primaryBtn}>
               {saving ? 'Saving...' : 'Save changes'}
             </button>
-            <button className="delete-btn" style={{ fontSize: '13px', opacity: 1, color: '#c0392b' }} onClick={() => onDelete(employee.id)}>
+            <button style={dangerBtn} onClick={() => onDelete(employee.id)}>
               Remove employee
             </button>
           </div>
@@ -626,26 +709,25 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       {/* Onboarding tab */}
       {tab === 'onboarding' && (
         <div>
-          <p style={{ fontSize: '13px', color: '#666', marginBottom: '1rem' }}>
-            Send {employee.name} a setup link — they'll create their account and be prompted to complete onboarding from the portal.
+          <p style={{ fontSize: '13px', color: muted, marginBottom: '1rem' }}>
+            Send {employee.name} a setup link — they&apos;ll create their account and be prompted to complete onboarding from the portal.
           </p>
           {!linkUrl ? (
             <>
-              <div className="field">
-                <label>Employee email <span style={{ color: '#9a9a9a', fontWeight: 400 }}>(optional — leave blank to just get a link)</span></label>
-                <input type="email" value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="jane@example.com" />
-              </div>
-              <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={sendWelcomePack} disabled={sending}>
-                {sending ? 'Sending...' : <><MailIcon size={14} /> Initiate employee</>}
+              <Field label="Employee email" hint="(optional — leave blank to just get a link)">
+                <input type="email" style={inputStyle} value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="jane@example.com" />
+              </Field>
+              <button style={primaryBtn} onClick={sendWelcomePack} disabled={sending}>
+                {sending ? 'Sending...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><MailIcon size={14} /> Initiate employee</span>}
               </button>
             </>
           ) : (
             <>
-              <div className="done-msg" style={{ marginBottom: '0.75rem' }}>✓ Setup link sent{empEmail ? ` to ${empEmail}` : ''}.</div>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.5rem' }}>Onboarding link (fallback — share if email didn't arrive):</div>
-              <div className="share-link-row">
-                <input className="share-link-input" readOnly value={linkUrl} onFocus={e => e.target.select()} />
-                <button className="doc-btn" onClick={copyLink}>{linkCopied ? '✓ Copied' : 'Copy link'}</button>
+              <div style={{ fontSize: '13px', color: '#4ade80', fontWeight: 600, marginBottom: '0.75rem' }}>✓ Setup link sent{empEmail ? ` to ${empEmail}` : ''}.</div>
+              <div style={{ fontSize: '12px', color: muted, marginBottom: '0.5rem' }}>Onboarding link (fallback — share if email didn&apos;t arrive):</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input readOnly value={linkUrl} onFocus={e => e.target.select()} style={{ ...inputStyle, flex: 1 }} />
+                <button style={ghostBtn} onClick={copyLink}>{linkCopied ? '✓ Copied' : 'Copy link'}</button>
               </div>
             </>
           )}
@@ -657,12 +739,12 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       {tab === 'documents' && (
         <div>
           {docsLoading ? (
-            <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div>
+            <div style={{ fontSize: '13px', color: mutedDark }}>Loading...</div>
           ) : (
             <>
-              <div className="emp-panel-section">Submitted forms</div>
+              <div style={sectionLabelStyle}>Submitted forms</div>
               {employeeForms.length === 0 ? (
-                <div className="empty-state" style={{ marginBottom: '1.25rem' }}>No forms submitted yet.</div>
+                <div style={{ ...emptyStateStyle, marginBottom: '1.25rem' }}>No forms submitted yet.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.25rem' }}>
                   {employeeForms.map(f => (
@@ -670,32 +752,30 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                       <div
                         onClick={() => setExpandedForm(expandedForm === f.id ? null : f.id)}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '8px 10px', borderRadius: '8px',
-                          background: expandedForm === f.id ? '#f0f4fb' : '#fafafa',
-                          border: `1px solid ${expandedForm === f.id ? '#c2d4f0' : '#eee'}`,
-                          cursor: 'pointer',
+                          ...listItemStyle, cursor: 'pointer',
+                          background: expandedForm === f.id ? 'rgba(29,78,216,0.1)' : 'rgba(255,255,255,0.03)',
+                          borderColor: expandedForm === f.id ? 'rgba(29,78,216,0.3)' : border,
                         }}
                       >
-                        <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#e6f1fb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: '12px', color: '#185fa5', fontWeight: 600 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'rgba(29,78,216,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: '12px', color: accent, fontWeight: 600 }}>
                             {formatFormType(f.form_type).slice(0, 2)}
                           </span>
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{formatFormType(f.form_type)}</div>
-                          <div style={{ fontSize: '11px', color: '#9a9a9a' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: text }}>{formatFormType(f.form_type)}</div>
+                          <div style={{ fontSize: '11px', color: mutedDark }}>
                             Submitted {new Date(f.submitted_at || f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
-                        <span style={{ fontSize: '12px', color: '#185fa5' }}>{expandedForm === f.id ? '▲ Hide' : '▼ View'}</span>
+                        <span style={{ fontSize: '12px', color: accent }}>{expandedForm === f.id ? '▲ Hide' : '▼ View'}</span>
                       </div>
                       {expandedForm === f.id && (
-                        <div style={{ background: '#f8fafd', border: '1px solid #c2d4f0', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '10px 12px' }}>
+                        <div style={{ background: 'rgba(29,78,216,0.05)', border: '1px solid rgba(29,78,216,0.2)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '10px 12px' }}>
                           {Object.entries(f.form_data).map(([k, v]) => v ? (
-                            <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '3px 0', borderBottom: '1px solid #eef2f8' }}>
-                              <span style={{ color: '#9a9a9a', minWidth: '120px', flexShrink: 0 }}>{formatKey(k)}</span>
-                              <span style={{ color: '#1a1a1a', wordBreak: 'break-word' }}>{String(v)}</span>
+                            <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '4px 0', borderBottom: `1px solid ${border}` }}>
+                              <span style={{ color: mutedDark, minWidth: '120px', flexShrink: 0 }}>{formatKey(k)}</span>
+                              <span style={{ color: text, wordBreak: 'break-word' }}>{String(v)}</span>
                             </div>
                           ) : null)}
                         </div>
@@ -707,53 +787,45 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
 
               {docSignatures.length > 0 && (
                 <>
-                  <div className="emp-panel-section">Signed documents</div>
+                  <div style={sectionLabelStyle}>Signed documents</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.25rem' }}>
                     {docSignatures.map(sig => (
-                      <div key={sig.id} style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '8px 10px', borderRadius: '8px',
-                        background: '#f0faf4', border: '1px solid #c3e6cb',
-                      }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#d4edda', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', color: '#27ae60', fontWeight: 700 }}>
+                      <div key={sig.id} style={{ ...listItemStyle, background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'rgba(34,197,94,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', color: '#4ade80', fontWeight: 700 }}>
                           ✓
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.file_name}</div>
-                          <div style={{ fontSize: '11px', color: '#9a9a9a' }}>
-                            Signed as <span style={{ fontStyle: 'italic', color: '#555' }}>{sig.signed_name}</span> · {new Date(sig.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.file_name}</div>
+                          <div style={{ fontSize: '11px', color: mutedDark }}>
+                            Signed as <span style={{ fontStyle: 'italic', color: muted }}>{sig.signed_name}</span> · {new Date(sig.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
-                        <span style={{ fontSize: '11px', fontWeight: 500, color: '#27ae60', flexShrink: 0 }}>Signed</span>
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: '#4ade80', flexShrink: 0 }}>Signed</span>
                       </div>
                     ))}
                   </div>
                 </>
               )}
 
-              <div className="emp-panel-section">Uploaded files</div>
+              <div style={sectionLabelStyle}>Uploaded files</div>
               {employeeDocs.length === 0 ? (
-                <div className="empty-state">No files uploaded yet.</div>
+                <div style={emptyStateStyle}>No files uploaded yet.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {employeeDocs.map(doc => (
-                    <div key={doc.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '10px',
-                      padding: '8px 10px', borderRadius: '8px',
-                      background: '#fafafa', border: '1px solid #eee',
-                    }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#f0faf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <PaperclipIcon size={14} color="#27ae60" />
+                    <div key={doc.id} style={listItemStyle}>
+                      <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <PaperclipIcon size={14} color="#4ade80" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name}</div>
-                        <div style={{ fontSize: '11px', color: '#9a9a9a' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name}</div>
+                        <div style={{ fontSize: '11px', color: mutedDark }}>
                           {formatSize(doc.file_size)} · {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </div>
                       </div>
                       <button
                         onClick={() => downloadFile(doc.file_path, doc.file_name)}
-                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #185fa5', background: 'transparent', color: '#185fa5', cursor: 'pointer', flexShrink: 0 }}
+                        style={{ ...ghostBtn, color: accent, borderColor: 'rgba(29,78,216,0.3)', flexShrink: 0 }}
                       >
                         Download
                       </button>
@@ -770,57 +842,44 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       {tab === 'payroll' && (
         <div>
           {/* Pay summary */}
-          <div className="emp-panel-section">Pay settings</div>
+          <div style={sectionLabelStyle}>Pay settings</div>
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '120px', background: '#f5f6fa', borderRadius: '8px', padding: '10px 14px' }}>
-              <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '2px' }}>Pay type</div>
-              <div style={{ fontSize: '14px', fontWeight: 600 }}>{employee.pay_type === 'salary' ? 'Salary' : 'Hourly'}</div>
+            <div style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}`, borderRadius: '8px', padding: '10px 14px' }}>
+              <div style={{ fontSize: '11px', color: mutedDark, marginBottom: '2px' }}>Pay type</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: text }}>{employee.pay_type === 'salary' ? 'Salary' : 'Hourly'}</div>
             </div>
-            <div style={{ flex: 1, minWidth: '120px', background: '#f5f6fa', borderRadius: '8px', padding: '10px 14px' }}>
-              <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '2px' }}>Rate</div>
-              <div style={{ fontSize: '14px', fontWeight: 600 }}>
+            <div style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}`, borderRadius: '8px', padding: '10px 14px' }}>
+              <div style={{ fontSize: '11px', color: mutedDark, marginBottom: '2px' }}>Rate</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: text }}>
                 {employee.pay_rate ? formatMoney(employee.pay_rate) : '—'}{employee.pay_type === 'salary' ? '/yr' : '/hr'}
               </div>
             </div>
-            <div style={{ flex: 1, minWidth: '120px', background: '#f5f6fa', borderRadius: '8px', padding: '10px 14px' }}>
-              <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '2px' }}>Period</div>
-              <div style={{ fontSize: '14px', fontWeight: 600, textTransform: 'capitalize' }}>{employee.pay_period || 'Biweekly'}</div>
+            <div style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}`, borderRadius: '8px', padding: '10px 14px' }}>
+              <div style={{ fontSize: '11px', color: mutedDark, marginBottom: '2px' }}>Period</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, textTransform: 'capitalize', color: text }}>{employee.pay_period || 'Biweekly'}</div>
             </div>
           </div>
 
           {/* History header + log button */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div className="emp-panel-section" style={{ margin: 0 }}>Payment history</div>
-            <button
-              className="btn"
-              style={{ fontSize: '12px', padding: '4px 12px' }}
-              onClick={() => setPayShowForm(v => !v)}
-            >
+            <div style={{ ...sectionLabelStyle, margin: 0 }}>Payment history</div>
+            <button style={ghostBtn} onClick={() => setPayShowForm(v => !v)}>
               {payShowForm ? 'Cancel' : '+ Log payment'}
             </button>
           </div>
 
           {/* Log payment form */}
           {payShowForm && (
-            <div style={{ background: '#f5f6fa', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-              <div className="row2" style={{ marginBottom: '0.75rem' }}>
-                <div className="field">
-                  <label>Period start</label>
-                  <input type="date" value={payPeriodStart} onChange={e => setPayPeriodStart(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Period end</label>
-                  <input type="date" value={payPeriodEnd} onChange={e => setPayPeriodEnd(e.target.value)} />
-                </div>
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}`, borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
+              <div style={row2Style}>
+                <Field label="Period start"><input type="date" style={inputStyle} value={payPeriodStart} onChange={e => setPayPeriodStart(e.target.value)} /></Field>
+                <Field label="Period end"><input type="date" style={inputStyle} value={payPeriodEnd} onChange={e => setPayPeriodEnd(e.target.value)} /></Field>
               </div>
               {employee.pay_type !== 'salary' && (
-                <div className="field" style={{ marginBottom: '0.75rem' }}>
-                  <label>Hours worked</label>
-                  <input type="number" value={payHours} onChange={e => setPayHours(e.target.value)} placeholder="80" step="0.5" />
-                </div>
+                <Field label="Hours worked"><input type="number" style={inputStyle} value={payHours} onChange={e => setPayHours(e.target.value)} placeholder="80" step="0.5" /></Field>
               )}
               {employee.pay_rate && (employee.pay_type === 'salary' || payHours) ? (
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#185fa5', marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: accent, marginBottom: '0.85rem' }}>
                   Gross: {formatMoney(
                     employee.pay_type === 'salary'
                       ? (employee.pay_rate ?? 0) / 26
@@ -828,12 +887,9 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                   )}
                 </div>
               ) : null}
-              <div className="field" style={{ marginBottom: '0.75rem' }}>
-                <label>Notes (optional)</label>
-                <input value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="e.g. included overtime" />
-              </div>
+              <Field label="Notes (optional)"><input style={inputStyle} value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="e.g. included overtime" /></Field>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px' }} onClick={logPayment} disabled={paySaving}>
+                <button style={primaryBtn} onClick={logPayment} disabled={paySaving}>
                   {paySaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
@@ -842,36 +898,32 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
 
           {/* History list */}
           {payrollLoading ? (
-            <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div>
+            <div style={{ fontSize: '13px', color: mutedDark }}>Loading...</div>
           ) : payrollEntries.length === 0 ? (
-            <div className="empty-state">No payments logged yet.</div>
+            <div style={emptyStateStyle}>No payments logged yet.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {payrollEntries.map(entry => (
-                <div key={entry.id} style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '8px 10px', borderRadius: '8px',
-                  background: '#fafafa', border: '1px solid #eee',
-                }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#e6f1fb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px' }}>
-                    <DollarIcon size={14} color="#185fa5" />
+                <div key={entry.id} style={listItemStyle}>
+                  <div style={{ width: 28, height: 28, borderRadius: '6px', background: 'rgba(29,78,216,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px' }}>
+                    <DollarIcon size={14} color={accent} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: text }}>
                       {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#9a9a9a' }}>
+                    <div style={{ fontSize: '11px', color: mutedDark }}>
                       {entry.hours_worked != null ? `${entry.hours_worked} hrs · ` : ''}
                       Paid {formatDate(entry.paid_at)}
                       {entry.notes ? ` · ${entry.notes}` : ''}
                     </div>
                   </div>
-                  <span style={{ fontWeight: 600, color: '#185fa5', fontSize: '13px', flexShrink: 0 }}>
+                  <span style={{ fontWeight: 600, color: accent, fontSize: '13px', flexShrink: 0 }}>
                     {formatMoney(entry.gross_pay)}
                   </span>
                 </div>
               ))}
-              <div style={{ fontSize: '12px', color: '#666', padding: '6px 2px', fontWeight: 500 }}>
+              <div style={{ fontSize: '12px', color: muted, padding: '6px 2px', fontWeight: 500 }}>
                 Total paid: {formatMoney(payrollEntries.reduce((s, e) => s + e.gross_pay, 0))}
               </div>
             </div>
@@ -883,22 +935,22 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       {tab === 'notes' && (
         <div>
           {notesLoading ? (
-            <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div>
+            <div style={{ fontSize: '13px', color: mutedDark }}>Loading...</div>
           ) : checkinNotes.length === 0 ? (
-            <div className="empty-state">
+            <div style={emptyStateStyle}>
               No notes yet. Use the ✎ Note button above to write one.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {checkinNotes.map(note => (
-                <div key={note.id} style={{ padding: '0.875rem 1rem', borderRadius: '10px', background: '#fafafa', border: '1px solid #eee' }}>
-                  <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '0.5rem', fontWeight: 500 }}>
+                <div key={note.id} style={{ padding: '0.875rem 1rem', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}>
+                  <div style={{ fontSize: '11px', color: mutedDark, marginBottom: '0.5rem', fontWeight: 500 }}>
                     {new Date(note.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     <span style={{ marginLeft: '6px' }}>
                       · {new Date(note.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{note.content}</div>
+                  <div style={{ fontSize: '13px', color: text, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{note.content}</div>
                 </div>
               ))}
             </div>
@@ -912,58 +964,58 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
           {offboardingDone ? (
             <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
               <div style={{ fontSize: '36px', marginBottom: '0.5rem' }}>✓</div>
-              <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '0.4rem' }}>Offboarding complete</div>
-              <p style={{ fontSize: '13px', color: '#666' }}>{employee.name} has been marked as terminated.</p>
+              <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '0.4rem', color: heading }}>Offboarding complete</div>
+              <p style={{ fontSize: '13px', color: muted }}>{employee.name} has been marked as terminated.</p>
             </div>
           ) : (
             <>
-              <div className="row2" style={{ marginBottom: '1rem' }}>
-                <div className="field">
-                  <label>Last day</label>
-                  <input type="date" value={lastDay} onChange={e => handleLastDayChange(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Reason</label>
-                  <select value={reason} onChange={e => handleReasonChange(e.target.value)}>
+              <div style={{ ...row2Style, marginBottom: '1rem' }}>
+                <Field label="Last day"><input type="date" style={inputStyle} value={lastDay} onChange={e => handleLastDayChange(e.target.value)} /></Field>
+                <Field label="Reason">
+                  <select style={inputStyle} value={reason} onChange={e => handleReasonChange(e.target.value)}>
                     <option>Resignation</option><option>Termination</option><option>Layoff</option>
                     <option>Seasonal end</option><option>Retirement</option><option>Personal reasons</option>
                   </select>
-                </div>
+                </Field>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div className="emp-panel-section" style={{ margin: 0 }}>Checklist</div>
-                <span className={`badge ${checked.filter(Boolean).length === checklistItems.length ? 'badge-green' : checked.some(Boolean) ? 'badge-yellow' : 'badge-red'}`}>
+                <div style={{ ...sectionLabelStyle, margin: 0 }}>Checklist</div>
+                <span style={{
+                  fontSize: '11px', fontWeight: 600, padding: '2px 9px', borderRadius: '99px',
+                  background: checked.filter(Boolean).length === checklistItems.length ? 'rgba(34,197,94,0.15)' : checked.some(Boolean) ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                  color: checked.filter(Boolean).length === checklistItems.length ? '#4ade80' : checked.some(Boolean) ? '#fbbf24' : '#f87171',
+                }}>
                   {checked.filter(Boolean).length}/{checklistItems.length} done
                 </span>
               </div>
 
-              <div className="compliance-list" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '1rem' }}>
                 {checklistItems.map((label, i) => (
                   <div
                     key={i}
-                    className="compliance-item clickable"
                     onClick={() => setChecked(prev => { const next = [...prev]; next[i] = !next[i]; return next })}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}
                   >
-                    <div className={`compliance-check${checked[i] ? ' checked' : ''}`}>
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '5px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px',
+                      background: checked[i] ? 'rgba(34,197,94,0.2)' : 'transparent', border: `1.5px solid ${checked[i] ? '#4ade80' : border}`, color: '#4ade80',
+                    }}>
                       {checked[i] ? '✓' : ''}
                     </div>
-                    <div className="compliance-label" style={{ textDecoration: checked[i] ? 'line-through' : 'none', color: checked[i] ? '#27ae60' : undefined }}>
+                    <div style={{ fontSize: '13px', textDecoration: checked[i] ? 'line-through' : 'none', color: checked[i] ? '#4ade80' : text }}>
                       {label}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="field" style={{ marginBottom: '1rem' }}>
-                <label>Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional notes..." style={{ minHeight: '60px' }} />
-              </div>
+              <Field label="Notes"><textarea style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional notes..." /></Field>
 
               <button
                 onClick={completeOffboarding}
                 disabled={offboardingSaving}
-                style={{ padding: '8px 16px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: 'auto' }}
+                style={{ ...dangerBtn, background: '#dc2626', color: '#fff', border: 'none' }}
               >
                 {offboardingSaving ? 'Saving...' : 'Complete & terminate'}
               </button>
