@@ -566,16 +566,14 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
             </div>
             <div style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>{employee.role}</div>
 
-            {/* Quick facts row — tenure / pay / department at a glance, no tab click needed */}
+            {/* Quick facts row — tenure / department at a glance, no tab click needed.
+                Pay dropped from here: it's one click away on the Payroll tab, and
+                repeating it in the compact header just eats space we'd rather spend
+                on exceptions. */}
             <div style={{ display: 'flex', gap: '14px', marginTop: '8px', flexWrap: 'wrap' }}>
               {employee.start && (
                 <div style={{ fontSize: '12px', color: muted }}>
                   <span style={{ color: mutedDark }}>Tenure</span> <span style={{ color: text, fontWeight: 500 }}>{tenure(employee.start)}</span>
-                </div>
-              )}
-              {employee.pay_rate != null && (
-                <div style={{ fontSize: '12px', color: muted }}>
-                  <span style={{ color: mutedDark }}>Pay</span> <span style={{ color: text, fontWeight: 500 }}>{formatMoney(employee.pay_rate)}{employee.pay_type === 'salary' ? '/yr' : '/hr'}</span>
                 </div>
               )}
               {primaryDeptInfo && (
@@ -586,38 +584,48 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
               )}
             </div>
 
-            {/* Compliance status — surfaces i9/w4/direct deposit + onboarding progress
-                that was previously tracked but never actually shown anywhere */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-              {[
+            {/* Compliance status — exception-based: only take up header space when
+                something actually needs attention. When everything's in order this
+                collapses to a single quiet checkmark instead of three permanent
+                "all good" chips, so the header stays useful for the exceptional case
+                rather than confirming the common case every time. */}
+            {(() => {
+              const items = [
                 complianceChip('I-9', employee.i9_status),
                 complianceChip('W-4', employee.w4_status),
                 complianceChip('Direct deposit', employee.direct_deposit_status),
-              ].map(c => (
-                <span key={c.label} style={{
-                  fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
-                  background: c.isComplete ? 'rgba(34,197,94,0.13)' : 'rgba(245,158,11,0.13)',
-                  color: c.isComplete ? '#4ade80' : '#fbbf24',
-                }}>
-                  {c.isComplete ? '✓' : '•'} {c.label}
-                </span>
-              ))}
-              {welcomePackSent && (
-                <span style={{
-                  fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
-                  background: documentsSigned ? 'rgba(34,197,94,0.13)' : 'rgba(59,130,246,0.13)',
-                  color: documentsSigned ? '#4ade80' : accent,
-                }}>
-                  {documentsSigned ? '✓ Onboarding signed' : '• Onboarding sent'}
-                </span>
-              )}
-            </div>
+              ]
+              const missing = items.filter(c => !c.isComplete)
+              const onboardingIncomplete = welcomePackSent && !documentsSigned
+              if (missing.length === 0 && !onboardingIncomplete) {
+                return (
+                  <div style={{ marginTop: '8px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(34,197,94,0.1)', color: '#4ade80' }}>
+                      ✓ Compliant
+                    </span>
+                  </div>
+                )
+              }
+              return (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                  {missing.map(c => (
+                    <span key={c.label} style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
+                      ⚠ {c.label} missing
+                    </span>
+                  ))}
+                  {onboardingIncomplete && (
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(59,130,246,0.13)', color: accent }}>
+                      • Onboarding docs unsigned
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '10px', alignItems: 'center' }}>
-              <a href={`/employees/${employee.id}`} style={{ fontSize: '12px', color: accent, textDecoration: 'none' }}>View full profile →</a>
+            <div style={{ marginTop: '10px' }}>
               <button
                 onClick={() => { setShowNoteBox(v => !v); setNoteSaved(false) }}
-                style={{ fontSize: '12px', color: showNoteBox ? accent : muted, background: showNoteBox ? 'rgba(29,78,216,0.15)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '3px 10px', cursor: 'pointer', fontWeight: 500 }}
+                style={{ fontSize: '11px', color: showNoteBox ? accent : mutedDark, background: showNoteBox ? 'rgba(29,78,216,0.15)' : 'transparent', border: `1px solid ${showNoteBox ? 'rgba(29,78,216,0.3)' : border}`, borderRadius: '6px', padding: '3px 9px', cursor: 'pointer', fontWeight: 500 }}
               >
                 ✎ Note
               </button>
