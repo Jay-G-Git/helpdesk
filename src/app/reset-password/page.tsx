@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 const RULES = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -11,11 +12,11 @@ const RULES = [
 ]
 
 export default function ResetPassword() {
+  const { showToast } = useToast()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -30,9 +31,9 @@ export default function ResetPassword() {
 
   async function handleReset() {
     if (!allRulesPassed || !passwordsMatch) return
-    setLoading(true); setError('')
+    setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
-    if (error) setError(error.message)
+    if (error) showToast(error.message, 'error')
     else setDone(true)
     setLoading(false)
   }
@@ -82,7 +83,6 @@ export default function ResetPassword() {
                 onKeyDown={e => e.key === 'Enter' && handleReset()}
                 style={{ marginBottom: '0.875rem', borderColor: confirm.length > 0 ? (passwordsMatch ? '#27ae60' : '#c0392b') : undefined }}
               />
-              {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
               <button
                 className="btn auth-btn-primary"
                 onClick={handleReset}

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../../components/Toast'
 
 export function TimeOffRequest({ token }: { token: string }) {
+  const { showToast } = useToast()
   const [show, setShow] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -10,13 +12,11 @@ export function TimeOffRequest({ token }: { token: string }) {
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleSubmit() {
-    if (!startDate || !endDate) { setError('Please select start and end dates.'); return }
-    if (new Date(endDate) < new Date(startDate)) { setError('End date must be after start date.'); return }
+    if (!startDate || !endDate) { showToast('Please select start and end dates.', 'error'); return }
+    if (new Date(endDate) < new Date(startDate)) { showToast('End date must be after start date.', 'error'); return }
     setSubmitting(true)
-    setError('')
     const res = await fetch(`/api/sign/${token}/time-off`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -24,7 +24,7 @@ export function TimeOffRequest({ token }: { token: string }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Could not submit request. Try again.')
+      showToast(data.error || 'Could not submit request. Try again.', 'error')
     } else {
       setSubmitted(true)
     }
@@ -62,7 +62,6 @@ export function TimeOffRequest({ token }: { token: string }) {
             <label>Reason (optional)</label>
             <input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Family vacation" />
           </div>
-          {error && <div className="auth-error">{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button className="btn" onClick={handleSubmit} disabled={submitting}>
               {submitting ? 'Submitting...' : 'Submit request'}
@@ -76,25 +75,23 @@ export function TimeOffRequest({ token }: { token: string }) {
 }
 
 export default function SignUpload({ token }: { token: string }) {
+  const { showToast } = useToast()
   const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
   const [done, setDone] = useState<string[]>([])
 
   const [signatureName, setSignatureName] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
   const [signing, setSigning] = useState(false)
-  const [signError, setSignError] = useState('')
   const [signed, setSigned] = useState(false)
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File must be under 10MB.')
+      showToast('File must be under 10MB.', 'error')
       return
     }
     setUploading(true)
-    setUploadError('')
     const formData = new FormData()
     formData.append('file', file)
     const res = await fetch(`/api/sign/${token}/upload`, {
@@ -103,7 +100,7 @@ export default function SignUpload({ token }: { token: string }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setUploadError(data.error || 'Upload failed. Try again.')
+      showToast(data.error || 'Upload failed. Try again.', 'error')
     } else {
       setDone(prev => [...prev, file.name])
     }
@@ -113,15 +110,14 @@ export default function SignUpload({ token }: { token: string }) {
 
   async function handleAcknowledge() {
     if (!acknowledged) {
-      setSignError('Please check the box to confirm you have read the welcome pack.')
+      showToast('Please check the box to confirm you have read the welcome pack.', 'error')
       return
     }
     if (!signatureName.trim()) {
-      setSignError('Please type your full name to sign.')
+      showToast('Please type your full name to sign.', 'error')
       return
     }
     setSigning(true)
-    setSignError('')
     const res = await fetch(`/api/sign/${token}/acknowledge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -129,7 +125,7 @@ export default function SignUpload({ token }: { token: string }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setSignError(data.error || 'Could not save signature. Try again.')
+      showToast(data.error || 'Could not save signature. Try again.', 'error')
     } else {
       setSigned(true)
     }
@@ -149,7 +145,6 @@ export default function SignUpload({ token }: { token: string }) {
             style={{ display: 'none' }}
           />
         </label>
-        {uploadError && <div className="auth-error">{uploadError}</div>}
         {done.map((name, i) => (
           <div key={i} className="done-msg">✓ Uploaded {name}</div>
         ))}
@@ -183,7 +178,6 @@ export default function SignUpload({ token }: { token: string }) {
                 placeholder="Jane Smith"
               />
             </div>
-            {signError && <div className="auth-error">{signError}</div>}
             <button className="btn" onClick={handleAcknowledge} disabled={signing} style={{ marginTop: '0.75rem' }}>
               {signing ? 'Saving...' : '✍ Sign & submit'}
             </button>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 
 type PayrollEntry = {
   id: number
@@ -43,6 +44,7 @@ function getDefaultPeriod() {
 }
 
 export default function PayrollTab({ employeeId, payType, payRate }: Props) {
+  const { showToast } = useToast()
   const [entries, setEntries] = useState<PayrollEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -52,7 +54,6 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
   const [hours, setHours] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState('')
 
   useEffect(() => {
     load()
@@ -77,10 +78,9 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
   }
 
   async function handleSubmit() {
-    if (!payRate) { setSaveMsg('Set a pay rate on the employee first.'); return }
-    if (payType === 'hourly' && !hours) { setSaveMsg('Enter hours worked.'); return }
+    if (!payRate) { showToast('Set a pay rate on the employee first.', 'error'); return }
+    if (payType === 'hourly' && !hours) { showToast('Enter hours worked.', 'error'); return }
     setSaving(true)
-    setSaveMsg('')
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
@@ -97,13 +97,12 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
     }])
 
     if (error) {
-      setSaveMsg('Error saving. Try again.')
+      showToast('Error saving. Try again.', 'error')
     } else {
-      setSaveMsg('Saved.')
+      showToast('Saved.', 'success')
       setShowForm(false)
       setHours('')
       setNotes('')
-      setTimeout(() => setSaveMsg(''), 2000)
       load()
     }
     setSaving(false)
@@ -193,7 +192,6 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
             <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={handleSubmit} disabled={saving}>
               {saving ? 'Saving...' : 'Save payment'}
             </button>
-            {saveMsg && <div className="done-msg">{saveMsg}</div>}
           </div>
         </div>
       )}

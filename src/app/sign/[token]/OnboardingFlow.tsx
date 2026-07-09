@@ -7,6 +7,7 @@ import I9Form from './I9Form'
 import AvailabilityForm from './AvailabilityForm'
 import { TimeOffRequest } from './SignUpload'
 import DirectDepositForm from './DirectDepositForm'
+import { useToast } from '../../components/Toast'
 
 type Doc = {
   id: number
@@ -34,17 +35,16 @@ function formatSize(bytes: number) {
 }
 
 function AgreementStep({ employeeName, onComplete }: { employeeName: string; onComplete: () => void }) {
+  const { showToast } = useToast()
   const [agreed, setAgreed] = useState(false)
   const [signature, setSignature] = useState('')
-  const [error, setError] = useState('')
 
   function handleSubmit() {
-    if (!agreed) { setError('Please check the box to confirm.'); return }
+    if (!agreed) { showToast('Please check the box to confirm.', 'error'); return }
     if (signature.trim().toLowerCase() !== employeeName.trim().toLowerCase()) {
-      setError('Please type your full name exactly as shown.')
+      showToast('Please type your full name exactly as shown.', 'error')
       return
     }
-    setError('')
     onComplete()
   }
 
@@ -66,7 +66,6 @@ function AgreementStep({ employeeName, onComplete }: { employeeName: string; onC
         <input value={signature} onChange={e => setSignature(e.target.value)} placeholder={employeeName} style={{ fontStyle: 'italic' }} />
         <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Must match: {employeeName}</div>
       </div>
-      {error && <div className="auth-error">{error}</div>}
       <button className="btn auth-btn-primary" style={{ width: 'auto', marginTop: '0.5rem' }} onClick={handleSubmit}>
         Sign &amp; complete
       </button>
@@ -185,13 +184,12 @@ function DocumentSignStep({ token, employeeName, docs, onComplete }: {
 }
 
 export default function OnboardingFlow({ token, employeeId, userId, employeeName, welcomePack, docs, isReturning, isModal, onComplete }: Props) {
+  const { showToast } = useToast()
   const [step, setStep] = useState(0)
   const [portalLoading, setPortalLoading] = useState(false)
-  const [portalError, setPortalError] = useState('')
 
   async function goToPortal() {
     setPortalLoading(true)
-    setPortalError('')
     try {
       const res = await fetch('/api/onboarding/portal-setup-link', {
         method: 'POST',
@@ -199,10 +197,10 @@ export default function OnboardingFlow({ token, employeeId, userId, employeeName
         body: JSON.stringify({ token }),
       })
       const data = await res.json()
-      if (!res.ok) { setPortalError(data.error ?? 'Could not generate link.'); setPortalLoading(false); return }
+      if (!res.ok) { showToast(data.error ?? 'Could not generate link.', 'error'); setPortalLoading(false); return }
       window.location.href = data.url
     } catch {
-      setPortalError('Something went wrong. Try again.')
+      showToast('Something went wrong. Try again.', 'error')
       setPortalLoading(false)
     }
   }
@@ -323,7 +321,6 @@ export default function OnboardingFlow({ token, employeeId, userId, employeeName
                 <button className="btn" onClick={goToPortal} disabled={portalLoading} style={{ marginBottom: '0.75rem' }}>
                   {portalLoading ? 'Loading…' : 'Set up your employee account →'}
                 </button>
-                {portalError && <div className="auth-error" style={{ fontSize: '13px', marginBottom: '0.75rem' }}>{portalError}</div>}
                 <p style={{ fontSize: '12px', color: '#bbb' }}>View your schedule, clock in and out, and request time off.</p>
               </>
             )}

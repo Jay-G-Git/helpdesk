@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
 import { DollarIcon } from '../components/Icons'
+import { useToast } from '../components/Toast'
 
 type Employee = {
   id: number
@@ -97,6 +98,7 @@ function getPeriodForType(type: PayPeriod) {
 }
 
 export default function PayrollPage() {
+  const { showToast } = useToast()
   const router = useRouter()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [entries, setEntries] = useState<PayrollEntry[]>([])
@@ -121,7 +123,6 @@ export default function PayrollPage() {
   const [hours, setHours] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState('')
 
   // Payroll runs state
   const [sessionToken, setSessionToken] = useState<string | null>(null)
@@ -133,7 +134,6 @@ export default function PayrollPage() {
   const [runPeriodEnd, setRunPeriodEnd] = useState(defaultPeriod.end)
   const [runNotes, setRunNotes] = useState('')
   const [runCreating, setRunCreating] = useState(false)
-  const [runMsg, setRunMsg] = useState('')
   const [savingDeductions, setSavingDeductions] = useState<number | null>(null)
   const [editDeductions, setEditDeductions] = useState<Record<number, { federal: string; state: string; other: string }>>({})
 
@@ -175,11 +175,10 @@ export default function PayrollPage() {
   }
 
   async function handleSubmit() {
-    if (!selectedEmp) { setSaveMsg('Select an employee.'); return }
-    if (!selectedEmp.pay_rate) { setSaveMsg('Set a pay rate on the employee first.'); return }
-    if (selectedEmp.pay_type === 'hourly' && !hours) { setSaveMsg('Enter hours worked.'); return }
+    if (!selectedEmp) { showToast('Select an employee.', 'error'); return }
+    if (!selectedEmp.pay_rate) { showToast('Set a pay rate on the employee first.', 'error'); return }
+    if (selectedEmp.pay_type === 'hourly' && !hours) { showToast('Enter hours worked.', 'error'); return }
     setSaving(true)
-    setSaveMsg('')
 
     const gross = calcGrossPay()
     const { error } = await supabase.from('payroll_entries').insert([{
@@ -193,14 +192,13 @@ export default function PayrollPage() {
     }])
 
     if (error) {
-      setSaveMsg('Error saving. Try again.')
+      showToast('Error saving. Try again.', 'error')
     } else {
-      setSaveMsg('Saved.')
+      showToast('Saved.', 'success')
       setShowForm(false)
       setHours('')
       setNotes('')
       setSelectedEmpId(null)
-      setTimeout(() => setSaveMsg(''), 2000)
       load()
     }
     setSaving(false)
@@ -251,7 +249,6 @@ export default function PayrollPage() {
   async function createRun() {
     if (!sessionToken) return
     setRunCreating(true)
-    setRunMsg('')
     const res = await fetch('/api/payroll/run', {
       method: 'POST',
       headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
@@ -259,11 +256,10 @@ export default function PayrollPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      setRunMsg(data.error ?? 'Failed to create run.')
+      showToast(data.error ?? 'Failed to create run.', 'error')
     } else {
-      setRunMsg('Run created.')
+      showToast('Run created.', 'success')
       await reloadRuns(sessionToken)
-      setTimeout(() => setRunMsg(''), 3000)
     }
     setRunCreating(false)
   }
@@ -493,7 +489,6 @@ export default function PayrollPage() {
               <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={handleSubmit} disabled={saving}>
                 {saving ? 'Saving...' : 'Save payment'}
               </button>
-              {saveMsg && <div className="done-msg">{saveMsg}</div>}
             </div>
           </div>
         )}
@@ -729,7 +724,6 @@ export default function PayrollPage() {
                 <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={createRun} disabled={runCreating}>
                   {runCreating ? 'Processing...' : 'Run payroll'}
                 </button>
-                {runMsg && <div className="done-msg">{runMsg}</div>}
               </div>
             </div>
 

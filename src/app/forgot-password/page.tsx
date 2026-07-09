@@ -2,19 +2,20 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 export default function ForgotPassword() {
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleSubmit() {
-    setLoading(true); setError('')
+    setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
-    if (error) setError(error.message)
+    if (error) showToast(error.message, 'error')
     else setDone(true)
     setLoading(false)
   }
@@ -49,7 +50,6 @@ export default function ForgotPassword() {
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                 style={{ marginBottom: '0.875rem' }}
               />
-              {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
               <button
                 className="btn auth-btn-primary"
                 onClick={handleSubmit}

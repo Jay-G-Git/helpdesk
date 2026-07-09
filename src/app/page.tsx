@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import Dashboard from './components/Dashboard'
 import ActionScreen from './components/ActionScreen'
+import { useToast } from './components/Toast'
 
 export type Employee = {
   id: number
@@ -31,6 +32,7 @@ export type Employee = {
 export type ActionType = 'onboarding' | 'checkin' | 'offboarding' | null
 
 export default function Home() {
+  const { showToast } = useToast()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null)
   const [action, setAction] = useState<ActionType>(null)
@@ -123,7 +125,7 @@ export default function Home() {
       if (selectedEmp?.id === id) setSelectedEmp(null)
     } else {
       const data = await res.json()
-      alert(data.error || 'Failed to remove employee')
+      showToast(data.error || 'Failed to remove employee', 'error')
     }
   }
 

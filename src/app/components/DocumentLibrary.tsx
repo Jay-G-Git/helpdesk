@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { FileIcon } from './Icons'
+import { useToast } from './Toast'
 
 type Doc = {
   id: number
@@ -19,9 +20,9 @@ function formatSize(bytes: number) {
 }
 
 export default function DocumentLibrary({ userId }: { userId: string }) {
+  const { showToast } = useToast()
   const [docs, setDocs] = useState<Doc[]>([])
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     loadDocs()
@@ -40,11 +41,10 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) {
-      setError('File must be under 10MB.')
+      showToast('File must be under 10MB.', 'error')
       return
     }
     setUploading(true)
-    setError('')
 
     const filePath = `templates/${userId}/${Date.now()}_${file.name}`
     const { error: uploadError } = await supabase.storage
@@ -52,7 +52,7 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
       .upload(filePath, file)
 
     if (uploadError) {
-      setError('Upload failed. Try again.')
+      showToast('Upload failed. Try again.', 'error')
       setUploading(false)
       return
     }
@@ -65,7 +65,7 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
     }])
 
     if (dbError) {
-      setError('Error saving file record.')
+      showToast('Error saving file record.', 'error')
     } else {
       await loadDocs()
     }
@@ -99,7 +99,6 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
         Documents uploaded here (W-4, I-9, handbook, etc.) will automatically appear in every employee's onboarding link.
       </div>
 
-      {error && <div className="auth-error">{error}</div>}
 
       {docs.length === 0 ? (
         <div className="empty-state">No documents yet — upload your standard forms above.</div>

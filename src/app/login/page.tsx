@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 const RULES = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -51,6 +52,7 @@ const FEATURES = [
 ]
 
 export default function Login() {
+  const { showToast } = useToast()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [fullName, setFullName] = useState('')
   const [businessName, setBusinessName] = useState('')
@@ -58,7 +60,6 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
 
@@ -66,14 +67,14 @@ export default function Login() {
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0
 
   function switchMode(m: 'signin' | 'signup') {
-    setMode(m); setError(''); setPassword(''); setConfirmPassword('')
+    setMode(m); setPassword(''); setConfirmPassword('')
     setFullName(''); setBusinessName('')
   }
 
   async function handleSignIn() {
-    setLoading(true); setError('')
+    setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { showToast(error.message, 'error'); setLoading(false); return }
     const token = data.session?.access_token
 
     // Owners always have a business profile — check that first so an owner
@@ -96,11 +97,11 @@ export default function Login() {
   }
 
   async function handleSignUp() {
-    if (!fullName.trim()) { setError('Please enter your name.'); return }
-    if (!businessName.trim()) { setError('Please enter your business name.'); return }
-    if (!allRulesPassed) { setError('Password does not meet all requirements.'); return }
-    if (!passwordsMatch) { setError('Passwords do not match.'); return }
-    setLoading(true); setError('')
+    if (!fullName.trim()) { showToast('Please enter your name.', 'error'); return }
+    if (!businessName.trim()) { showToast('Please enter your business name.', 'error'); return }
+    if (!allRulesPassed) { showToast('Password does not meet all requirements.', 'error'); return }
+    if (!passwordsMatch) { showToast('Passwords do not match.', 'error'); return }
+    setLoading(true)
     try {
       // Server-side signup: creates user with email pre-confirmed — no email needed
       const signupRes = await fetch('/api/auth/signup', {
@@ -110,7 +111,7 @@ export default function Login() {
       })
       const signupData = await signupRes.json()
       if (!signupRes.ok) {
-        setError(signupData.error ?? 'Could not create account. Please try again.')
+        showToast(signupData.error ?? 'Could not create account. Please try again.', 'error')
         setLoading(false); return
       }
 
@@ -118,7 +119,7 @@ export default function Login() {
       await new Promise(r => setTimeout(r, 600))
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
       if (signInErr || !signInData.session) {
-        setError(`Account created but sign-in failed: ${signInErr?.message ?? 'unknown error'}. Try signing in manually.`)
+        showToast(`Account created but sign-in failed: ${signInErr?.message ?? 'unknown error'}. Try signing in manually.`, 'error')
         setLoading(false); return
       }
 
@@ -131,7 +132,7 @@ export default function Login() {
       window.location.href = '/'
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Something went wrong. Please try again.'
-      setError(msg)
+      showToast(msg, 'error')
       setLoading(false)
     }
   }
@@ -271,7 +272,6 @@ export default function Login() {
               </div>
             )}
 
-            {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
 
             <button className="btn auth-btn-primary"
               onClick={mode === 'signin' ? handleSignIn : handleSignUp}

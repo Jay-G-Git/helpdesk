@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import OnboardingFlow from '../sign/[token]/OnboardingFlow'
+import { useToast } from '../components/Toast'
 
 type Employee = { id: number; name: string; role: string; email: string }
 type Shift = { id: number; shift_date: string; start_time: string; end_time: string; notes: string | null; status?: string }
@@ -39,6 +40,7 @@ function weekStartISO() {
 }
 
 export default function PortalPage() {
+  const { showToast } = useToast()
   const [token, setToken] = useState('')
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -51,7 +53,6 @@ export default function PortalPage() {
   const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [clockLoading, setClockLoading] = useState(false)
-  const [clockMsg, setClockMsg] = useState('')
   const [ticker, setTicker] = useState(0)
 
   // PTO form
@@ -61,14 +62,12 @@ export default function PortalPage() {
   const [toType, setToType] = useState('PTO')
   const [toReason, setToReason] = useState('')
   const [toSaving, setToSaving] = useState(false)
-  const [toMsg, setToMsg] = useState('')
 
   // Swap form
   const [swapShiftId, setSwapShiftId] = useState<number | null>(null)
   const [swapTargetShiftId, setSwapTargetShiftId] = useState<number | ''>('')
   const [swapNotes, setSwapNotes] = useState('')
   const [swapSaving, setSwapSaving] = useState(false)
-  const [swapMsg, setSwapMsg] = useState('')
 
   // Claim open shift
   const [claimingId, setClaimingId] = useState<number | null>(null)
@@ -263,41 +262,41 @@ export default function PortalPage() {
   }
 
   async function clockIn() {
-    setClockLoading(true); setClockMsg('')
+    setClockLoading(true)
     const res = await fetch('/api/employee/clock-in', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
     const data = await res.json()
-    if (res.ok) { setCurrentEntry(data.entry); setClockMsg('Clocked in!') }
-    else setClockMsg(data.error ?? 'Error')
-    setClockLoading(false); setTimeout(() => setClockMsg(''), 3000)
+    if (res.ok) { setCurrentEntry(data.entry); showToast('Clocked in!', 'success') }
+    else showToast(data.error ?? 'Error', 'error')
+    setClockLoading(false)
   }
 
   async function clockOut() {
-    setClockLoading(true); setClockMsg('')
+    setClockLoading(true)
     const res = await fetch('/api/employee/clock-out', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
     const data = await res.json()
     if (res.ok) {
       setWeekEntries(prev => [...prev, { ...currentEntry!, clock_out: data.entry.clock_out, total_minutes: data.entry.total_minutes }])
-      setCurrentEntry(null); setClockMsg('Clocked out.')
-    } else setClockMsg(data.error ?? 'Error')
-    setClockLoading(false); setTimeout(() => setClockMsg(''), 3000)
+      setCurrentEntry(null); showToast('Clocked out.', 'success')
+    } else showToast(data.error ?? 'Error', 'error')
+    setClockLoading(false)
   }
 
   async function submitTimeOff() {
     if (!toStart || !toEnd) return
-    setToSaving(true); setToMsg('')
+    setToSaving(true)
     const res = await fetch('/api/employee/time-off', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ startDate: toStart, endDate: toEnd, type: toType, reason: toReason }),
     })
     if (res.ok) {
-      setToMsg('Request submitted.'); setToStart(''); setToEnd(''); setToReason(''); setShowTOForm(false)
+      showToast('Request submitted.', 'success'); setToStart(''); setToEnd(''); setToReason(''); setShowTOForm(false)
       const toRes = await fetch('/api/employee/time-off', { headers: { Authorization: `Bearer ${token}` } })
       const toData = await toRes.json(); setTimeOffRequests(toData.requests ?? [])
     } else {
-      const data = await res.json(); setToMsg(data.error ?? 'Error')
+      const data = await res.json(); showToast(data.error ?? 'Error', 'error')
     }
-    setToSaving(false); setTimeout(() => setToMsg(''), 4000)
+    setToSaving(false)
   }
 
   async function claimShift(shiftId: number) {
@@ -313,14 +312,14 @@ export default function PortalPage() {
       const claimed = openShifts.find(s => s.id === shiftId)
       if (claimed) setShifts(prev => [...prev, { ...claimed, status: undefined }].sort((a, b) => a.shift_date.localeCompare(b.shift_date)))
     } else {
-      alert(data.error ?? 'Could not claim shift.')
+      showToast(data.error ?? 'Could not claim shift.', 'error')
     }
     setClaimingId(null)
   }
 
   async function submitSwapRequest() {
     if (!swapShiftId) return
-    setSwapSaving(true); setSwapMsg('')
+    setSwapSaving(true)
     const res = await fetch('/api/employee/swap-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -333,13 +332,13 @@ export default function PortalPage() {
     })
     const data = await res.json()
     if (res.ok) {
-      setSwapMsg('Swap request sent!')
+      showToast('Swap request sent!', 'success')
       setSwapShiftId(null); setSwapTargetShiftId(''); setSwapNotes('')
       setSwapRequests(prev => [data.swap, ...prev])
     } else {
-      setSwapMsg(data.error ?? 'Error')
+      showToast(data.error ?? 'Error', 'error')
     }
-    setSwapSaving(false); setTimeout(() => setSwapMsg(''), 3000)
+    setSwapSaving(false)
   }
 
   async function signOut() {
@@ -663,7 +662,6 @@ export default function PortalPage() {
                   </button>
                 </div>
               )}
-              {clockMsg && <div style={{ marginTop: '0.75rem', fontSize: '13px', color: clockMsg.includes('Error') || clockMsg.includes('Already') ? '#c0392b' : '#27ae60' }}>{clockMsg}</div>}
             </div>
 
             {/* Upcoming shifts */}
@@ -733,7 +731,6 @@ export default function PortalPage() {
                     style={{ padding: '8px 18px', borderRadius: '7px', border: 'none', background: '#185fa5', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
                     {swapSaving ? 'Sending...' : 'Send swap request'}
                   </button>
-                  {swapMsg && <div style={{ marginTop: '0.5rem', fontSize: '13px', color: swapMsg.includes('Error') ? '#c0392b' : '#27ae60' }}>{swapMsg}</div>}
                 </div>
               )}
             </div>
@@ -844,7 +841,6 @@ export default function PortalPage() {
                   >
                     {toSaving ? 'Submitting...' : 'Submit request'}
                   </button>
-                  {toMsg && <div style={{ marginTop: '0.5rem', fontSize: '13px', color: toMsg.includes('Error') ? '#c0392b' : '#27ae60' }}>{toMsg}</div>}
                 </div>
               )}
 

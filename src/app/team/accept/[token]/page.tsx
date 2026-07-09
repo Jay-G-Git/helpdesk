@@ -3,14 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { useToast } from '../../../components/Toast'
 
 export default function AcceptInvite() {
+  const { showToast } = useToast()
   const { token } = useParams<{ token: string }>()
   const [status, setStatus] = useState<'loading' | 'needs_signup' | 'accepting' | 'done' | 'error'>('loading')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [ownerName, setOwnerName] = useState('')
-  const [authError, setAuthError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -27,7 +28,6 @@ export default function AcceptInvite() {
 
   async function accept() {
     setSubmitting(true)
-    setAuthError('')
 
     // Check if user already has an account
     const { data: { session } } = await supabase.auth.getSession()
@@ -38,13 +38,13 @@ export default function AcceptInvite() {
       if (signInErr) {
         // Create new account
         const { error: signUpErr } = await supabase.auth.signUp({ email, password })
-        if (signUpErr) { setAuthError(signUpErr.message); setSubmitting(false); return }
+        if (signUpErr) { showToast(signUpErr.message, 'error'); setSubmitting(false); return }
       }
     }
 
     // Mark invite as accepted
     const { data: { session: newSession } } = await supabase.auth.getSession()
-    if (!newSession) { setAuthError('Could not sign in. Try again.'); setSubmitting(false); return }
+    if (!newSession) { showToast('Could not sign in. Try again.', 'error'); setSubmitting(false); return }
 
     const res = await fetch('/api/team/accept', {
       method: 'POST',
@@ -52,7 +52,7 @@ export default function AcceptInvite() {
       body: JSON.stringify({ token }),
     })
 
-    if (!res.ok) { setAuthError('Could not accept invite.'); setSubmitting(false); return }
+    if (!res.ok) { showToast('Could not accept invite.', 'error'); setSubmitting(false); return }
 
     setStatus('done')
     setTimeout(() => { window.location.href = '/' }, 1500)
@@ -97,7 +97,6 @@ export default function AcceptInvite() {
           <input value={email} readOnly style={{ marginBottom: '0.75rem', background: '#f7f8fa', color: '#888' }} />
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Set a password</div>
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ marginBottom: '0.75rem' }} onKeyDown={e => e.key === 'Enter' && accept()} />
-          {authError && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{authError}</div>}
           <button className="btn auth-btn-primary" onClick={accept} disabled={submitting || !password} style={{ width: '100%' }}>
             {submitting ? 'Joining...' : 'Accept invitation'}
           </button>

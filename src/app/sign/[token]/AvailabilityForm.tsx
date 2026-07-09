@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -12,11 +13,11 @@ type DayAvail = {
 }
 
 export default function AvailabilityForm({ employeeId, onComplete }: { employeeId: number; onComplete?: () => void }) {
+  const { showToast } = useToast()
   const [avail, setAvail] = useState<DayAvail[]>(
     DAYS.map(() => ({ enabled: false, start: '09:00', end: '17:00' }))
   )
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
 
   useEffect(() => {
     supabase
@@ -43,7 +44,6 @@ export default function AvailabilityForm({ employeeId, onComplete }: { employeeI
 
   async function save() {
     setSaving(true)
-    setMsg('')
     await supabase.from('employee_availability').delete().eq('employee_id', employeeId)
     const rows = avail
       .map((d, i) => ({ ...d, day: i }))
@@ -51,9 +51,9 @@ export default function AvailabilityForm({ employeeId, onComplete }: { employeeI
       .map(d => ({ employee_id: employeeId, day_of_week: d.day, start_time: d.start, end_time: d.end }))
     if (rows.length > 0) {
       const { error } = await supabase.from('employee_availability').insert(rows)
-      if (error) { setMsg('Error saving. Try again.'); setSaving(false); return }
+      if (error) { showToast('Error saving. Try again.', 'error'); setSaving(false); return }
     }
-    setMsg('Availability saved!')
+    showToast('Availability saved!', 'success')
     setSaving(false)
     setTimeout(() => onComplete?.(), 1200)
   }
@@ -97,7 +97,6 @@ export default function AvailabilityForm({ employeeId, onComplete }: { employeeI
         <button className="btn" onClick={save} disabled={saving}>
           {saving ? 'Saving...' : 'Save availability'}
         </button>
-        {msg && <div className="done-msg">{msg}</div>}
       </div>
     </div>
   )

@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../components/Toast'
 
 type Props = { jobId: string; jobTitle: string; ownerId: string }
 
 export default function ApplyForm({ jobId, jobTitle, ownerId }: Props) {
+  const { showToast } = useToast()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -12,21 +14,20 @@ export default function ApplyForm({ jobId, jobTitle, ownerId }: Props) {
   const [coverLetter, setCoverLetter] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleSubmit() {
-    if (!name.trim() || !email.trim()) { setError('Name and email are required.'); return }
-    setLoading(true); setError('')
+    if (!name.trim() || !email.trim()) { showToast('Name and email are required.', 'error'); return }
+    setLoading(true)
     try {
       const res = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_posting_id: jobId, owner_id: ownerId, name: name.trim(), email: email.trim(), phone: phone.trim(), cover_letter: coverLetter.trim() }),
       })
-      if (!res.ok) { const d = await res.json(); setError(d.error || 'Failed to submit.'); setLoading(false); return }
+      if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed to submit.', 'error'); setLoading(false); return }
       setDone(true)
     } catch {
-      setError('Something went wrong. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     }
     setLoading(false)
   }
@@ -73,7 +74,6 @@ export default function ApplyForm({ jobId, jobTitle, ownerId }: Props) {
                 placeholder="Tell us a bit about yourself..." rows={4}
                 style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
-            {error && <div style={{ fontSize: '13px', color: '#c0392b' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={handleSubmit} disabled={loading} style={{
                 padding: '10px 20px', background: '#185fa5', color: '#fff',

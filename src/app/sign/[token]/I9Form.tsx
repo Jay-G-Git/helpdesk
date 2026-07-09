@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../../components/Toast'
 
 type Props = {
   token: string
@@ -11,9 +12,9 @@ type Props = {
 }
 
 export default function I9Form({ token, employeeId, userId, defaultName, onComplete }: Props) {
+  const { showToast } = useToast()
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     lastName: defaultName?.split(' ').slice(1).join(' ') || '',
@@ -55,11 +56,10 @@ export default function I9Form({ token, employeeId, userId, defaultName, onCompl
 
   async function handleSubmit() {
     if (!form.firstName || !form.lastName || !form.dob || !form.ssn || !form.citizenshipStatus) {
-      setError('Please fill out all required fields.')
+      showToast('Please fill out all required fields.', 'error')
       return
     }
     setSaving(true)
-    setError('')
     const res = await fetch(`/api/sign/${token}/submit-form`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,7 +67,7 @@ export default function I9Form({ token, employeeId, userId, defaultName, onCompl
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Could not save. Try again.')
+      showToast(data.error || 'Could not save. Try again.', 'error')
     } else {
       setSubmitted(true)
       setTimeout(() => onComplete?.(), 1200)
@@ -292,7 +292,6 @@ export default function I9Form({ token, employeeId, userId, defaultName, onCompl
         </>
       )}
 
-      {error && <div className="auth-error" style={{ marginTop: '0.75rem' }}>{error}</div>}
       <button className="btn auth-btn-primary" style={{ width: 'auto', marginTop: '1rem' }} onClick={handleSubmit} disabled={saving}>
         {saving ? 'Submitting...' : 'Submit I-9'}
       </button>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../../components/Toast'
 
 type Props = {
   token: string
@@ -11,9 +12,9 @@ type Props = {
 }
 
 export default function W4Form({ token, employeeId, userId, defaultName, onComplete }: Props) {
+  const { showToast } = useToast()
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     firstName: defaultName?.split(' ')[0] || '',
@@ -38,11 +39,10 @@ export default function W4Form({ token, employeeId, userId, defaultName, onCompl
 
   async function handleSubmit() {
     if (!form.firstName || !form.lastName || !form.ssn || !form.address || !form.filingStatus) {
-      setError('Please fill out all required fields.')
+      showToast('Please fill out all required fields.', 'error')
       return
     }
     setSaving(true)
-    setError('')
     const res = await fetch(`/api/sign/${token}/submit-form`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,7 +50,7 @@ export default function W4Form({ token, employeeId, userId, defaultName, onCompl
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Could not save. Try again.')
+      showToast(data.error || 'Could not save. Try again.', 'error')
     } else {
       setSubmitted(true)
       setTimeout(() => onComplete?.(), 1200)
@@ -156,7 +156,6 @@ export default function W4Form({ token, employeeId, userId, defaultName, onCompl
         </span>
       </label>
 
-      {error && <div className="auth-error">{error}</div>}
       <button className="btn auth-btn-primary" style={{ width: 'auto', marginTop: '0.5rem' }} onClick={handleSubmit} disabled={saving}>
         {saving ? 'Submitting...' : 'Submit W-4'}
       </button>

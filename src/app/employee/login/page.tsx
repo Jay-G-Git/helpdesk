@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
 
 export default function EmployeeLogin() {
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   async function sendLink() {
     if (!email.trim()) return
     setLoading(true)
-    setError('')
 
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
@@ -23,7 +23,7 @@ export default function EmployeeLogin() {
     })
 
     if (err) {
-      setError(err.message)
+      showToast(err.message, 'error')
     } else {
       setSent(true)
     }
@@ -73,7 +73,6 @@ export default function EmployeeLogin() {
                 style={{ marginBottom: '0.75rem' }}
                 autoFocus
               />
-              {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
               <button
                 className="btn auth-btn-primary"
                 onClick={sendLink}

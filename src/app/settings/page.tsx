@@ -7,6 +7,7 @@ import Nav from '../components/Nav'
 import DocumentLibrary from '../components/DocumentLibrary'
 import { Suspense } from 'react'
 import { ReceiptIcon, CalendarIcon, BookOpenIcon } from '../components/Icons'
+import { useToast } from '../components/Toast'
 
 type Tab = 'account' | 'hours' | 'onboarding' | 'notifications' | 'billing' | 'team' | 'departments' | 'integrations' | 'danger'
 
@@ -97,6 +98,7 @@ function toggle(val: boolean, setter: (v: boolean) => void, label: string, savin
 }
 
 function SettingsContent() {
+  const { showToast } = useToast()
   const searchParams = useSearchParams()
   const initialTab = (searchParams.get('tab') as Tab) ?? 'account'
 
@@ -108,7 +110,6 @@ function SettingsContent() {
   // Business hours
   const [bizHours, setBizHours] = useState<BusinessHours>(DEFAULT_HOURS)
   const [hoursSaving, setHoursSaving] = useState(false)
-  const [hoursMsg, setHoursMsg] = useState('')
 
   // Account
   const [bizName, setBizName] = useState('')
@@ -117,14 +118,12 @@ function SettingsContent() {
   const [contactEmail, setContactEmail] = useState('')
   const [accountantEmail, setAccountantEmail] = useState('')
   const [acctSaving, setAcctSaving] = useState(false)
-  const [acctMsg, setAcctMsg] = useState('')
 
   // Onboarding template
   const [fields, setFields] = useState<Field[]>(DEFAULT_FIELDS)
   const [welcomePack, setWelcomePack] = useState('')
   const [newLabel, setNewLabel] = useState('')
   const [tmplSaving, setTmplSaving] = useState(false)
-  const [tmplMsg, setTmplMsg] = useState('')
 
   // Notifications
   const [notifTimeOff, setNotifTimeOff] = useState(true)
@@ -138,7 +137,6 @@ function SettingsContent() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'employee'>('employee')
   const [inviting, setInviting] = useState(false)
-  const [inviteMsg, setInviteMsg] = useState('')
   const [roleUpdating, setRoleUpdating] = useState<number | null>(null)
 
   // Departments
@@ -223,39 +221,34 @@ function SettingsContent() {
 
   async function saveAccount() {
     setAcctSaving(true)
-    setAcctMsg('')
     const res = await fetch('/api/settings/business', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ business_name: bizName, address, timezone, contact_email: contactEmail, accountant_email: accountantEmail }),
     })
-    setAcctMsg(res.ok ? 'Saved.' : 'Error saving.')
+    showToast(res.ok ? 'Saved.' : 'Error saving.', res.ok ? 'success' : 'error')
     setAcctSaving(false)
-    setTimeout(() => setAcctMsg(''), 2000)
   }
 
   async function saveHours() {
-    setHoursSaving(true); setHoursMsg('')
+    setHoursSaving(true)
     const res = await fetch('/api/settings/business', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ business_name: bizName, address, timezone, contact_email: contactEmail, business_hours: bizHours }),
     })
-    setHoursMsg(res.ok ? 'Saved.' : 'Error saving.')
+    showToast(res.ok ? 'Saved.' : 'Error saving.', res.ok ? 'success' : 'error')
     setHoursSaving(false)
-    setTimeout(() => setHoursMsg(''), 2000)
   }
 
   async function saveTemplate() {
     setTmplSaving(true)
-    setTmplMsg('')
     const { error } = await supabase.from('onboarding_templates').upsert(
       { user_id: userId, fields, welcome_pack: welcomePack, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     )
-    setTmplMsg(error ? 'Error saving.' : 'Template saved.')
+    showToast(error ? 'Error saving.' : 'Template saved.', error ? 'error' : 'success')
     setTmplSaving(false)
-    setTimeout(() => setTmplMsg(''), 2000)
   }
 
   async function saveNotifs() {
@@ -324,7 +317,6 @@ function SettingsContent() {
   async function sendInvite() {
     if (!inviteEmail.trim()) return
     setInviting(true)
-    setInviteMsg('')
 
     // Check if employee with this email already exists
     const { data: existing } = await supabase
@@ -337,7 +329,7 @@ function SettingsContent() {
     if (existing) {
       // Just update their role
       await supabase.from('employees').update({ access_role: inviteRole }).eq('id', existing.id)
-      setInviteMsg(`Role updated for ${inviteEmail}.`)
+      showToast(`Role updated for ${inviteEmail}.`, 'success')
       const { data } = await supabase.from('employees').select('id, name, email, role, access_role, status, permissions').eq('user_id', userId).order('name')
       if (data) setTeamEmployees(data)
     } else {
@@ -349,9 +341,9 @@ function SettingsContent() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setInviteMsg(data.error ?? 'Error sending invite.')
+        showToast(data.error ?? 'Error sending invite.', 'error')
       } else {
-        setInviteMsg(`Invite sent to ${inviteEmail}.`)
+        showToast(`Invite sent to ${inviteEmail}.`, 'success')
         const { data: emps } = await supabase.from('employees').select('id, name, email, role, access_role, status, permissions').eq('user_id', userId).order('name')
         if (emps) setTeamEmployees(emps)
       }
@@ -359,7 +351,6 @@ function SettingsContent() {
 
     setInviteEmail('')
     setInviting(false)
-    setTimeout(() => setInviteMsg(''), 4000)
   }
 
   async function exportData() {
@@ -450,7 +441,6 @@ function SettingsContent() {
               <button className="btn auth-btn-primary" onClick={saveAccount} disabled={acctSaving} style={{ marginTop: '1.25rem', width: 'auto' }}>
                 {acctSaving ? 'Saving...' : 'Save'}
               </button>
-              {acctMsg && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{acctMsg}</div>}
             </div>
           )}
 
@@ -491,7 +481,6 @@ function SettingsContent() {
               <button className="btn auth-btn-primary" onClick={saveHours} disabled={hoursSaving} style={{ marginTop: '1.25rem', width: 'auto' }}>
                 {hoursSaving ? 'Saving...' : 'Save hours'}
               </button>
-              {hoursMsg && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{hoursMsg}</div>}
             </div>
           )}
 
@@ -518,7 +507,6 @@ function SettingsContent() {
                 <button className="btn auth-btn-primary" onClick={saveTemplate} disabled={tmplSaving} style={{ marginTop: '1.25rem', width: 'auto' }}>
                   {tmplSaving ? 'Saving...' : 'Save template'}
                 </button>
-                {tmplMsg && <div className="done-msg">{tmplMsg}</div>}
               </div>
 
               <div className="card" style={{ marginTop: '1rem' }}>
@@ -841,7 +829,6 @@ function SettingsContent() {
                 <button className="btn auth-btn-primary" onClick={sendInvite} disabled={inviting || !inviteEmail.trim()} style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
                   {inviting ? 'Sending...' : 'Send invite'}
                 </button>
-                {inviteMsg && <div className="done-msg" style={{ marginTop: '0.5rem', fontSize: '13px' }}>{inviteMsg}</div>}
               </div>
             </div>
           )}
@@ -948,13 +935,13 @@ function SettingsContent() {
 }
 
 function IntegrationsTab() {
+  const { showToast } = useToast()
   const [gusto, setGusto] = useState<{ company_uuid: string | null; connected_at: string } | null>(null)
   const [google, setGoogle] = useState<{ connected_at: string } | null>(null)
   const [qb, setQb] = useState<{ realm_id: string; connected_at: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState('')
   const [syncing, setSyncing] = useState<string | null>(null)
-  const [syncMsg, setSyncMsg] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -987,14 +974,13 @@ function IntegrationsTab() {
     if (service === 'gusto') setGusto(null)
     if (service === 'google') setGoogle(null)
     if (service === 'quickbooks') setQb(null)
-    setSyncMsg('')
   }
 
   async function sync(action: string, endpoint: string, body: object) {
-    setSyncing(action); setSyncMsg('')
+    setSyncing(action)
     const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify(body) })
     const data = await res.json()
-    setSyncMsg(res.ok ? (data.message ?? `✓ Done.`) : `Error: ${data.error}`)
+    showToast(res.ok ? (data.message ?? '✓ Done.') : `Error: ${data.error}`, res.ok ? 'success' : 'error')
     setSyncing(null)
   }
 
@@ -1005,7 +991,6 @@ function IntegrationsTab() {
   return (
     <div>
       <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.25rem' }}>Connect your tools to keep data in sync.</div>
-      {syncMsg && <div style={{ fontSize: '13px', color: syncMsg.startsWith('Error') ? '#c0392b' : '#27ae60', marginBottom: '1rem' }}>{syncMsg}</div>}
       <div style={{ display: 'grid', gap: '1rem', maxWidth: '560px' }}>
 
         {/* Gusto */}

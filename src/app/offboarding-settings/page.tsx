@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 const DEFAULT_ITEMS = [
   'Keys / access cards returned',
@@ -13,12 +14,12 @@ const DEFAULT_ITEMS = [
 ]
 
 export default function OffboardingSettings() {
+  const { showToast } = useToast()
   const [offboardingTemplate, setOffboardingTemplate] = useState('')
   const [checklistItems, setChecklistItems] = useState<string[]>(DEFAULT_ITEMS)
   const [newItem, setNewItem] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState('')
   const [userId, setUserId] = useState('')
 
   useEffect(() => { load() }, [])
@@ -56,7 +57,6 @@ export default function OffboardingSettings() {
 
   async function save() {
     setSaving(true)
-    setSaveMsg('')
     const { error } = await supabase
       .from('onboarding_templates')
       .upsert({
@@ -65,8 +65,7 @@ export default function OffboardingSettings() {
         offboarding_checklist: checklistItems,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
-    setSaveMsg(error ? 'Error saving. Try again.' : 'Saved.')
-    if (!error) setTimeout(() => setSaveMsg(''), 2000)
+    showToast(error ? 'Error saving. Try again.' : 'Saved.', error ? 'error' : 'success')
     setSaving(false)
   }
 
@@ -155,7 +154,6 @@ export default function OffboardingSettings() {
           <button className="btn auth-btn-primary" onClick={save} disabled={saving} style={{ width: 'auto' }}>
             {saving ? 'Saving...' : 'Save'}
           </button>
-          {saveMsg && <div className="done-msg" style={{ marginTop: '0.5rem' }}>{saveMsg}</div>}
         </div>
       </div>
     </div>

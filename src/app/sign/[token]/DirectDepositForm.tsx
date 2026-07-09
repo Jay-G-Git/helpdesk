@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../../components/Toast'
 
 type Props = {
   token: string
@@ -10,9 +11,9 @@ type Props = {
 }
 
 export default function DirectDepositForm({ token, employeeId, userId, onComplete }: Props) {
+  const { showToast } = useToast()
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     bankName: '',
@@ -28,19 +29,18 @@ export default function DirectDepositForm({ token, employeeId, userId, onComplet
 
   async function handleSubmit() {
     if (!form.bankName || !form.routingNumber || !form.accountNumber) {
-      setError('Please fill out all required fields.')
+      showToast('Please fill out all required fields.', 'error')
       return
     }
     if (form.routingNumber.length !== 9 || !/^\d+$/.test(form.routingNumber)) {
-      setError('Routing number must be 9 digits.')
+      showToast('Routing number must be 9 digits.', 'error')
       return
     }
     if (form.accountNumber !== form.confirmAccountNumber) {
-      setError('Account numbers do not match.')
+      showToast('Account numbers do not match.', 'error')
       return
     }
     setSaving(true)
-    setError('')
     const res = await fetch(`/api/sign/${token}/submit-form`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -58,7 +58,7 @@ export default function DirectDepositForm({ token, employeeId, userId, onComplet
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Could not save. Try again.')
+      showToast(data.error || 'Could not save. Try again.', 'error')
     } else {
       setSubmitted(true)
       setTimeout(() => onComplete?.(), 1200)
@@ -126,7 +126,6 @@ export default function DirectDepositForm({ token, employeeId, userId, onComplet
         />
       </div>
 
-      {error && <div className="auth-error">{error}</div>}
       <button className="btn auth-btn-primary" style={{ width: 'auto', marginTop: '0.5rem' }} onClick={handleSubmit} disabled={saving}>
         {saving ? 'Submitting...' : 'Submit direct deposit'}
       </button>

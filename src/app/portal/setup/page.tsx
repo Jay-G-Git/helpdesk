@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
 
 const RULES = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -11,12 +12,12 @@ const RULES = [
 ]
 
 export default function PortalSetupPage() {
+  const { showToast } = useToast()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -38,12 +39,12 @@ export default function PortalSetupPage() {
   const match = password === confirm && confirm.length > 0
 
   async function handleSubmit() {
-    if (!allRules) { setError('Password does not meet all requirements.'); return }
-    if (!match) { setError('Passwords do not match.'); return }
-    setLoading(true); setError('')
+    if (!allRules) { showToast('Password does not meet all requirements.', 'error'); return }
+    if (!match) { showToast('Passwords do not match.', 'error'); return }
+    setLoading(true)
 
     const { error: updateErr } = await supabase.auth.updateUser({ password })
-    if (updateErr) { setError(updateErr.message); setLoading(false); return }
+    if (updateErr) { showToast(updateErr.message, 'error'); setLoading(false); return }
 
     // Redirect to portal
     window.location.href = '/portal'
@@ -115,7 +116,6 @@ export default function PortalSetupPage() {
             )}
           </div>
 
-          {error && <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '0.75rem' }}>{error}</div>}
 
           <button
             onClick={handleSubmit}

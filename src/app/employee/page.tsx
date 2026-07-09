@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 type Employee = {
   id: number
@@ -64,6 +65,7 @@ function elapsed(clockIn: string) {
 }
 
 export default function EmployeePortal() {
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [accessToken, setAccessToken] = useState('')
@@ -71,7 +73,6 @@ export default function EmployeePortal() {
 
   const [clockedIn, setClockedIn] = useState<TimeEntry | null>(null)
   const [clockLoading, setClockLoading] = useState(false)
-  const [clockMsg, setClockMsg] = useState('')
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [ticker, setTicker] = useState(0)
 
@@ -85,7 +86,6 @@ export default function EmployeePortal() {
   const [toType, setToType] = useState('PTO / Vacation')
   const [toReason, setToReason] = useState('')
   const [toSaving, setToSaving] = useState(false)
-  const [toMsg, setToMsg] = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -134,13 +134,12 @@ export default function EmployeePortal() {
 
   async function clockIn() {
     setClockLoading(true)
-    setClockMsg('')
     const res = await fetch('/api/employee/clock-in', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     })
     const data = await res.json()
-    if (!res.ok) { setClockMsg(data.error); setClockLoading(false); return }
+    if (!res.ok) { showToast(data.error, 'error'); setClockLoading(false); return }
     setClockedIn(data.entry)
     setEntries(prev => [data.entry, ...prev])
     setClockLoading(false)
@@ -148,13 +147,12 @@ export default function EmployeePortal() {
 
   async function clockOut() {
     setClockLoading(true)
-    setClockMsg('')
     const res = await fetch('/api/employee/clock-out', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     })
     const data = await res.json()
-    if (!res.ok) { setClockMsg(data.error); setClockLoading(false); return }
+    if (!res.ok) { showToast(data.error, 'error'); setClockLoading(false); return }
     setClockedIn(null)
     setEntries(prev => prev.map(e => e.id === data.entry.id ? data.entry : e))
     setClockLoading(false)
@@ -163,22 +161,20 @@ export default function EmployeePortal() {
   async function submitTimeOff() {
     if (!toStart || !toEnd || !toType) return
     setToSaving(true)
-    setToMsg('')
     const res = await fetch('/api/employee/time-off', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ startDate: toStart, endDate: toEnd, type: toType, reason: toReason }),
     })
     const data = await res.json()
-    if (!res.ok) { setToMsg(data.error); } else {
-      setToMsg('Request submitted.')
+    if (!res.ok) { showToast(data.error, 'error') } else {
+      showToast('Request submitted.', 'success')
       setToStart(''); setToEnd(''); setToReason('')
       const torRes = await fetch('/api/employee/time-off', { headers: { Authorization: `Bearer ${accessToken}` } })
       const torData = await torRes.json()
       if (torData.requests) setRequests(torData.requests)
     }
     setToSaving(false)
-    setTimeout(() => setToMsg(''), 3000)
   }
 
   async function handleLogout() {
@@ -260,7 +256,6 @@ export default function EmployeePortal() {
                   </button>
                 </>
               )}
-              {clockMsg && <div style={{ fontSize: '13px', color: '#c0392b', marginTop: '1rem' }}>{clockMsg}</div>}
             </div>
 
             {/* Recent entries */}
@@ -351,7 +346,6 @@ export default function EmployeePortal() {
               <button className="btn auth-btn-primary" onClick={submitTimeOff} disabled={toSaving || !toStart || !toEnd} style={{ width: '100%' }}>
                 {toSaving ? 'Submitting...' : 'Submit request'}
               </button>
-              {toMsg && <div style={{ fontSize: '13px', color: toMsg.includes('Error') ? '#c0392b' : '#27ae60', marginTop: '0.5rem' }}>{toMsg}</div>}
             </div>
 
             {requests.length > 0 && (

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ComplianceChecklist from '../../components/ComplianceChecklist'
 import PayrollTab from '../../components/PayrollTab'
+import { useToast } from '../../components/Toast'
 
 type Employee = {
   id: number
@@ -80,6 +81,7 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function EmployeeProfile() {
+  const { showToast } = useToast()
   const { id } = useParams()
   const router = useRouter()
 
@@ -91,7 +93,6 @@ export default function EmployeeProfile() {
   const [welcomePackSent, setWelcomePackSent] = useState(false)
   const [documentsSigned, setDocumentsSigned] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState('')
   const [form, setForm] = useState<Employee | null>(null)
 
   useEffect(() => {
@@ -136,7 +137,6 @@ export default function EmployeeProfile() {
   async function save() {
     if (!form) return
     setSaving(true)
-    setSaveMsg('')
     const { error } = await supabase.from('employees').update({
       name: form.name,
       role: form.role,
@@ -157,11 +157,10 @@ export default function EmployeeProfile() {
     }).eq('id', form.id)
 
     if (error) {
-      setSaveMsg('Error saving. Try again.')
+      showToast('Error saving. Try again.', 'error')
     } else {
       setEmployee(form)
-      setSaveMsg('Saved.')
-      setTimeout(() => setSaveMsg(''), 2000)
+      showToast('Saved.', 'success')
     }
     setSaving(false)
   }
@@ -311,7 +310,6 @@ export default function EmployeeProfile() {
               <button className="btn auth-btn-primary" onClick={save} disabled={saving} style={{ width: 'auto' }}>
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
-              {saveMsg && <div className="done-msg">{saveMsg}</div>}
             </div>
           </div>
         )}
