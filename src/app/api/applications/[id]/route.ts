@@ -1,27 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 import { getBearerUser } from '../../../lib/apiAuth'
+import { refreshAccessToken, createCalendarEvent } from '../../../../lib/googleCalendar'
+
+const VALID_STATUSES = ['applied', 'interviewing', 'offer', 'hired', 'rejected']
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { status } = await req.json()
+  const { status, interview_at, timeZone, jobTitle } = await req.json()
 
-  const validStatuses = ['applied', 'interviewing', 'offer', 'hired', 'rejected']
-  if (!validStatuses.includes(status)) {
+  if (status !== undefined && !VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: 'Invalid status.' }, { status: 400 })
+  }
+  if (status === undefined && interview_at === undefined) {
+    return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 })
+  }
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (status !== undefined) update.status = status
+  if (interview_at !== undefined) update.interview_at = interview_at
+
+  // Scheduling (or clearing) an interview time needs the candidate's name/email for the
+  // calendar invite — fetched only when relevant, so a plain status change (the common case)
+  // stays a single query like before.
+  let candidate: { name: string; email: string } | null = null
+  if (interview_at) {
+    const { data } = await supabaseAdmin
+      .from('job_applications')
+      .select('name, email')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+    candidate = data
   }
 
   const { error } = await supabaseAdmin
     .from('job_applications')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(update)
     .eq('id', id)
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+
+  // Best-effort Google Calendar sync — an interview time is saved either way; the
+  // calendar event is a bonus if the owner has connected their calendar.
+  let calendarSynced = false
+  if (interview_at && candidate?.email) {
+    try {
+      const { data: conn } = await supabaseAdmin
+        .from('google_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (conn) {
+        let accessToken = conn.access_token
+        if (new Date(conn.access_token_expires_at) <= new Date()) {
+          const refreshed = await refreshAccessToken(conn.refresh_token)
+          accessToken = refreshed.access_token
+          const expiresAt = new Date(Date.now() + (refreshed.expires_in - 60) * 1000).toISOString()
+          await supabaseAdmin
+            .from('google_connections')
+            .update({ access_token: accessToken, access_token_expires_at: expiresAt })
+            .eq('user_id', user.id)
+        }
+
+        const start = new Date(interview_at)
+        const end = new Date(start.getTime() + 30 * 60 * 1000)
+        const dateStr = start.toISOString().slice(0, 10)
+        const startTime = start.toISOString().slice(11, 19)
+        const endTime = end.toISOString().slice(11, 19)
+
+        await createCalendarEvent(
+          accessToken,
+          `Interview: ${candidate.name}`,
+          jobTitle ? `Interview for ${jobTitle}` : 'Interview',
+          dateStr, startTime, endTime,
+          timeZone ?? 'America/New_York',
+          [candidate.email],
+        )
+        calendarSynced = true
+      }
+    } catch {
+      // Calendar sync is a bonus, not a requirement — the interview time is already saved.
+    }
+  }
+
+  return NextResponse.json({ success: true, calendarSynced })
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
