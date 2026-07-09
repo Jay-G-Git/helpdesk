@@ -93,6 +93,7 @@ export default function TimePage() {
 
   // Generate schedule
   const [generating, setGenerating] = useState(false)
+  const [copyingWeek, setCopyingWeek] = useState(false)
   // Publish schedule
   const [publishing, setPublishing] = useState(false)
   // Employee sort/grouping
@@ -297,6 +298,39 @@ export default function TimePage() {
     setGenerating(false)
   }
 
+  // ── Copy last week's schedule into the currently viewed week ──────────────
+
+  async function copyLastWeek() {
+    setCopyingWeek(true)
+    const thisWeek = getWeekDays(weekOffset)
+    const lastWeek = getWeekDays(weekOffset - 1)
+    const approvedOff = requests.filter(r => r.status === 'approved')
+    const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
+    const existing = shifts.filter(s => thisWeek.includes(s.shift_date))
+    const lastWeekShifts = shifts.filter(s => lastWeek.includes(s.shift_date) && s.status !== 'called_out' && !s.is_open_shift && s.employee_id != null)
+
+    const newShifts: object[] = []
+    lastWeekShifts.forEach(s => {
+      const dayIdx = lastWeek.indexOf(s.shift_date)
+      const targetDate = thisWeek[dayIdx]
+      const dayKey = DAY_KEYS[dayIdx]
+      const dayHours = bizHours?.[dayKey]
+      if (dayHours?.closed) return
+      if (isOff(s.employee_id!, targetDate)) return
+      if (existing.some(e => e.employee_id === s.employee_id && e.shift_date === targetDate)) return
+      newShifts.push({
+        user_id: userId, employee_id: s.employee_id, shift_date: targetDate,
+        start_time: s.start_time, end_time: s.end_time, notes: s.notes,
+      })
+    })
+
+    if (!newShifts.length) { showToast('No shifts to copy from last week.', 'error'); setCopyingWeek(false); return }
+    const { error } = await supabase.from('shifts').insert(newShifts)
+    if (error) showToast('Error copying last week.', 'error')
+    else { showToast(`Copied ${newShifts.length} shift${newShifts.length !== 1 ? 's' : ''} from last week.`, 'success'); load() }
+    setCopyingWeek(false)
+  }
+
   // ── Derived data ──────────────────────────────────────────────────────────
 
   const empMap = Object.fromEntries(employees.map(e => [e.id, e]))
@@ -315,6 +349,14 @@ export default function TimePage() {
     const hrs = shiftHours(s)
     return sum + (emp.pay_type === 'salary' ? (emp.pay_rate / 52 / 40) * hrs : emp.pay_rate * hrs)
   }, 0)
+
+  // Scheduled hours per employee this week — surfaced as a grid column so
+  // overtime (>40h) is visible without adding up shifts by hand.
+  const scheduledHoursByEmployee = new Map<number, number>()
+  for (const s of weekShifts) {
+    if (s.employee_id == null) continue
+    scheduledHoursByEmployee.set(s.employee_id, (scheduledHoursByEmployee.get(s.employee_id) ?? 0) + shiftHours(s))
+  }
 
   // Timesheet data
   const clockedIn = entries.filter(e => !e.clock_out)
@@ -419,6 +461,15 @@ export default function TimePage() {
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               {generating ? 'Generating…' : 'Auto-generate'}
+            </button>
+            <button
+              onClick={copyLastWeek}
+              disabled={copyingWeek}
+              title="Copy last week's shifts into this week"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: copyingWeek ? '#4ade80' : '#64748b', fontSize: '12px', fontWeight: 500, cursor: copyingWeek ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              {copyingWeek ? 'Copying…' : 'Copy last week'}
             </button>
             <button
               onClick={publishSchedule}
@@ -579,7 +630,7 @@ export default function TimePage() {
                 </div>
                 <div style={{ minWidth: '560px' }}>
                   {/* Day header row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr)', gap: '4px', marginBottom: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr) 52px', gap: '4px', marginBottom: '6px' }}>
                     <div />
                     {weekDays.map((dateStr, i) => {
                       const isToday = dateStr === today
@@ -596,6 +647,7 @@ export default function TimePage() {
                         </div>
                       )
                     })}
+                    <div style={{ textAlign: 'center', padding: '6px 4px', fontSize: '10px', fontWeight: 600, color: '#475569', alignSelf: 'end' }}>Hrs</div>
                   </div>
 
                   {/* Employee rows */}
@@ -611,7 +663,7 @@ export default function TimePage() {
                           {deptLabel}
                         </div>
                       )}
-                      <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr) 52px', gap: '4px', marginBottom: '4px' }}>
                         {/* Name cell */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 4px', minWidth: 0 }}>
                           <div style={{ width: 26, height: 26, borderRadius: '50%', background: rc.bg, color: rc.text, fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${rc.border}` }}>
@@ -698,6 +750,18 @@ export default function TimePage() {
                             </div>
                           )
                         })}
+                        {/* Weekly hours total */}
+                        {(() => {
+                          const hrs = scheduledHoursByEmployee.get(emp.id) ?? 0
+                          const isOT = hrs > 40
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ fontSize: '11px', fontWeight: isOT ? 700 : 500, color: isOT ? '#f87171' : '#64748b' }}>
+                                {hrs % 1 === 0 ? hrs : hrs.toFixed(1)}h
+                              </div>
+                            </div>
+                          )
+                        })()}
                       </div>
                       </div>
                     )
