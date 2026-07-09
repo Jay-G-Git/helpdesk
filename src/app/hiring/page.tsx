@@ -60,6 +60,8 @@ export default function JobsPage() {
   const [shareJobId, setShareJobId] = useState<number | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [selected, setSelected] = useState<Application | null>(null)
+  const [candidateSearch, setCandidateSearch] = useState('')
+  const [jobFilter, setJobFilter] = useState<number | 'all'>('all')
 
   useEffect(() => { load() }, [])
 
@@ -156,6 +158,13 @@ export default function JobsPage() {
   }
 
   const shareJob = jobs.find(j => j.id === shareJobId)
+
+  // Candidate pipeline — filtered by search text and job, shown as a board grouped by stage
+  const q = candidateSearch.trim().toLowerCase()
+  const pipelineApps = apps.filter(a =>
+    (jobFilter === 'all' || a.job_posting_id === jobFilter) &&
+    (q === '' || a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q))
+  )
 
   return (
     <div className="dash-wrap">
@@ -309,46 +318,86 @@ export default function JobsPage() {
                       <button className="btn" style={{ fontSize: '12px', padding: '4px 10px', color: '#c0392b' }} onClick={() => deleteJob(job.id)}>Delete</button>
                     </div>
                   </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
-                  {/* Inline applicants */}
-                  {jobApps.length > 0 && (
-                    <div style={{ borderTop: '0.5px solid rgba(0,0,0,0.08)', padding: '0.75rem 1.25rem', background: '#fafaf9' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {jobApps.map(app => {
-                          const stage = stageFor(app.status)
+        {/* Candidate pipeline */}
+        {jobs.length > 0 && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <input
+                value={candidateSearch}
+                onChange={e => setCandidateSearch(e.target.value)}
+                placeholder="Search candidates by name or email"
+                style={{ flex: 1, minWidth: '200px', fontSize: '13px' }}
+              />
+              <select
+                value={jobFilter === 'all' ? 'all' : String(jobFilter)}
+                onChange={e => setJobFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                style={{ fontSize: '13px', minWidth: '160px' }}
+              >
+                <option value="all">All jobs</option>
+                {jobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
+              </select>
+            </div>
+
+            {pipelineApps.length === 0 ? (
+              <div className="card"><div className="empty-state">
+                {apps.length === 0 ? 'No applicants yet.' : 'No candidates match your search.'}
+              </div></div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '10px', overflowX: 'auto' }}>
+                {STAGES.map(stage => {
+                  const stageApps = pipelineApps.filter(a => a.status === stage.key)
+                  return (
+                    <div key={stage.key}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '0 2px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: stage.color }}>{stage.label}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: stage.color, background: stage.bg, borderRadius: '999px', padding: '1px 7px' }}>
+                          {stageApps.length}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {stageApps.map(app => {
                           const isSelected = selected?.id === app.id
+                          const jobTitle = jobs.find(j => j.id === app.job_posting_id)?.title
                           return (
                             <div
                               key={app.id}
                               onClick={() => setSelected(isSelected ? null : app)}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: '10px',
-                                padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
-                                background: isSelected ? '#e6f1fb' : '#fff',
-                                border: `0.5px solid ${isSelected ? '#185fa5' : 'rgba(0,0,0,0.10)'}`,
+                                padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                                background: isSelected ? stage.bg : '#fff',
+                                border: `0.5px solid ${isSelected ? stage.color : 'rgba(0,0,0,0.10)'}`,
                                 transition: 'all 0.1s',
                               }}
                             >
-                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: stage.bg, color: stage.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-                                {app.name.slice(0, 2).toUpperCase()}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: stage.bg, color: stage.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+                                  {app.name.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div style={{ fontSize: '12px', fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                                  {app.name}
+                                </div>
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{app.name}</div>
-                                <div style={{ fontSize: '11px', color: '#9a9a9a' }}>{app.email}</div>
-                              </div>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: stage.color, background: stage.bg, borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                {stage.label}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#9a9a9a', flexShrink: 0 }}>{timeAgo(app.created_at)}</span>
+                              {jobTitle && (
+                                <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {jobTitle}
+                                </div>
+                              )}
+                              <div style={{ fontSize: '10px', color: '#b0b0b0' }}>{timeAgo(app.created_at)}</div>
                             </div>
                           )
                         })}
                       </div>
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
