@@ -101,6 +101,15 @@ export default function TimePage() {
   type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
   const [calloutTarget, setCalloutTarget] = useState<CalloutTarget | null>(null)
 
+  function closeDrawer() {
+    setShowShiftForm(false)
+    setShiftIsOpen(false)
+    setRepeatEnabled(false)
+    setRepeatWeeks(1)
+    setShiftMsg('')
+    setShiftEmpId('')
+  }
+
   useEffect(() => {
     load()
     const t = setInterval(() => setTicker(n => n + 1), 60000)
@@ -305,6 +314,16 @@ export default function TimePage() {
 
   const pendingRequests = requests.filter(r => r.status === 'pending')
   const pendingSwaps = swapRequests.filter(s => s.status === 'pending')
+
+  // Drawer helpers
+  const drawerSelectedEmp = shiftEmpId !== '' ? empMap[shiftEmpId as number] ?? null : null
+  const drawerHours = (() => {
+    if (!shiftStart || !shiftEnd) return null
+    const [sh, sm] = shiftStart.split(':').map(Number)
+    const [eh, em] = shiftEnd.split(':').map(Number)
+    const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+    return h > 0 ? h : null
+  })()
   const openShiftsCount = shifts.filter(s => s.is_open_shift && !s.employee_id && s.shift_date >= today).length
   const pendingApprovalCount = pendingRequests.length + pendingSwaps.length
 
@@ -364,56 +383,6 @@ export default function TimePage() {
         {/* ── SHIFTS TAB ── */}
         {tab === 'shifts' && (
           <div>
-            {showShiftForm && (
-              <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '14px', color: '#f1f5f9' }}>
-                  {shiftDate ? `New shift — ${new Date(shiftDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}` : 'New shift'}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => { setShiftIsOpen(v => !v); if (!shiftIsOpen) setShiftEmpId('') }}
-                    style={{ fontSize: '12px', fontWeight: 500, padding: '4px 12px', borderRadius: '20px', cursor: 'pointer', border: `1px solid ${shiftIsOpen ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.12)'}`, background: shiftIsOpen ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)', color: shiftIsOpen ? '#4ade80' : '#94a3b8', transition: 'all 0.15s', fontFamily: 'inherit' }}
-                  >
-                    {shiftIsOpen ? '✓ Open shift (no employee)' : 'Open shift — post to pool'}
-                  </button>
-                </div>
-                <div className="row2" style={{ marginBottom: '0.75rem' }}>
-                  {!shiftIsOpen && (
-                    <div className="field"><label>Employee</label>
-                      <select value={shiftEmpId} onChange={e => setShiftEmpId(Number(e.target.value))}>
-                        <option value="">Select...</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  <div className="field"><label>Date</label><input type="date" value={shiftDate} onChange={e => setShiftDate(e.target.value)} /></div>
-                </div>
-                <div className="row2" style={{ marginBottom: '0.75rem' }}>
-                  <div className="field"><label>Start time</label><input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)} /></div>
-                  <div className="field"><label>End time</label><input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)} /></div>
-                </div>
-                <div className="field" style={{ marginBottom: '0.75rem' }}>
-                  <label>Notes (optional)</label><input value={shiftNotes} onChange={e => setShiftNotes(e.target.value)} placeholder="e.g. Opening shift" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                    <input type="checkbox" checked={repeatEnabled} onChange={e => { setRepeatEnabled(e.target.checked); if (!e.target.checked) setRepeatWeeks(1) }} />
-                    Repeat weekly for
-                  </label>
-                  {repeatEnabled && (
-                    <select value={repeatWeeks} onChange={e => setRepeatWeeks(Number(e.target.value))} style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', background: '#0f172a', color: '#e2e8f0' }}>
-                      {[2, 3, 4, 6, 8, 12].map(n => <option key={n} value={n}>{n} weeks</option>)}
-                    </select>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button style={{ padding: '7px 16px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }} onClick={handleAddShift} disabled={savingShift}>{savingShift ? 'Saving…' : 'Save shift'}</button>
-                  <button style={{ padding: '7px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => { setShowShiftForm(false); setShiftIsOpen(false); setRepeatEnabled(false); setRepeatWeeks(1) }}>Cancel</button>
-                  {shiftMsg && <span style={{ fontSize: '12px', color: '#4ade80' }}>{shiftMsg}</span>}
-                </div>
-              </div>
-            )}
 
             {/* Generate */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
@@ -824,6 +793,191 @@ export default function TimePage() {
           </div>
         )}
 
+      </div>
+    </div>
+
+    {/* ── SHIFT DRAWER BACKDROP ── */}
+    {showShiftForm && (
+      <div
+        onClick={closeDrawer}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40, backdropFilter: 'blur(2px)' }}
+      />
+    )}
+
+    {/* ── SHIFT DRAWER ── */}
+    <div style={{
+      position: 'fixed', top: 0, right: 0, height: '100vh', width: '300px',
+      background: '#1e293b', borderLeft: '1px solid rgba(255,255,255,0.08)',
+      zIndex: 50, display: 'flex', flexDirection: 'column',
+      transform: showShiftForm ? 'translateX(0)' : 'translateX(100%)',
+      transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+      boxShadow: showShiftForm ? '-12px 0 40px rgba(0,0,0,0.5)' : 'none',
+    }}>
+
+      {/* Drawer header */}
+      <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {shiftIsOpen ? (
+              <>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>Open shift</div>
+                  <div style={{ fontSize: '11px', color: '#4ade80' }}>Anyone can claim</div>
+                </div>
+              </>
+            ) : drawerSelectedEmp ? (
+              <>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: getRoleColor(drawerSelectedEmp.role).bg, border: `1px solid ${getRoleColor(drawerSelectedEmp.role).border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: getRoleColor(drawerSelectedEmp.role).text, flexShrink: 0 }}>
+                  {drawerSelectedEmp.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>{drawerSelectedEmp.name}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{drawerSelectedEmp.role}</div>
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>New shift</div>
+            )}
+          </div>
+          <button onClick={closeDrawer} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '4px' }}>✕</button>
+        </div>
+        {shiftDate && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#93c5fd', background: 'rgba(29,78,216,0.12)', border: '1px solid rgba(29,78,216,0.22)', borderRadius: '6px', padding: '3px 9px' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            {new Date(shiftDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </div>
+        )}
+      </div>
+
+      {/* Drawer body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+        {/* Employee selector (if not pre-filled and not open shift) */}
+        {!shiftIsOpen && (
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Employee</div>
+            <select
+              value={shiftEmpId}
+              onChange={e => setShiftEmpId(Number(e.target.value))}
+              style={{ width: '100%', fontSize: '13px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: shiftEmpId ? '#e2e8f0' : '#475569', cursor: 'pointer' }}
+            >
+              <option value="">Select employee…</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Date */}
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Date</div>
+          <input type="date" value={shiftDate} onChange={e => setShiftDate(e.target.value)}
+            style={{ width: '100%', fontSize: '13px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', colorScheme: 'dark' }}
+          />
+        </div>
+
+        {/* Time blocks */}
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Shift time</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', alignItems: 'center', gap: '6px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
+              <div style={{ fontSize: '10px', color: '#475569', marginBottom: '3px' }}>Start</div>
+              <input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)}
+                style={{ width: '100%', fontSize: '16px', fontWeight: 600, background: 'none', border: 'none', color: '#f1f5f9', padding: 0, colorScheme: 'dark', outline: 'none' }}
+              />
+            </div>
+            <div style={{ textAlign: 'center', color: '#334155', fontSize: '14px' }}>→</div>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
+              <div style={{ fontSize: '10px', color: '#475569', marginBottom: '3px' }}>End</div>
+              <input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)}
+                style={{ width: '100%', fontSize: '16px', fontWeight: 600, background: 'none', border: 'none', color: '#f1f5f9', padding: 0, colorScheme: 'dark', outline: 'none' }}
+              />
+            </div>
+          </div>
+          {drawerHours != null && (
+            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#4ade80', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '20px', padding: '3px 9px' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {drawerHours % 1 === 0 ? drawerHours : drawerHours.toFixed(1)}h
+              </span>
+              <span style={{ fontSize: '11px', color: '#334155' }}>duration</span>
+            </div>
+          )}
+        </div>
+
+        {/* Quick presets */}
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Quick presets</div>
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Morning', start: '09:00', end: '17:00' },
+              { label: 'Afternoon', start: '14:00', end: '22:00' },
+              { label: 'Evening', start: '17:00', end: '23:00' },
+            ].map(p => {
+              const active = shiftStart === p.start && shiftEnd === p.end
+              return (
+                <button key={p.label} onClick={() => { setShiftStart(p.start); setShiftEnd(p.end) }}
+                  style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${active ? 'rgba(29,78,216,0.5)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(29,78,216,0.2)' : 'rgba(255,255,255,0.03)', color: active ? '#93c5fd' : '#64748b', transition: 'all 0.1s' }}
+                >{p.label}</button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Notes</div>
+          <textarea
+            value={shiftNotes} onChange={e => setShiftNotes(e.target.value)}
+            placeholder="Opening shift, training, etc."
+            rows={2}
+            style={{ width: '100%', fontSize: '12px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', resize: 'none', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+          />
+        </div>
+
+        {/* Open shift toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>Post as open shift</div>
+            <div style={{ fontSize: '11px', color: '#475569', marginTop: '1px' }}>Employees can claim this</div>
+          </div>
+          <button
+            onClick={() => { setShiftIsOpen(v => !v); if (!shiftIsOpen) setShiftEmpId('') }}
+            style={{ width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: shiftIsOpen ? '#22c55e' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+          >
+            <div style={{ position: 'absolute', top: 3, left: shiftIsOpen ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+          </button>
+        </div>
+
+        {/* Repeat */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input type="checkbox" id="repeat-chk" checked={repeatEnabled} onChange={e => { setRepeatEnabled(e.target.checked); if (!e.target.checked) setRepeatWeeks(1) }}
+            style={{ width: 14, height: 14, accentColor: '#3b82f6', cursor: 'pointer', flexShrink: 0 }}
+          />
+          <label htmlFor="repeat-chk" style={{ fontSize: '12px', color: '#64748b', cursor: 'pointer', userSelect: 'none' }}>Repeat weekly for</label>
+          {repeatEnabled && (
+            <select value={repeatWeeks} onChange={e => setRepeatWeeks(Number(e.target.value))}
+              style={{ fontSize: '12px', padding: '3px 7px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', cursor: 'pointer' }}
+            >
+              {[2, 3, 4, 6, 8, 12].map(n => <option key={n} value={n}>{n} weeks</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Drawer footer */}
+      <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {shiftMsg && <div style={{ fontSize: '12px', color: '#4ade80', marginBottom: '2px' }}>{shiftMsg}</div>}
+        <button
+          onClick={handleAddShift} disabled={savingShift}
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: savingShift ? 'not-allowed' : 'pointer', opacity: savingShift ? 0.7 : 1, fontFamily: 'inherit' }}
+        >{savingShift ? 'Saving…' : 'Save shift'}</button>
+        <button
+          onClick={closeDrawer}
+          style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
+        >Cancel</button>
       </div>
     </div>
 
