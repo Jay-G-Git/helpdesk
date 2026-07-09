@@ -522,7 +522,7 @@ export default function MessagesPage() {
     <div className="dash-wrap">
       <Nav active="messages" />
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: '#0f172a' }}>
+      <div style={{ display: 'flex', height: '100vh', background: '#0f172a' }}>
 
         {/* ── Sidebar ── */}
         <div style={{ width: '260px', flexShrink: 0, background: '#1e293b', borderRight: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

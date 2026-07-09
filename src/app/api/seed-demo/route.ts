@@ -22,25 +22,43 @@ export async function POST(req: NextRequest) {
     { name: 'Tyler Washington', role: 'Stock',          start: '2024-05-01', type: 'Part-time',  phone: '(555) 922-7714', email: 'tyler.washington@demo.com',  access_role: 'employee', pay_type: 'hourly', pay_rate: 14.50, pay_period: 'biweekly' },
   ]
 
-  const { data: insertedEmps, error: empErr } = await supabaseAdmin
+  // Idempotent: skip any mock employee that already exists for this user (matched by
+  // email), so clicking "Seed demo data" more than once doesn't create duplicates.
+  const { data: existingEmps } = await supabaseAdmin
     .from('employees')
-    .insert(employeeData.map(e => ({
-      ...e,
-      user_id: uid,
-      status: 'active',
-      address: '123 Main St, Anytown, USA',
-      emergency_contact: 'Contact Name — (555) 000-0000',
-      ssn_last4: '0000',
-      date_of_birth: '1995-01-01',
-      i9_status: 'complete',
-      w4_status: 'complete',
-      direct_deposit_status: 'active',
-    })))
-    .select()
+    .select('*')
+    .eq('user_id', uid)
+    .in('email', employeeData.map(e => e.email))
 
-  if (empErr || !insertedEmps) {
-    return NextResponse.json({ error: empErr?.message ?? 'Failed to insert employees' }, { status: 500 })
+  const existingByEmail = new Map((existingEmps ?? []).map(e => [e.email, e]))
+  const toInsert = employeeData.filter(e => !existingByEmail.has(e.email))
+
+  let newlyInserted: typeof existingEmps = []
+  if (toInsert.length > 0) {
+    const { data, error: empErr } = await supabaseAdmin
+      .from('employees')
+      .insert(toInsert.map(e => ({
+        ...e,
+        user_id: uid,
+        status: 'active',
+        address: '123 Main St, Anytown, USA',
+        emergency_contact: 'Contact Name — (555) 000-0000',
+        ssn_last4: '0000',
+        date_of_birth: '1995-01-01',
+        i9_status: 'complete',
+        w4_status: 'complete',
+        direct_deposit_status: 'active',
+      })))
+      .select()
+
+    if (empErr || !data) {
+      return NextResponse.json({ error: empErr?.message ?? 'Failed to insert employees' }, { status: 500 })
+    }
+    newlyInserted = data
   }
+
+  const byEmail = new Map([...existingByEmail, ...newlyInserted.map(e => [e.email, e] as const)])
+  const insertedEmps = employeeData.map(e => byEmail.get(e.email)!)
 
   const [jamie, alex, marcus, sarah, dana, chris, mia, tyler] = insertedEmps
 
