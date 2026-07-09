@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { getBearerUser } from '../../../lib/apiAuth'
 
 function buildReactions(reactions: any[], msgId: number, userId: string) {
   const byReaction: Record<string, { count: number; users: string[]; reacted: boolean }> = {}
@@ -13,9 +14,7 @@ function buildReactions(reactions: any[], msgId: number, userId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const channel = req.nextUrl.searchParams.get('channel')

@@ -6,6 +6,7 @@ import { Employee, ActionType } from '../page'
 import EmployeePanel from './EmployeePanel'
 import Nav from './Nav'
 import CalloutModal from './CalloutModal'
+import { useToast } from './Toast'
 
 type TimeOffRequest = {
   id: number
@@ -97,6 +98,7 @@ export default function Dashboard({
   employees, selectedEmp, docsGenerated, loading, viewerRole, viewerPerms,
   onSelectEmp, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onStartAction
 }: Props) {
+  const { showToast } = useToast()
   const [firstName, setFirstName] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [token, setToken] = useState('')
@@ -138,7 +140,6 @@ export default function Dashboard({
   const [annTitle, setAnnTitle] = useState('')
   const [annMsg, setAnnMsg] = useState('')
   const [annSending, setAnnSending] = useState(false)
-  const [annResult, setAnnResult] = useState('')
   const [seeding, setSeeding] = useState(false)
 
   useEffect(() => {
@@ -286,7 +287,7 @@ export default function Dashboard({
       // Reload the page to pull in all the new data
       window.location.reload()
     } else {
-      alert(data.error || 'Failed to load demo data')
+      showToast(data.error || 'Failed to load demo data', 'error')
       setSeeding(false)
     }
   }
@@ -294,7 +295,6 @@ export default function Dashboard({
   async function sendAnnouncement() {
     if (!annTitle.trim() || !annMsg.trim()) return
     setAnnSending(true)
-    setAnnResult('')
     const res = await fetch('/api/announcements', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -302,12 +302,12 @@ export default function Dashboard({
     })
     const data = await res.json()
     if (res.ok) {
-      setAnnResult(`Sent to ${data.sent} employee${data.sent !== 1 ? 's' : ''}.`)
-      setAnnTitle(''); setAnnMsg('')
+      showToast(`Sent to ${data.sent} employee${data.sent !== 1 ? 's' : ''}.`, 'success')
       setRecentAnnouncement({ title: annTitle, sent_count: data.sent, created_at: new Date().toISOString() })
-      setTimeout(() => { setShowAnnouncementModal(false); setAnnResult('') }, 1500)
+      setAnnTitle(''); setAnnMsg('')
+      setTimeout(() => setShowAnnouncementModal(false), 800)
     } else {
-      setAnnResult(data.error || 'Something went wrong.')
+      showToast(data.error || 'Something went wrong.', 'error')
     }
     setAnnSending(false)
   }
@@ -767,7 +767,6 @@ export default function Dashboard({
             style={{ width: '100%', padding: '9px', borderRadius: '8px', background: annSending || !annTitle.trim() || !annMsg.trim() ? '#334155' : '#1d4ed8', color: annSending || !annTitle.trim() || !annMsg.trim() ? '#64748b' : '#fff', border: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
             {annSending ? 'Sending…' : 'Send to all employees'}
           </button>
-          {annResult && <div style={{ marginTop: '8px', fontSize: '12px', color: annResult.includes('Sent') ? '#4ade80' : '#f87171', textAlign: 'center' }}>{annResult}</div>}
         </div>
       </div>
     )}

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "helpdesk",
+    "slug": "helpdesk-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "helpdesk",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.helpdesk.mobile"
+    },
+    "android": {
+      "package": "com.helpdesk.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0f14"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

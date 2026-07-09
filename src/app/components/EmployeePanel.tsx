@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Employee } from '../page'
 import { PaperclipIcon, DollarIcon, MailIcon } from './Icons'
+import { useToast } from './Toast'
 
 type Props = {
   employee: Employee
@@ -84,10 +85,10 @@ function formatKey(k: string) {
 }
 
 export default function EmployeePanel({ employee, initialTab = 'info', onClose, onUpdated, onDelete, onStartAction }: Props) {
+  const { showToast } = useToast()
   const [tab, setTab] = useState<Tab>(initialTab)
   const [form, setForm] = useState({ ...employee })
   const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState('')
   const [welcomePackSent, setWelcomePackSent] = useState(false)
   const [documentsSigned, setDocumentsSigned] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -96,7 +97,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   const [empEmail, setEmpEmail] = useState(employee.email || '')
   const [sending, setSending] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
-  const [sendError, setSendError] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
 
   // Notes tab state
@@ -120,7 +120,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   const [payPeriodEnd, setPayPeriodEnd] = useState('')
   const [payShowForm, setPayShowForm] = useState(false)
   const [paySaving, setPaySaving] = useState(false)
-  const [payMsg, setPayMsg] = useState('')
 
   // Department assignment state
   type DeptOption = { id: number; name: string; color: string }
@@ -165,9 +164,10 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   async function generateNote() {
     setNoteGenerating(true)
     setNoteSummary([])
+    const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
       body: JSON.stringify({ action: 'checkin', employee, notes: noteText }),
     })
     const data = await res.json()
@@ -190,10 +190,8 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   useEffect(() => {
     setForm({ ...employee })
     setEmpEmail(employee.email || '')
-    setSaveMsg('')
     setTab(initialTab)
     setLinkUrl('')
-    setSendError('')
     loadComplianceData()
     loadOffboardingTemplate()
     loadDocuments()
@@ -261,11 +259,10 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   }
 
   async function logPayment() {
-    if (!employee.pay_rate) { setPayMsg('Set a pay rate on the employee first.'); return }
-    if (employee.pay_type !== 'salary' && !payHours) { setPayMsg('Enter hours worked.'); return }
-    if (!payPeriodStart || !payPeriodEnd) { setPayMsg('Enter period start and end dates.'); return }
+    if (!employee.pay_rate) { showToast('Set a pay rate on the employee first.', 'error'); return }
+    if (employee.pay_type !== 'salary' && !payHours) { showToast('Enter hours worked.', 'error'); return }
+    if (!payPeriodStart || !payPeriodEnd) { showToast('Enter period start and end dates.', 'error'); return }
     setPaySaving(true)
-    setPayMsg('')
     const { data: sessionData } = await supabase.auth.getSession()
     const gross = employee.pay_type === 'salary'
       ? (employee.pay_rate ?? 0) / 26
@@ -280,14 +277,13 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       notes: payNotes.trim() || null,
     }])
     if (error) {
-      setPayMsg('Error saving.')
+      showToast('Error saving.', 'error')
     } else {
-      setPayMsg('Saved.')
+      showToast('Saved.', 'success')
       setPayShowForm(false)
       setPayHours('')
       setPayNotes('')
       loadPayroll()
-      setTimeout(() => setPayMsg(''), 2000)
     }
     setPaySaving(false)
   }
@@ -354,7 +350,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
 
   async function save() {
     setSaving(true)
-    setSaveMsg('')
     const { error } = await supabase
       .from('employees')
       .update({
@@ -368,7 +363,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       })
       .eq('id', employee.id)
     if (error) {
-      setSaveMsg('Error saving. Try again.')
+      showToast('Error saving. Try again.', 'error')
     } else {
       onUpdated(form)
       setTimeout(() => animateClose(), 600)
@@ -379,10 +374,9 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
 
   async function sendWelcomePack() {
     setSending(true)
-    setSendError('')
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData.session?.access_token
-    if (!accessToken) { setSendError('Not signed in.'); setSending(false); return }
+    if (!accessToken) { showToast('Not signed in.', 'error'); setSending(false); return }
     const res = await fetch('/api/onboarding-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -390,7 +384,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
     })
     const data = await res.json()
     if (!res.ok) {
-      setSendError(data.error || 'Could not create link.')
+      showToast(data.error || 'Could not create link.', 'error')
     } else {
       setLinkUrl(data.url)
       setWelcomePackSent(true)
@@ -624,7 +618,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
             <button className="delete-btn" style={{ fontSize: '13px', opacity: 1, color: '#c0392b' }} onClick={() => onDelete(employee.id)}>
               Remove employee
             </button>
-            {saveMsg && <div className="done-msg">{saveMsg}</div>}
           </div>
 
         </div>
@@ -645,7 +638,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
               <button className="btn auth-btn-primary" style={{ width: 'auto' }} onClick={sendWelcomePack} disabled={sending}>
                 {sending ? 'Sending...' : <><MailIcon size={14} /> Initiate employee</>}
               </button>
-              {sendError && <div className="auth-error" style={{ marginTop: '0.5rem' }}>{sendError}</div>}
             </>
           ) : (
             <>
@@ -802,7 +794,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
             <button
               className="btn"
               style={{ fontSize: '12px', padding: '4px 12px' }}
-              onClick={() => { setPayShowForm(v => !v); setPayMsg('') }}
+              onClick={() => setPayShowForm(v => !v)}
             >
               {payShowForm ? 'Cancel' : '+ Log payment'}
             </button>
@@ -844,7 +836,6 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                 <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px' }} onClick={logPayment} disabled={paySaving}>
                   {paySaving ? 'Saving...' : 'Save'}
                 </button>
-                {payMsg && <div className="done-msg">{payMsg}</div>}
               </div>
             </div>
           )}

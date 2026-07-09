@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { Employee, ActionType } from '../page'
 import { MailIcon } from './Icons'
 import DocumentUpload from './DocumentUpload'
+import { useToast } from './Toast'
 
 type Props = {
   employee: Employee
@@ -169,6 +170,7 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
 }
 
 export default function ActionScreen({ employee, action, onBack, onDocDone, userId }: Props) {
+  const { showToast } = useToast()
   const [notes, setNotes] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('New job')
@@ -176,11 +178,9 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
   const [checkinSummary, setCheckinSummary] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [doneMsg, setDoneMsg] = useState('')
   const [saved, setSaved] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [sending, setSending] = useState(false)
-  const [sendError, setSendError] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [employeeEmail, setEmployeeEmail] = useState(employee.email || '')
 
@@ -238,13 +238,13 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
 
   async function generate() {
     setLoading(true)
-    setDoneMsg('')
     setSaved(false)
     setCheckinSummary([])
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ action, employee, notes, lastDay, reason }),
       })
       const data = await res.json()
@@ -272,8 +272,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
 
   function copyDoc() {
     navigator.clipboard.writeText(output).then(() => {
-      setDoneMsg('Copied to clipboard.')
-      setTimeout(() => setDoneMsg(''), 2000)
+      showToast('Copied to clipboard.', 'success')
     })
   }
 
@@ -298,12 +297,11 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
 
   async function sendToEmployee() {
     setSending(true)
-    setSendError('')
     // Save to records first (silently)
     if (!saved) {
       const ok = await markDone()
       if (!ok) {
-        setSendError('Could not save record. Try again.')
+        showToast('Could not save record. Try again.', 'error')
         setSending(false)
         return
       }
@@ -313,7 +311,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (!accessToken) {
-        setSendError('You need to be signed in.')
+        showToast('You need to be signed in.', 'error')
         setSending(false)
         return
       }
@@ -332,12 +330,12 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
       })
       const data = await res.json()
       if (!res.ok) {
-        setSendError(data.error || 'Could not create link.')
+        showToast(data.error || 'Could not create link.', 'error')
       } else {
         setLinkUrl(data.url)
       }
     } catch {
-      setSendError('Could not create link. Try again.')
+      showToast('Could not create link. Try again.', 'error')
     }
     setSending(false)
   }
@@ -461,7 +459,6 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
                   <button className="btn" onClick={sendToEmployee} disabled={sending}>
                     {sending ? 'Sending...' : <><MailIcon size={14} /> Send to employee</>}
                   </button>
-                  {sendError && <div className="auth-error" style={{ marginTop: '0.5rem' }}>{sendError}</div>}
                 </>
               ) : (
                 <>
@@ -502,7 +499,6 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
                 {saving ? 'Saving...' : saved ? '✓ Saved to records' : 'Save to records'}
               </button>
             </div>
-            {doneMsg && <div className="done-msg">{doneMsg}</div>}
           </div>
         )}
       </div>

@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { getBearerUser } from '../../../lib/apiAuth'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-async function getUser(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return null
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  return user ?? null
-}
 
 // Determine if user is an owner (has a business profile) or employee
 async function getUserRole(userId: string, userEmail: string) {
@@ -364,7 +358,7 @@ async function executeTool(
 // ─── Chat route ───────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const user = await getUser(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { messages, timezone: tz } = await req.json()

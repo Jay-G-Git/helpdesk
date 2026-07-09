@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { getBearerUser } from '../../../lib/apiAuth'
 
 // PATCH — edit your own message
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { content } = await req.json()
@@ -23,9 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE — soft-delete your own message
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { error } = await supabaseAdmin

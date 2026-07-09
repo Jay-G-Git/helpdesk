@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin'
+import { getBearerUser } from '../../../../../lib/apiAuth'
 import PDFDocument from 'pdfkit'
-
-async function getOwner(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return null
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  return user ?? null
-}
 
 function fmt(n: number) {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -16,7 +10,7 @@ function fmt(n: number) {
 // GET /api/payroll/run/[id]/paystub?employeeId=xxx  — returns PDF for one employee
 // GET /api/payroll/run/[id]/paystub                 — returns PDF for all employees
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const employeeId = req.nextUrl.searchParams.get('employeeId')

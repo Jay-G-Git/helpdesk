@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getBearerUser } from '../../lib/apiAuth'
 
 export async function POST(req: NextRequest) {
+  const user = await getBearerUser(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { action, employee, notes, lastDay, reason, onboardingDetails } = await req.json()
 
   let prompt = ''

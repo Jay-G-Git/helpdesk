@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Nav from '../components/Nav'
 import CalloutModal from '../components/CalloutModal'
+import { useToast } from '../components/Toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ function getRoleColor(role: string): { bg: string; text: string; border: string 
 
 export default function TimePage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [tab, setTab] = useState<'shifts' | 'timeoff' | 'timesheets'>('shifts')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -76,7 +78,6 @@ export default function TimePage() {
   const [shiftEnd, setShiftEnd] = useState('17:00')
   const [shiftNotes, setShiftNotes] = useState('')
   const [savingShift, setSavingShift] = useState(false)
-  const [shiftMsg, setShiftMsg] = useState('')
   const [repeatEnabled, setRepeatEnabled] = useState(false)
   const [repeatWeeks, setRepeatWeeks] = useState(1)
   const [shiftIsOpen, setShiftIsOpen] = useState(false)
@@ -92,10 +93,8 @@ export default function TimePage() {
 
   // Generate schedule
   const [generating, setGenerating] = useState(false)
-  const [genMsg, setGenMsg] = useState('')
   // Publish schedule
   const [publishing, setPublishing] = useState(false)
-  const [publishMsg, setPublishMsg] = useState('')
   // Employee sort/grouping
   const [empSort, setEmpSort] = useState<'default' | 'alpha' | 'dept'>('default')
   const [departments, setDepartments] = useState<{ id: number; name: string; color: string }[]>([])
@@ -127,7 +126,6 @@ export default function TimePage() {
     setShiftIsOpen(false)
     setRepeatEnabled(false)
     setRepeatWeeks(1)
-    setShiftMsg('')
     setShiftEmpId('')
   }
 
@@ -187,8 +185,8 @@ export default function TimePage() {
   // ── Shift actions ─────────────────────────────────────────────────────────
 
   async function handleAddShift() {
-    if (!shiftIsOpen && !shiftEmpId) { setShiftMsg('Select an employee or mark as open shift.'); return }
-    if (!shiftDate) { setShiftMsg('Select a date.'); return }
+    if (!shiftIsOpen && !shiftEmpId) { showToast('Select an employee or mark as open shift.', 'error'); return }
+    if (!shiftDate) { showToast('Select a date.', 'error'); return }
     setSavingShift(true)
 
     const baseDate = new Date(shiftDate + 'T00:00:00')
@@ -205,13 +203,12 @@ export default function TimePage() {
     })
 
     const { data, error } = await supabase.from('shifts').insert(shiftsToInsert).select()
-    if (error) { setShiftMsg('Error saving.') }
+    if (error) { showToast('Error saving.', 'error') }
     else {
       setShifts(prev => [...prev, ...(data ?? [])].sort((a, b) => a.shift_date.localeCompare(b.shift_date)))
-      setShiftMsg(repeatWeeks > 1 ? `${repeatWeeks} shifts added.` : 'Shift added.')
+      showToast(repeatWeeks > 1 ? `${repeatWeeks} shifts added.` : 'Shift added.', 'success')
       setShowShiftForm(false); setShiftEmpId(''); setShiftDate(''); setShiftNotes('')
       setRepeatEnabled(false); setRepeatWeeks(1); setShiftIsOpen(false)
-      setTimeout(() => setShiftMsg(''), 2500)
     }
     setSavingShift(false)
   }
@@ -271,8 +268,8 @@ export default function TimePage() {
   // ── Generate schedule ─────────────────────────────────────────────────────
 
   async function generateSchedule() {
-    if (!availability.length) { setGenMsg('No employee availability set yet.'); setTimeout(() => setGenMsg(''), 4000); return }
-    setGenerating(true); setGenMsg('')
+    if (!availability.length) { showToast('No employee availability set yet.', 'error'); return }
+    setGenerating(true)
     // Always use the currently viewed week — no date picker needed
     const weekDates = getWeekDays(weekOffset)
     const approvedOff = requests.filter(r => r.status === 'approved')
@@ -293,11 +290,11 @@ export default function TimePage() {
           newShifts.push({ user_id: userId, employee_id: a.employee_id, shift_date: date, start_time: start, end_time: end, notes: 'Auto-generated' })
         })
     })
-    if (!newShifts.length) { setGenMsg('No new shifts to generate.'); setGenerating(false); return }
+    if (!newShifts.length) { showToast('No new shifts to generate.', 'error'); setGenerating(false); return }
     const { error } = await supabase.from('shifts').insert(newShifts)
-    if (error) setGenMsg('Error generating schedule.')
-    else { setGenMsg(`Generated ${newShifts.length} shift${newShifts.length !== 1 ? 's' : ''}.`); load() }
-    setGenerating(false); setTimeout(() => setGenMsg(''), 4000)
+    if (error) showToast('Error generating schedule.', 'error')
+    else { showToast(`Generated ${newShifts.length} shift${newShifts.length !== 1 ? 's' : ''}.`, 'success'); load() }
+    setGenerating(false)
   }
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -386,17 +383,16 @@ export default function TimePage() {
   async function publishSchedule() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    setPublishing(true); setPublishMsg('')
+    setPublishing(true)
     const res = await fetch('/api/schedule/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ weekStart: weekDays[0] }),
     })
     const data = await res.json()
-    if (res.ok) setPublishMsg(`Notified ${data.notified} employee${data.notified !== 1 ? 's' : ''}`)
-    else setPublishMsg('Error publishing')
+    if (res.ok) showToast(`Notified ${data.notified} employee${data.notified !== 1 ? 's' : ''}`, 'success')
+    else showToast('Error publishing', 'error')
     setPublishing(false)
-    setTimeout(() => setPublishMsg(''), 4000)
   }
 
   if (loading) return (
@@ -407,20 +403,6 @@ export default function TimePage() {
 
   return (
     <>
-    {genMsg && (
-      <div
-        style={{
-          position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '10px',
-          background: genMsg.startsWith('Error') || genMsg.startsWith('No') ? 'rgba(127,29,29,0.95)' : 'rgba(20,83,45,0.95)',
-          border: `1px solid ${genMsg.startsWith('Error') || genMsg.startsWith('No') ? 'rgba(248,113,113,0.4)' : 'rgba(74,222,128,0.4)'}`,
-          color: genMsg.startsWith('Error') || genMsg.startsWith('No') ? '#f87171' : '#4ade80',
-          fontSize: '13px', fontWeight: 500, boxShadow: '0 8px 24px rgba(0,0,0,0.35)', animation: 'toastIn 0.2s ease-out',
-        }}
-      >
-        {genMsg}
-      </div>
-    )}
     <div className="dash-wrap">
       <Nav active="time" />
       <div className="dash-content">
@@ -438,7 +420,6 @@ export default function TimePage() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               {generating ? 'Generating…' : 'Auto-generate'}
             </button>
-            {publishMsg && <span style={{ fontSize: '11px', color: publishMsg.startsWith('Error') ? '#f87171' : '#4ade80', maxWidth: '160px', lineHeight: '1.3' }}>{publishMsg}</span>}
             <button
               onClick={publishSchedule}
               disabled={publishing}
@@ -1107,7 +1088,6 @@ export default function TimePage() {
 
       {/* Drawer footer */}
       <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {shiftMsg && <div style={{ fontSize: '12px', color: '#4ade80', marginBottom: '2px' }}>{shiftMsg}</div>}
         <button
           onClick={handleAddShift} disabled={savingShift}
           style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: savingShift ? 'not-allowed' : 'pointer', opacity: savingShift ? 0.7 : 1, fontFamily: 'inherit' }}

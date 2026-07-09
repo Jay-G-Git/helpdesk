@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin'
-
-async function getOwner(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return null
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  return user ?? null
-}
+import { getBearerUser } from '../../../../lib/apiAuth'
 
 // GET — fetch run + items
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: run } = await supabaseAdmin
@@ -33,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // PATCH — update item deductions or finalize run
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
@@ -74,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE — delete a draft run
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   await supabaseAdmin

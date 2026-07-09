@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
-
-async function getOwner(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return null
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  return user ?? null
-}
+import { getBearerUser } from '../../../lib/apiAuth'
 
 // GET /api/payroll/run — list all runs
 export async function GET(req: NextRequest) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: runs } = await supabaseAdmin
@@ -25,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/payroll/run — create a new run (auto-calculate from time entries)
 export async function POST(req: NextRequest) {
-  const user = await getOwner(req)
+  const user = await getBearerUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { periodStart, periodEnd, notes } = await req.json()

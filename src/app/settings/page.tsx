@@ -364,8 +364,15 @@ function SettingsContent() {
 
   async function exportData() {
     setExporting(true)
-    window.location.href = `/api/settings/export?token=${accessToken}`
-    setTimeout(() => setExporting(false), 2000)
+    const res = await fetch('/api/settings/export', { headers: { Authorization: `Bearer ${accessToken}` } })
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `helpdesk-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExporting(false)
   }
 
   async function deleteAccount() {

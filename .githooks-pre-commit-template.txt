@@ -1,0 +1,14 @@
+#!/bin/sh
+# Runs the Jest suite before every commit. Blocks the commit if anything fails.
+# See TESTING.md / AGENTS.md for the testing protocol this enforces.
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+echo "Running tests before commit..."
+npm test
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "Tests failed -- commit blocked. Fix the failures (or add missing tests for new features, per AGENTS.md) and try again."
+  exit 1
+fi
