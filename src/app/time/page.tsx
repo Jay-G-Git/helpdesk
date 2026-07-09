@@ -358,6 +358,35 @@ export default function TimePage() {
     scheduledHoursByEmployee.set(s.employee_id, (scheduledHoursByEmployee.get(s.employee_id) ?? 0) + shiftHours(s))
   }
 
+  // Whether Auto-generate / Copy last week would actually produce anything this week —
+  // mirrors the same filtering the two actions do, so the header buttons can be dimmed
+  // when there's nothing left to do instead of always looking equally actionable.
+  const approvedOffThisWeek = requests.filter(r => r.status === 'approved')
+  const isOffThisWeek = (empId: number, date: string) => approvedOffThisWeek.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
+  const existingThisWeek = shifts.filter(s => weekDays.includes(s.shift_date))
+
+  const canAutoGenerate = availability.length > 0 && weekDays.some((date, i) => {
+    const dayKey = DAY_KEYS[i]
+    if (bizHours?.[dayKey]?.closed) return false
+    return availability.some(a =>
+      a.day_of_week === i &&
+      !isOffThisWeek(a.employee_id, date) &&
+      !existingThisWeek.some(s => s.employee_id === a.employee_id && s.shift_date === date)
+    )
+  })
+
+  const lastWeekDays = getWeekDays(weekOffset - 1)
+  const lastWeekShiftsPreview = shifts.filter(s => lastWeekDays.includes(s.shift_date) && s.status !== 'called_out' && !s.is_open_shift && s.employee_id != null)
+  const canCopyLastWeek = lastWeekShiftsPreview.some(s => {
+    const dayIdx = lastWeekDays.indexOf(s.shift_date)
+    const targetDate = weekDays[dayIdx]
+    const dayKey = DAY_KEYS[dayIdx]
+    if (bizHours?.[dayKey]?.closed) return false
+    if (isOffThisWeek(s.employee_id!, targetDate)) return false
+    if (existingThisWeek.some(e => e.employee_id === s.employee_id && e.shift_date === targetDate)) return false
+    return true
+  })
+
   // Daily subtotals — total scheduled hours per day across all employees
   const dailyTotals = weekDays.map(d =>
     weekShifts.filter(s => s.shift_date === d).reduce((sum, s) => sum + shiftHours(s), 0)
@@ -482,18 +511,18 @@ export default function TimePage() {
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <button
               onClick={generateSchedule}
-              disabled={generating}
-              title="Fill this week from employee availability"
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: generating ? '#4ade80' : '#64748b', fontSize: '12px', fontWeight: 500, cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
+              disabled={generating || !canAutoGenerate}
+              title={canAutoGenerate ? 'Fill this week from employee availability' : 'Nothing left to generate — every available slot this week is already covered'}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: generating ? '#4ade80' : canAutoGenerate ? '#94a3b8' : '#3f4a5c', fontSize: '12px', fontWeight: 500, cursor: generating ? 'not-allowed' : canAutoGenerate ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canAutoGenerate || generating ? 1 : 0.6 }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               {generating ? 'Generating…' : 'Auto-generate'}
             </button>
             <button
               onClick={copyLastWeek}
-              disabled={copyingWeek}
-              title="Copy last week's shifts into this week"
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: copyingWeek ? '#4ade80' : '#64748b', fontSize: '12px', fontWeight: 500, cursor: copyingWeek ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
+              disabled={copyingWeek || !canCopyLastWeek}
+              title={canCopyLastWeek ? "Copy last week's shifts into this week" : 'Nothing to copy — no eligible shifts from last week'}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: copyingWeek ? '#4ade80' : canCopyLastWeek ? '#94a3b8' : '#3f4a5c', fontSize: '12px', fontWeight: 500, cursor: copyingWeek ? 'not-allowed' : canCopyLastWeek ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canCopyLastWeek || copyingWeek ? 1 : 0.6 }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               {copyingWeek ? 'Copying…' : 'Copy last week'}
