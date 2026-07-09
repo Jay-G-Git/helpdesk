@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { SettingsIcon, SignOutIcon } from './Icons'
 
 type Props = {
-  active: 'dashboard' | 'time' | 'hiring' | 'payroll' | 'reports' | 'settings' | 'messages'
+  active: 'dashboard' | 'time' | 'hiring' | 'payroll' | 'reports' | 'settings' | 'messages' | 'activity'
   viewerRole?: 'owner' | 'admin' | 'manager' | 'employee'
   viewerPerms?: Record<string, boolean> | null
 }
@@ -347,7 +347,7 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
           )}
         </a>
 
-        <a href="#" className="sidebar-link" style={{ opacity: 0.5, pointerEvents: 'none' }}>
+        <a href="/activity" className={`sidebar-link${active === 'activity' ? ' active' : ''}`}>
           <span className="sidebar-link-icon"><IconActivity /></span>
           Activity
         </a>
