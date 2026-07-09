@@ -86,8 +86,6 @@ export default function TimePage() {
   const [weekOffset, setWeekOffset] = useState(0)
   // Active shift pill (for inline action panel)
   const [activeShiftId, setActiveShiftId] = useState<number | null>(null)
-  // Auto-generate panel
-  const [showGenPanel, setShowGenPanel] = useState(false)
   // Drag-and-drop
   const [draggingShiftId, setDraggingShiftId] = useState<number | null>(null)
   const [dragOverCell, setDragOverCell] = useState<string | null>(null)
@@ -95,10 +93,6 @@ export default function TimePage() {
   // Generate schedule
   const [generating, setGenerating] = useState(false)
   const [genMsg, setGenMsg] = useState('')
-  const [genWeekStart, setGenWeekStart] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10)
-  })
-
   // Business hours
   const [bizHours, setBizHours] = useState<BusinessHours | null>(null)
 
@@ -263,10 +257,8 @@ export default function TimePage() {
   async function generateSchedule() {
     if (!availability.length) { setGenMsg('No employee availability set yet.'); return }
     setGenerating(true); setGenMsg('')
-    const weekStart = new Date(genWeekStart + 'T00:00:00')
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d.toISOString().slice(0, 10)
-    })
+    // Always use the currently viewed week — no date picker needed
+    const weekDates = getWeekDays(weekOffset)
     const approvedOff = requests.filter(r => r.status === 'approved')
     const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
     const existing = shifts.filter(s => weekDates.includes(s.shift_date))
@@ -364,13 +356,15 @@ export default function TimePage() {
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Time</div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <button
-              onClick={() => setShowGenPanel(v => !v)}
-              title="Auto-generate from availability"
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: showGenPanel ? 'rgba(29,78,216,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${showGenPanel ? 'rgba(29,78,216,0.35)' : 'rgba(255,255,255,0.08)'}`, color: showGenPanel ? '#93c5fd' : '#64748b', fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onClick={generateSchedule}
+              disabled={generating}
+              title="Fill this week from employee availability"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: generating ? '#4ade80' : '#64748b', fontSize: '12px', fontWeight: 500, cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-              Auto-generate
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              {generating ? 'Generating…' : 'Auto-generate'}
             </button>
+            {genMsg && <span style={{ fontSize: '11px', color: genMsg.startsWith('Error') || genMsg.startsWith('No') ? '#f87171' : '#4ade80', maxWidth: '160px', lineHeight: '1.3' }}>{genMsg}</span>}
             <button
               onClick={() => { setShowShiftForm(true); setTab('shifts') }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -380,17 +374,6 @@ export default function TimePage() {
             </button>
           </div>
         </div>
-
-        {/* Auto-generate panel — collapsible */}
-        {showGenPanel && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '10px 14px', background: 'rgba(29,78,216,0.06)', border: '1px solid rgba(29,78,216,0.15)', borderRadius: '8px' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            <span style={{ fontSize: '12px', color: '#93c5fd', fontWeight: 500 }}>Auto-generate from availability</span>
-            <input type="date" value={genWeekStart} onChange={e => setGenWeekStart(e.target.value)} style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', colorScheme: 'dark' }} />
-            <button style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', background: 'rgba(29,78,216,0.25)', border: '1px solid rgba(29,78,216,0.4)', color: '#93c5fd', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }} onClick={generateSchedule} disabled={generating}>{generating ? 'Generating…' : 'Generate week'}</button>
-            {genMsg && <span style={{ fontSize: '12px', color: genMsg.startsWith('Error') || genMsg.startsWith('No') ? '#f87171' : '#4ade80' }}>{genMsg}</span>}
-          </div>
-        )}
 
         {/* Stat row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
