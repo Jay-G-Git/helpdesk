@@ -46,6 +46,11 @@ type TeamEmployee = {
 
 type Department = { id: number; name: string; color: string }
 
+// Okabe-Ito palette — a widely-used, research-vetted colorblind-safe categorical
+// palette (distinguishable under protanopia/deuteranopia/tritanopia). Offered as
+// quick-pick suggestions alongside the free color picker below, not a replacement.
+const COLORBLIND_SAFE_PALETTE = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7']
+
 const PERM_KEYS = ['schedule_edit','schedule_pool','schedule_swaps','employees_view','employees_edit','employees_manage','pto_approve','payroll_view','payroll_log','hiring_view'] as const
 type PermKey = typeof PERM_KEYS[number]
 
@@ -877,6 +882,22 @@ function SettingsContent() {
                   <button className="btn auth-btn-primary" onClick={createDept} disabled={deptSaving || !newDeptName.trim()} style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
                     {deptSaving ? 'Adding...' : '+ Add'}
                   </button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', color: '#aaa' }}>Colorblind-safe picks:</span>
+                  {COLORBLIND_SAFE_PALETTE.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNewDeptColor(c)}
+                      title={c}
+                      aria-label={`Use color ${c}`}
+                      style={{
+                        width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
+                        border: newDeptColor === c ? '2px solid #1a1a1a' : '1px solid rgba(0,0,0,0.15)',
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
