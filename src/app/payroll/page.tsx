@@ -137,6 +137,10 @@ export default function PayrollPage() {
   const [savingDeductions, setSavingDeductions] = useState<number | null>(null)
   const [editDeductions, setEditDeductions] = useState<Record<number, { federal: string; state: string; other: string }>>({})
 
+  // Pre-payroll confidence check — read-only flags before you run, not after
+  const [hoursAnomalies, setHoursAnomalies] = useState<{ employeeId: number; employeeName: string; hoursThisPeriod: number; avgHours: number }[]>([])
+  const [clockOverlaps, setClockOverlaps] = useState<{ employeeId: number; employeeName: string; count: number }[]>([])
+
   useEffect(() => { load() }, [])
 
   async function load() {
@@ -163,6 +167,21 @@ export default function PayrollPage() {
       const biz = await bizRes.json()
       setAccountantEmail(biz.profile?.accountant_email ?? '')
     }
+
+    try {
+      const confidenceRes = await fetch(
+        `/api/payroll/confidence-check?periodStart=${defaultPeriod.start}&periodEnd=${defaultPeriod.end}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (confidenceRes.ok) {
+        const c = await confidenceRes.json()
+        setHoursAnomalies(c.hoursAnomalies ?? [])
+        setClockOverlaps(c.overlaps ?? [])
+      }
+    } catch {
+      // advisory only — a failed check should never block the rest of the page
+    }
+
     setLoading(false)
   }
 
@@ -402,6 +421,7 @@ export default function PayrollPage() {
   })
   const draftRuns = runs.filter(r => r.status === 'draft')
   const hasAttentionItems = missingPayRate.length > 0 || notYetPaidThisPeriod.length > 0 || draftRuns.length > 0
+    || hoursAnomalies.length > 0 || clockOverlaps.length > 0
 
   const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
   const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }
@@ -465,6 +485,25 @@ export default function PayrollPage() {
                   <span style={{ color: '#fbbf24' }}>●</span>
                   {draftRuns.length} pay run{draftRuns.length !== 1 ? 's' : ''} still in draft, not finalized
                   <button style={{ ...ghostBtn, padding: '2px 8px', fontSize: '11px' }} onClick={() => setActiveTab('runs')}>Review</button>
+                </div>
+              )}
+              {(hoursAnomalies.length > 0 || clockOverlaps.length > 0) && (
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Before you run</div>
+                  {hoursAnomalies.map(a => (
+                    <div key={`hours-${a.employeeId}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0' }}>
+                      <span style={{ color: '#fbbf24' }}>●</span>
+                      {a.employeeName} — {a.hoursThisPeriod} hrs this period (avg: {a.avgHours})
+                      <button style={{ ...ghostBtn, padding: '2px 8px', fontSize: '11px' }} onClick={() => setActiveTab('overview')}>Review time entries</button>
+                    </div>
+                  ))}
+                  {clockOverlaps.map(o => (
+                    <div key={`overlap-${o.employeeId}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0' }}>
+                      <span style={{ color: '#fbbf24' }}>●</span>
+                      Overlapping clock-in/out for {o.employeeName} ({o.count} instance{o.count !== 1 ? 's' : ''})
+                      <button style={{ ...ghostBtn, padding: '2px 8px', fontSize: '11px' }} onClick={() => setActiveTab('overview')}>Review time entries</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
