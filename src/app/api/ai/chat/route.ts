@@ -154,6 +154,33 @@ const EMPLOYEE_TOOLS: Anthropic.Tool[] = [
   },
 ]
 
+// ─── Action transcript (JAY-37) ────────────────────────────────────────────────
+// The chat response previously discarded which tools actually ran — the client
+// could only render plain text, so the owner had to trust the prose summary
+// with no structured confirmation. Staged to the 2 highest-value mutating
+// tools first (approve_time_off, create_job_posting); expand only if this
+// measurably reduces "did that work?" follow-ups.
+export type ChatAction = { tool: string; title: string; detail: string }
+
+function buildAction(name: string, input: Record<string, unknown>, result: string): ChatAction | null {
+  if (name === 'approve_time_off' && !/^error|^could not find|^no pending/i.test(result)) {
+    const decision = String(input.decision ?? 'approved')
+    return {
+      tool: name,
+      title: decision === 'denied' ? 'Denied time off' : 'Approved time off',
+      detail: `${input.employee_name ?? 'Employee'}${input.dates ? ` — ${input.dates}` : ''}`,
+    }
+  }
+  if (name === 'create_job_posting' && !/^error/i.test(result)) {
+    return {
+      tool: name,
+      title: 'Job posting created',
+      detail: String(input.title ?? 'New role'),
+    }
+  }
+  return null
+}
+
 // ─── Tool execution ───────────────────────────────────────────────────────────
 
 function localTime(timezone: string): string {
@@ -385,6 +412,7 @@ export async function POST(req: NextRequest) {
   // Agentic loop — keep calling until no more tool calls
   let currentMessages: Anthropic.MessageParam[] = messages
   let finalText = ''
+  const actions: ChatAction[] = []
 
   for (let i = 0; i < 5; i++) {
     const response = await anthropic.messages.create({
@@ -407,8 +435,11 @@ export async function POST(req: NextRequest) {
       const toolResults: Anthropic.ToolResultBlockParam[] = []
 
       for (const tb of toolUseBlocks) {
-        const result = await executeTool(tb.name, tb.input as Record<string, unknown>, user.id, role, timezone)
+        const input = tb.input as Record<string, unknown>
+        const result = await executeTool(tb.name, input, user.id, role, timezone)
         toolResults.push({ type: 'tool_result', tool_use_id: tb.id, content: result })
+        const action = buildAction(tb.name, input, result)
+        if (action) actions.push(action)
       }
 
       currentMessages = [
@@ -422,5 +453,11 @@ export async function POST(req: NextRequest) {
     break
   }
 
-  return NextResponse.json({ reply: finalText || 'Sorry, I could not complete that request.' })
+  // JAY-36: when the tool loop caps out with nothing to say, don't leave the
+  // person at a dead end — point them to a person instead of just apologizing.
+  const fallback = role.isOwner
+    ? "Sorry, I couldn't complete that. You can make this change directly from the dashboard, or try rephrasing."
+    : "Sorry, I couldn't complete that. Your manager can help if this doesn't work here."
+
+  return NextResponse.json({ reply: finalText || fallback, actions })
 }

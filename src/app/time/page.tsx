@@ -104,6 +104,8 @@ export default function TimePage() {
 
   // Weekly view
   const [weekOffset, setWeekOffset] = useState(0)
+  // JAY-35: business-hours guardrail banner, dismissible per week
+  const [dismissedHoursWarningWeek, setDismissedHoursWarningWeek] = useState<number | null>(null)
   // Active shift pill (for inline action panel)
   const [activeShiftId, setActiveShiftId] = useState<number | null>(null)
   // Drag-and-drop
@@ -460,6 +462,20 @@ export default function TimePage() {
     })
   )
 
+  // JAY-35: shifts that fall outside the business's saved hours (or on a day marked
+  // closed). Passive, dismissable — business_hours is already used to clamp
+  // auto-generate/copy-last-week and to default the new-shift form, but a manually
+  // typed or edited shift can still land outside it with no signal today.
+  const outOfHoursShifts = weekDays.flatMap((dateStr, dayIdx) => {
+    const dayKey = DAY_KEYS[dayIdx]
+    const dayHours = bizHours?.[dayKey]
+    if (!dayHours) return []
+    return weekShifts
+      .filter(s => s.shift_date === dateStr && s.employee_id != null && s.status !== 'called_out')
+      .filter(s => dayHours.closed || s.start_time < dayHours.open || s.end_time > dayHours.close)
+      .map(s => ({ shift: s, dateStr, dayHours }))
+  })
+
   // Availability lookup — graying only applies to employees who have submitted availability
   // themselves. If this employee has zero rows at all, treat it as "no data" (don't gray any
   // of their cells) rather than assuming every day is unavailable.
@@ -745,6 +761,39 @@ export default function TimePage() {
                     {departments.length > 0 && <option value="dept">By department</option>}
                   </select>
                 </div>
+
+                {outOfHoursShifts.length > 0 && dismissedHoursWarningWeek !== weekOffset && (
+                  <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>⚠</span> Shift{outOfHoursShifts.length !== 1 ? 's' : ''} outside business hours
+                      </div>
+                      <button
+                        onClick={() => setDismissedHoursWarningWeek(weekOffset)}
+                        style={{ fontSize: '11px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {outOfHoursShifts.slice(0, 5).map(({ shift, dateStr, dayHours }) => {
+                        const emp = empMap[shift.employee_id!]
+                        const reason = dayHours.closed
+                          ? 'business is closed this day'
+                          : `outside ${fmt(dayHours.open)}–${fmt(dayHours.close)}`
+                        return (
+                          <div key={shift.id} style={{ fontSize: '12px', color: '#e2e8f0' }}>
+                            {emp?.name ?? 'Unknown'} — {fmtDate(dateStr)} {fmt(shift.start_time)}–{fmt(shift.end_time)} ({reason})
+                          </div>
+                        )
+                      })}
+                      {outOfHoursShifts.length > 5 && (
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>+{outOfHoursShifts.length - 5} more</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ minWidth: '560px' }}>
                   {/* Day header row */}
                   <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr) 52px', gap: '4px', marginBottom: '6px' }}>

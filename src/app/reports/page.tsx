@@ -56,12 +56,17 @@ export default function ReportsPage() {
   const [timeOff, setTimeOff] = useState<TimeOffRequest[]>([])
   const [payroll, setPayroll] = useState<PayrollEntry[]>([])
   const [exporting, setExporting] = useState(false)
+  // JAY-39: date-range picker — replaces the hardcoded 12-month window. Ship this
+  // alone first per the issue's own staged validation; drill-down is deliberately
+  // deferred until the picker itself sees real use.
+  const [rangeMonths, setRangeMonths] = useState(12)
 
   useEffect(() => {
+    setLoading(true)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { window.location.href = '/login'; return }
       const uid = session.user.id
-      const since = new Date(); since.setFullYear(since.getFullYear() - 1)
+      const since = new Date(); since.setMonth(since.getMonth() - rangeMonths)
 
       const [{ data: emps }, { data: ents }, { data: to }, { data: pay }] = await Promise.all([
         supabase.from('employees').select('id, name, role, status, start, pay_type, pay_rate, i9_status, w4_status, direct_deposit_status').eq('user_id', uid),
@@ -75,7 +80,7 @@ export default function ReportsPage() {
       setPayroll(pay ?? [])
       setLoading(false)
     })
-  }, [])
+  }, [rangeMonths])
 
   async function exportCSV() {
     setExporting(true)
@@ -165,11 +170,23 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Reports</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Last 12 months</div>
           </div>
-          <button style={ghostBtn} onClick={exportCSV} disabled={exporting}>
-            {exporting ? 'Preparing...' : '↓ Export data'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select
+              value={rangeMonths}
+              onChange={e => setRangeMonths(Number(e.target.value))}
+              style={{ fontSize: '13px', padding: '7px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              <option value={1}>Last month</option>
+              <option value={3}>Last 3 months</option>
+              <option value={6}>Last 6 months</option>
+              <option value={12}>Last 12 months</option>
+              <option value={24}>Last 24 months</option>
+            </select>
+            <button style={ghostBtn} onClick={exportCSV} disabled={exporting}>
+              {exporting ? 'Preparing...' : '↓ Export data'}
+            </button>
+          </div>
         </div>
 
         {/* KPI row */}

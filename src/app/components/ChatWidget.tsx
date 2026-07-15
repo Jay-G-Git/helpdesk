@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
-type Message = { role: 'user' | 'assistant'; content: string }
+type ChatAction = { tool: string; title: string; detail: string }
+type Message = { role: 'user' | 'assistant'; content: string; actions?: ChatAction[] }
+
+function ActionCard({ action }: { action: ChatAction }) {
+  return (
+    <div style={{
+      background: '#eaf3de', border: '0.5px solid rgba(99,153,34,0.3)', borderRadius: '10px',
+      padding: '7px 10px', marginBottom: '6px', marginLeft: '33px', maxWidth: '80%',
+    }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, color: '#3b6d11', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span>✓</span> {action.title}
+      </div>
+      <div style={{ fontSize: '11px', color: '#5a7a3a', marginTop: '1px' }}>{action.detail}</div>
+    </div>
+  )
+}
 
 const OWNER_SUGGESTIONS = [
   'List all my employees',
@@ -131,7 +146,7 @@ export default function ChatWidget() {
         }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? 'Something went wrong.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? 'Something went wrong.', actions: data.actions }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
     }
@@ -140,6 +155,8 @@ export default function ChatWidget() {
   }
 
   const suggestions = isOwner ? OWNER_SUGGESTIONS : EMPLOYEE_SUGGESTIONS
+  const usedSuggestions = new Set(messages.filter(m => m.role === 'user').map(m => m.content))
+  const remainingSuggestions = suggestions.filter(s => !usedSuggestions.has(s))
 
   return (
     <>
@@ -186,7 +203,12 @@ export default function ChatWidget() {
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
-            {messages.map((msg, i) => <Bubble key={i} msg={msg} />)}
+            {messages.map((msg, i) => (
+              <div key={i}>
+                {msg.actions?.map((a, j) => <ActionCard key={j} action={a} />)}
+                <Bubble msg={msg} />
+              </div>
+            ))}
 
             {/* Typing indicator */}
             {loading && (
@@ -200,10 +222,12 @@ export default function ChatWidget() {
               </div>
             )}
 
-            {/* Suggestion chips */}
-            {messages.length === 1 && !loading && isOwner !== null && (
+            {/* Suggestion chips — JAY-38: reappear after every assistant turn (not just
+                the first), filtered down to suggestions the person hasn't already used
+                this session so they stay "still actionable" instead of repeating. */}
+            {!loading && isOwner !== null && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && remainingSuggestions.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-                {suggestions.map(s => (
+                {remainingSuggestions.map(s => (
                   <button key={s} onClick={() => send(s)}
                     style={{
                       padding: '5px 11px', borderRadius: '999px', fontSize: '12px',
@@ -221,6 +245,13 @@ export default function ChatWidget() {
 
           {/* Input */}
           <div style={{ borderTop: '0.5px solid rgba(0,0,0,0.10)', background: '#fff', padding: '10px 12px', flexShrink: 0 }}>
+            {isOwner !== null && (
+              <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '7px' }}>
+                {isOwner
+                  ? 'Stuck? You can always make this change directly from the dashboard.'
+                  : 'Need a person? Contact your manager directly.'}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
               <textarea
                 ref={inputRef}

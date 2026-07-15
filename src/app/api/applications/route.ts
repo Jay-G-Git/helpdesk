@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin.from('job_applications').insert({
+  const { data: inserted, error } = await supabaseAdmin.from('job_applications').insert({
     job_posting_id,
     user_id: owner_id,
     name,
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     cover_letter: cover_letter || null,
     source: source || null,
     status: 'applied',
-  })
+  }).select('id').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -37,8 +37,13 @@ export async function POST(req: NextRequest) {
   })
 
   // Confirmation email to candidate — day-zero acknowledgment, no next-step promise.
-  // Best-effort: don't fail the application submission if the email send fails.
+  // JAY-41: also includes a link to the read-only status-check page so the
+  // candidate has a self-serve way to check in later instead of emailing the
+  // business. Best-effort: don't fail the application submission if the email
+  // send fails.
   try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.headers.get('origin') || 'http://localhost:3000'
+    const statusUrl = `${appUrl}/applications/${inserted?.id}`
     const resend = new Resend(process.env.RESEND_API_KEY)
     await resend.emails.send({
       from: 'Helpdesk <onboarding@resend.dev>',
@@ -47,7 +52,8 @@ export async function POST(req: NextRequest) {
       html: `
         <p>Hi ${name.split(' ')[0]},</p>
         <p>Thanks for applying to <strong>${jobTitle}</strong> at ${businessName}. We've received your application and it's in front of the hiring team now.</p>
-        <p>We'll be in touch if there's a next step.</p>
+        <p>We'll be in touch if there's a next step. You can also check your application status any time:</p>
+        <p><a href="${statusUrl}" style="display:inline-block;padding:10px 18px;background:#185fa5;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Check status</a></p>
         <p>— ${businessName}</p>
       `,
     })
@@ -55,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Non-fatal — application is already saved and owner is already notified.
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, id: inserted?.id })
 }
 
 // Owner: list applications

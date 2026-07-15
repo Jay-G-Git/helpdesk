@@ -29,9 +29,9 @@ describe('POST /api/applications (public)', () => {
     expect(res.status).toBe(500)
   })
 
-  it('creates the application, notifies the owner, and confirms receipt by email', async () => {
+  it('creates the application, notifies the owner, and confirms receipt by email with a status link', async () => {
     queueFromResponses(supabaseAdmin, [
-      { data: null, error: null }, // insert application
+      { data: { id: 42 }, error: null }, // insert application
       { data: { title: 'Cashier' }, error: null }, // job posting title lookup
       { data: { business_name: 'Joe\'s Diner' }, error: null }, // business profile lookup
       { data: null, error: null }, // notification insert
@@ -42,8 +42,10 @@ describe('POST /api/applications (public)', () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
+    expect(body.id).toBe(42)
     expect(sendMock).toHaveBeenCalledTimes(1)
     expect(sendMock.mock.calls[0][0]).toMatchObject({ to: 'jane@example.com', subject: expect.stringContaining('Cashier') })
+    expect(sendMock.mock.calls[0][0].html).toContain('/applications/42')
   })
 
   it('still succeeds if the confirmation email fails to send', async () => {

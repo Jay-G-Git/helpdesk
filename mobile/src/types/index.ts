@@ -44,3 +44,29 @@ export type TimeEntry = {
 // (007_roles.sql, 009_permissions.sql). Mobile gates the future admin
 // section on these, same as the web app's Nav/Settings pages.
 export type Role = 'owner' | 'admin' | 'manager' | 'employee'
+
+// JAY-40 — shapes returned by GET /api/dashboard/pending-approvals.
+export type PendingTimeOff = {
+  id: number
+  employee_name: string
+  start_date: string
+  end_date: string
+  type: string
+  reason: string | null
+}
+
+export type PendingSwap = {
+  id: number
+  requester_name: string
+  target_name: string | null
+  shift_date: string | null
+  created_at: string
+}
+
+export type PendingCallout = {
+  id: number
+  employee_name: string
+  employee_role: string | null
+  start_time: string
+  end_time: string
+}
