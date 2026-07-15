@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { business_name, address, timezone, contact_email, logo_url, business_hours, accountant_email, weekly_labor_budget_cents } = body
+  const { business_name, address, timezone, contact_email, logo_url, business_hours, accountant_email, weekly_labor_budget_cents, geofence_lat, geofence_lng, geofence_radius_m, require_clockin_photo } = body
 
   const { error } = await supabaseAdmin
     .from('business_profiles')
@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
       // from "$0 budget"; only written when the caller actually sent a value,
       // so unrelated saves (e.g. saveAccount, saveHours) never clobber it.
       ...(weekly_labor_budget_cents !== undefined ? { weekly_labor_budget_cents } : {}),
+      // JAY-18 — same "only write when actually sent" pattern as the labor
+      // budget above, so unrelated saves elsewhere in Settings don't clobber
+      // the geofence/photo-requirement configuration.
+      ...(geofence_lat !== undefined ? { geofence_lat } : {}),
+      ...(geofence_lng !== undefined ? { geofence_lng } : {}),
+      ...(geofence_radius_m !== undefined ? { geofence_radius_m } : {}),
+      ...(require_clockin_photo !== undefined ? { require_clockin_photo } : {}),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 

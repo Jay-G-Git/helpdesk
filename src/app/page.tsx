@@ -27,6 +27,8 @@ export type Employee = {
   pay_period: string
   // 'admin' | 'manager' | 'employee' — owners are identified by business_profiles row
   access_role: string
+  // JAY-13 — optional work-authorization reverification date
+  work_auth_expires_on: string | null
 }
 
 export type ActionType = 'onboarding' | 'checkin' | 'offboarding' | null

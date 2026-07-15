@@ -4,6 +4,9 @@ export type TimeOffRequest = {
   start_date: string
   end_date: string
   status: string
+  // JAY-9 — 'first_half' | 'second_half' | null. Only ever set on a
+  // single-day request (start_date === end_date); ignored otherwise.
+  portion?: string | null
 }
 
 export type PTOBalance = {
@@ -14,10 +17,12 @@ export type PTOBalance = {
 
 /**
  * Count calendar days between two ISO date strings (inclusive on both ends).
+ * JAY-9 — a single-day request with a half-day portion counts as 0.5 days.
  */
-export function daysBetween(startDate: string, endDate: string): number {
+export function daysBetween(startDate: string, endDate: string, portion?: string | null): number {
   const start = new Date(startDate + 'T00:00:00')
   const end = new Date(endDate + 'T00:00:00')
+  if (startDate === endDate && (portion === 'first_half' || portion === 'second_half')) return 0.5
   return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
 }
 
@@ -31,7 +36,7 @@ export function calcPTOBalance(
 ): PTOBalance {
   const used = requests
     .filter(r => r.status === 'approved')
-    .reduce((sum, r) => sum + daysBetween(r.start_date, r.end_date), 0)
+    .reduce((sum, r) => sum + daysBetween(r.start_date, r.end_date, r.portion), 0)
 
   return {
     total: totalDays,

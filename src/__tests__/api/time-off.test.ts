@@ -69,4 +69,43 @@ describe('POST /api/employee/time-off', () => {
     expect(res.status).toBe(500)
     expect(fromMock).not.toHaveBeenCalledWith('notifications')
   })
+
+  // JAY-9 — partial-day time-off requests.
+  it('stores a valid portion on a single-day request', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 1, user_id: 'u1', name: 'Jane' }, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+    ])
+    const res = await POST(mockRequest({
+      token: 'good',
+      body: { startDate: '2026-07-10', endDate: '2026-07-10', type: 'PTO', portion: 'first_half' },
+    }) as never)
+    expect(res.status).toBe(200)
+  })
+
+  it('drops the portion when the request spans multiple days', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 1, user_id: 'u1', name: 'Jane' }, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+    ])
+    const res = await POST(mockRequest({
+      token: 'good',
+      body: { startDate: '2026-07-10', endDate: '2026-07-12', type: 'PTO', portion: 'first_half' },
+    }) as never)
+    expect(res.status).toBe(200)
+  })
+
+  it('returns 400 for an invalid portion value on a single-day request', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [{ data: { id: 1, user_id: 'u1', name: 'Jane' }, error: null }])
+    const res = await POST(mockRequest({
+      token: 'good',
+      body: { startDate: '2026-07-10', endDate: '2026-07-10', type: 'PTO', portion: 'lunchtime' },
+    }) as never)
+    expect(res.status).toBe(400)
+  })
 })

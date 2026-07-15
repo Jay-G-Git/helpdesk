@@ -49,4 +49,30 @@ describe('GET /api/employee/pto-balance', () => {
     const body = await res.json()
     expect(body.balance.remaining).toBe(0)
   })
+
+  // JAY-9 — a single-day request with a half-day portion counts as 0.5 days.
+  it('counts a half-day portion request as 0.5 days used', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [
+      { data: [{ id: 1, name: 'Jane', pto_days_per_year: 10 }], error: null },
+      { data: [{ start_date: '2026-07-10', end_date: '2026-07-10', portion: 'first_half' }], error: null },
+    ])
+    const res = await GET(mockRequest({ token: 'good-token' }) as never)
+    const body = await res.json()
+    expect(body).toEqual({ balance: { total: 10, used: 0.5, remaining: 9.5 } })
+  })
+
+  it('mixes half-day and full-day requests correctly', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [
+      { data: [{ id: 1, name: 'Jane', pto_days_per_year: 10 }], error: null },
+      { data: [
+        { start_date: '2026-07-10', end_date: '2026-07-10', portion: 'second_half' },
+        { start_date: '2026-08-01', end_date: '2026-08-02', portion: null },
+      ], error: null },
+    ])
+    const res = await GET(mockRequest({ token: 'good-token' }) as never)
+    const body = await res.json()
+    expect(body.balance.used).toBe(2.5)
+  })
 })

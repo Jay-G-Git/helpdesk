@@ -11,6 +11,12 @@ type Props = {
   welcomePackSent: boolean
   documentsSigned: boolean
   onUpdate: (field: 'i9_status' | 'w4_status' | 'direct_deposit_status', value: string) => void
+  // JAY-13 — optional work-authorization reverification date, only relevant
+  // for employees with time-limited work authorization (visas, EADs). Most
+  // employees will never have this set, which is fine — it's opt-in per
+  // employee, not a required field.
+  workAuthExpiresOn?: string | null
+  onUpdateExpiration?: (value: string | null) => void
 }
 
 type Item = {
@@ -22,9 +28,15 @@ type Item = {
 }
 
 export default function ComplianceChecklist({
-  employeeId, i9Status, w4Status, directDepositStatus, welcomePackSent, documentsSigned, onUpdate
+  employeeId, i9Status, w4Status, directDepositStatus, welcomePackSent, documentsSigned, onUpdate,
+  workAuthExpiresOn, onUpdateExpiration,
 }: Props) {
   const [saving, setSaving] = useState<string | null>(null)
+  // JAY-13 — inline editor for the expiration date, mirroring the "edit one
+  // field, save immediately" pattern markManually already uses below.
+  const [editingExpiration, setEditingExpiration] = useState(false)
+  const [expirationDraft, setExpirationDraft] = useState(workAuthExpiresOn ?? '')
+  const [savingExpiration, setSavingExpiration] = useState(false)
 
   async function markManually(field: 'i9_status' | 'w4_status' | 'direct_deposit_status', current: string) {
     const next = current === 'complete' ? 'pending' : 'complete'
@@ -33,6 +45,23 @@ export default function ComplianceChecklist({
     onUpdate(field, next)
     setSaving(null)
   }
+
+  async function saveExpiration() {
+    setSavingExpiration(true)
+    const value = expirationDraft.trim() || null
+    await supabase.from('employees').update({ work_auth_expires_on: value }).eq('id', employeeId)
+    onUpdateExpiration?.(value)
+    setSavingExpiration(false)
+    setEditingExpiration(false)
+  }
+
+  // Advisory only — surfaced here and on the Dashboard needs-attention card,
+  // never blocks anything (unlike an actual legal reverification deadline,
+  // which requires a human to act, not the app to lock someone out).
+  const daysUntilExpiration = workAuthExpiresOn
+    ? Math.ceil((new Date(workAuthExpiresOn + 'T00:00:00').getTime() - Date.now()) / 86400000)
+    : null
+  const expirationSoon = daysUntilExpiration !== null && daysUntilExpiration <= 90
 
   const items: Item[] = [
     {
@@ -127,6 +156,50 @@ export default function ComplianceChecklist({
           </div>
         ))}
       </div>
+
+      {/* JAY-13 — work-authorization reverification date. Only meaningful once
+          I-9 is complete; opt-in per employee (most won't have time-limited
+          authorization at all), so this stays collapsed unless a date is
+          already set or the owner explicitly adds one. */}
+      {i9Status === 'complete' && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f0f0f0' }}>
+          {editingExpiration ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="date"
+                value={expirationDraft}
+                onChange={e => setExpirationDraft(e.target.value)}
+                style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #d0d5e8' }}
+              />
+              <button
+                onClick={saveExpiration}
+                disabled={savingExpiration}
+                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: 'none', background: '#185fa5', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+              >
+                {savingExpiration ? '...' : 'Save'}
+              </button>
+              <button
+                onClick={() => { setEditingExpiration(false); setExpirationDraft(workAuthExpiresOn ?? '') }}
+                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #d0d5e8', background: '#fff', color: '#555', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : workAuthExpiresOn ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+              <span style={{ color: expirationSoon ? '#c0392b' : '#666' }}>
+                Work authorization expires: {new Date(workAuthExpiresOn + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {expirationSoon && ` (${daysUntilExpiration! < 0 ? 'expired' : `${daysUntilExpiration} days`})`}
+              </span>
+              <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              + Add work authorization expiration date
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

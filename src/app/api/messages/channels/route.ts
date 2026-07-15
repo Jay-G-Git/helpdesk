@@ -59,7 +59,35 @@ export async function GET(req: NextRequest) {
     dmEmpIds = [myEmployeeId!]
   }
 
-  const channelIds = ['general', ...dmEmpIds.map(id => `dm_emp_${id}`)]
+  // JAY-19 — custom group channels, in addition to 'general' and DMs. Owners
+  // see every group for their business; employees only see groups they were
+  // added to as a member.
+  const groupNameMap: Record<number, string> = {}
+  let groupIds: number[] = []
+
+  if (isOwner) {
+    const { data: groups } = await supabaseAdmin
+      .from('chat_channel_groups')
+      .select('id, name')
+      .eq('user_id', businessId)
+      .order('created_at')
+    for (const g of groups ?? []) { groupNameMap[g.id] = g.name; groupIds.push(g.id) }
+  } else {
+    const { data: memberships } = await supabaseAdmin
+      .from('chat_channel_group_members')
+      .select('group_id, chat_channel_groups!inner(id, name, user_id)')
+      .eq('employee_id', myEmployeeId!)
+
+    type Membership = { group_id: number; chat_channel_groups: { id: number; name: string; user_id: string } | { id: number; name: string; user_id: string }[] }
+    for (const m of (memberships ?? []) as Membership[]) {
+      const g = Array.isArray(m.chat_channel_groups) ? m.chat_channel_groups[0] : m.chat_channel_groups
+      if (!g || g.user_id !== businessId) continue
+      groupNameMap[g.id] = g.name
+      groupIds.push(g.id)
+    }
+  }
+
+  const channelIds = ['general', ...dmEmpIds.map(id => `dm_emp_${id}`), ...groupIds.map(id => `group_${id}`)]
 
   // Fetch last message for each channel
   const lastMsgResults = await Promise.all(
@@ -134,6 +162,10 @@ export async function GET(req: NextRequest) {
     if (ch === 'general') {
       name = 'General'
       type = 'group'
+    } else if (ch.startsWith('group_')) {
+      type = 'group'
+      const groupId = parseInt(ch.replace('group_', ''), 10)
+      name = groupNameMap[groupId] ?? 'Group'
     } else {
       type = 'dm'
       empId = parseInt(ch.replace('dm_emp_', ''), 10)

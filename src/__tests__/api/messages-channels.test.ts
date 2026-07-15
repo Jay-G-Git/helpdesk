@@ -18,6 +18,7 @@ describe('GET /api/messages/channels', () => {
     queueFromResponses(supabaseAdmin, [
       { data: null, error: null }, // business_profiles lookup — not an owner
       { data: { id: 5, user_id: 'owner-1', name: 'Jordan Taylor' }, error: null }, // employee record (this is "me")
+      { data: [], error: null }, // JAY-19 — chat_channel_group_members lookup (no group memberships)
       { data: null, error: null }, // last message: general
       { data: null, error: null }, // last message: dm_emp_5
       { data: null, error: null }, // read receipt: general

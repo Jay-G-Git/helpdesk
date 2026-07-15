@@ -19,5 +19,23 @@ export async function GET(req: NextRequest) {
 
   if (!employee) return NextResponse.json({ error: 'Access revoked.' }, { status: 403 })
 
-  return NextResponse.json({ employee })
+  // JAY-18 — clock-in trust package settings, read alongside the employee's
+  // own profile (already fetched on every portal load) rather than a
+  // separate round-trip. Geofence is advisory-only client-side; the photo
+  // requirement is enforced server-side in clock-in/route.ts regardless of
+  // whether the client actually honors this flag.
+  const { data: biz } = await supabaseAdmin
+    .from('business_profiles')
+    .select('geofence_lat, geofence_lng, geofence_radius_m, require_clockin_photo')
+    .eq('user_id', employee.user_id)
+    .maybeSingle()
+
+  const verification = {
+    requireClockinPhoto: biz?.require_clockin_photo ?? false,
+    geofence: biz?.geofence_lat != null && biz?.geofence_lng != null && biz?.geofence_radius_m != null
+      ? { lat: biz.geofence_lat, lng: biz.geofence_lng, radiusM: biz.geofence_radius_m }
+      : null,
+  }
+
+  return NextResponse.json({ employee, verification })
 }

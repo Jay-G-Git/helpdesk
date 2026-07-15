@@ -119,6 +119,8 @@ export default function Dashboard({
   const [upcomingInterviews, setUpcomingInterviews] = useState<{ id: number; name: string; interview_at: string }[]>([])
   const [missingPayRateEmps, setMissingPayRateEmps] = useState<{ id: number; name: string }[]>([])
   const [draftRunCount, setDraftRunCount] = useState(0)
+  // JAY-13 — employees whose work authorization expires within 90 days.
+  const [workAuthExpiringEmps, setWorkAuthExpiringEmps] = useState<{ id: number; name: string; work_auth_expires_on: string }[]>([])
 
   // UI state
   const [showAddForm, setShowAddForm] = useState(false)
@@ -181,17 +183,24 @@ export default function Dashboard({
     const now = new Date()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
+    // JAY-13 — advisory window; matches the ticket's own mockup ("expires within 90 days").
+    const in90d = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    const [{ data: apps }, { data: interviews }, { data: emps }, { count: draftCount }] = await Promise.all([
+    const [{ data: apps }, { data: interviews }, { data: emps }, { count: draftCount }, { data: workAuthEmps }] = await Promise.all([
       supabase.from('job_applications').select('id, name, created_at').eq('user_id', uid).eq('status', 'applied').gte('created_at', weekAgo),
       supabase.from('job_applications').select('id, name, interview_at').eq('user_id', uid).not('interview_at', 'is', null).gte('interview_at', now.toISOString()).lte('interview_at', in48h),
       supabase.from('employees').select('id, name').eq('user_id', uid).eq('status', 'active').is('pay_rate', null),
       supabase.from('payroll_runs').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('status', 'draft'),
+      supabase.from('employees').select('id, name, work_auth_expires_on').eq('user_id', uid).eq('status', 'active').not('work_auth_expires_on', 'is', null).lte('work_auth_expires_on', in90d).order('work_auth_expires_on'),
     ])
     setNewApplicants(apps ?? [])
     setUpcomingInterviews(interviews ?? [])
     setMissingPayRateEmps(emps ?? [])
     setDraftRunCount(draftCount ?? 0)
+    // Include already-expired too (lte in90d catches those), but the query
+    // doesn't filter out the past — that's intentional, an expired
+    // reverification is even more urgent than one that's merely upcoming.
+    setWorkAuthExpiringEmps((workAuthEmps ?? []).filter(e => e.work_auth_expires_on) as { id: number; name: string; work_auth_expires_on: string }[])
   }
 
   async function loadOperationalData() {
@@ -361,6 +370,7 @@ export default function Dashboard({
       status: 'active', i9_status: 'pending', w4_status: 'pending',
       direct_deposit_status: 'pending', pay_type: 'hourly', pay_rate: null,
       pay_period: 'biweekly', access_role: 'employee',
+      work_auth_expires_on: null,
     })
     setNewName(''); setNewRole(''); setNewStart(''); setNewType('Full-time'); setNewPhone(''); setNewEmail('')
     setShowAddForm(false)
@@ -370,7 +380,7 @@ export default function Dashboard({
   // Derived values
   const clockedInIds = new Set(clockedInEntries.map(c => c.employee_id))
   const todayCallouts = todayShifts.filter(s => s.status === 'called_out')
-  const hiringPayrollCount = newApplicants.length + upcomingInterviews.length + missingPayRateEmps.length + draftRunCount
+  const hiringPayrollCount = newApplicants.length + upcomingInterviews.length + missingPayRateEmps.length + draftRunCount + workAuthExpiringEmps.length
   const pendingCount = timeOffRequests.length + pendingSwaps.length + todayCallouts.length + hiringPayrollCount
   const activeEmployees = employees.filter(e => !e.status || e.status === 'active')
 
@@ -571,6 +581,29 @@ export default function Dashboard({
                   </div>
                   <span style={s.pill('rgba(251,191,36,0.15)', '#fbbf24')}>Payroll</span>
                   <a href="/payroll" style={s.btnReview}>Review</a>
+                </div>
+              )}
+
+              {/* JAY-13 — work authorization reverification deadlines, advisory
+                  only (never blocks anything automatically — a human has to
+                  actually act on a reverification). */}
+              {workAuthExpiringEmps.length > 0 && (
+                <div style={s.row}>
+                  <div style={s.avatar('rgba(220,38,38,0.15)', '#f87171')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>
+                      {workAuthExpiringEmps.length === 1
+                        ? `${workAuthExpiringEmps[0].name}'s work authorization expires within 90 days`
+                        : `${workAuthExpiringEmps.length} employees' work authorization expires within 90 days`}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {workAuthExpiringEmps.map(e => e.name).join(', ')}
+                    </div>
+                  </div>
+                  <span style={s.pill('rgba(220,38,38,0.15)', '#f87171')}>Compliance</span>
+                  <a href={`/employees/${workAuthExpiringEmps[0].id}`} style={s.btnReview}>Review</a>
                 </div>
               )}
             </div>

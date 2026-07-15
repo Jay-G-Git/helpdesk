@@ -11,7 +11,7 @@ type OpenShift = { id: number; shift_date: string; start_time: string; end_time:
 type CoworkerShift = { id: number; employee_id: number; employee_name: string; shift_date: string; start_time: string; end_time: string }
 type SwapRequest = { id: number; requester_shift_id: number; target_shift_id: number | null; target_employee_id: number | null; status: string; notes: string | null; created_at: string }
 type TimeEntry = { id: number; clock_in: string; clock_out: string | null; total_minutes: number | null }
-type TimeOffRequest = { id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string }
+type TimeOffRequest = { id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string; portion?: string | null }
 type PTOBalance = { total: number; used: number; remaining: number }
 type Announcement = { id: number; title: string; message: string; created_at: string }
 
@@ -61,6 +61,16 @@ export default function PortalPage() {
   const [clockOutNote, setClockOutNote] = useState('')
   const [ticker, setTicker] = useState(0)
 
+  // JAY-18 — clock-in trust package: geofence is advisory-only (shown, never
+  // blocks); the photo requirement, when the owner has it on, is enforced
+  // here client-side as a UX nicety and again server-side as the real gate.
+  const [verification, setVerification] = useState<{ requireClockinPhoto: boolean; geofence: { lat: number; lng: number; radiusM: number } | null }>({ requireClockinPhoto: false, geofence: null })
+  const [clockInPhotoFile, setClockInPhotoFile] = useState<File | null>(null)
+  const [clockInPhotoPreview, setClockInPhotoPreview] = useState<string | null>(null)
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'ok' | 'denied' | 'unavailable'>('idle')
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const clockInPhotoInputRef = useRef<HTMLInputElement>(null)
+
   // PTO form
   const [showTOForm, setShowTOForm] = useState(false)
   const [toStart, setToStart] = useState('')
@@ -68,6 +78,9 @@ export default function PortalPage() {
   const [toType, setToType] = useState('PTO')
   const [toReason, setToReason] = useState('')
   const [toSaving, setToSaving] = useState(false)
+  // JAY-9 — 'full' | 'first_half' | 'second_half'; only meaningful (and only
+  // shown) when toStart === toEnd, a single-day request.
+  const [toPortion, setToPortion] = useState<'full' | 'first_half' | 'second_half'>('full')
 
   // Swap form
   const [swapShiftId, setSwapShiftId] = useState<number | null>(null)
@@ -139,6 +152,7 @@ export default function PortalPage() {
     if (!me.employee) { window.location.href = '/'; return }
 
     setEmployee(me.employee)
+    if (me.verification) setVerification(me.verification)
     if (onboard?.token) {
       setOnboardingToken(onboard.token)
       // Auto-open once per session
@@ -288,12 +302,51 @@ export default function PortalPage() {
     setTimeout(() => chatInputRef.current?.focus(), 50)
   }
 
+  // JAY-18 — best-effort geolocation, never blocks clock-in. Only attempted
+  // when a geofence is actually configured, so employees at businesses that
+  // haven't opted in never see a location permission prompt at all.
+  function requestGeolocation() {
+    if (!verification.geofence || !navigator.geolocation) { setGeoStatus('unavailable'); return }
+    setGeoStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      pos => { setGeoCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoStatus('ok') },
+      () => setGeoStatus('denied'),
+      { timeout: 8000 }
+    )
+  }
+
   async function clockIn() {
+    if (verification.requireClockinPhoto && !clockInPhotoFile) {
+      showToast('A clock-in photo is required.', 'error')
+      return
+    }
     setClockLoading(true)
-    const res = await fetch('/api/employee/clock-in', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+
+    let photoUrl: string | null = null
+    if (clockInPhotoFile) {
+      const form = new FormData()
+      form.append('file', clockInPhotoFile)
+      form.append('businessId', chatBusinessId)
+      const uploadRes = await fetch('/api/messages/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) { showToast(uploadData.error ?? 'Photo upload failed.', 'error'); setClockLoading(false); return }
+      photoUrl = uploadData.url
+    }
+
+    const res = await fetch('/api/employee/clock-in', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(geoCoords ? { lat: geoCoords.lat, lng: geoCoords.lng } : {}),
+        ...(photoUrl ? { photoUrl } : {}),
+      }),
+    })
     const data = await res.json()
-    if (res.ok) { setCurrentEntry(data.entry); showToast('Clocked in!', 'success') }
-    else showToast(data.error ?? 'Error', 'error')
+    if (res.ok) {
+      setCurrentEntry(data.entry)
+      showToast('Clocked in!', 'success')
+      setClockInPhotoFile(null); setClockInPhotoPreview(null); setGeoCoords(null); setGeoStatus('idle')
+    } else showToast(data.error ?? 'Error', 'error')
     setClockLoading(false)
   }
 
@@ -316,13 +369,14 @@ export default function PortalPage() {
   async function submitTimeOff() {
     if (!toStart || !toEnd) return
     setToSaving(true)
+    const portion = toStart === toEnd && toPortion !== 'full' ? toPortion : undefined
     const res = await fetch('/api/employee/time-off', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ startDate: toStart, endDate: toEnd, type: toType, reason: toReason }),
+      body: JSON.stringify({ startDate: toStart, endDate: toEnd, type: toType, reason: toReason, portion }),
     })
     if (res.ok) {
-      showToast('Request submitted.', 'success'); setToStart(''); setToEnd(''); setToReason(''); setShowTOForm(false)
+      showToast('Request submitted.', 'success'); setToStart(''); setToEnd(''); setToReason(''); setToPortion('full'); setShowTOForm(false)
       const toRes = await fetch('/api/employee/time-off', { headers: { Authorization: `Bearer ${token}` } })
       const toData = await toRes.json(); setTimeOffRequests(toData.requests ?? [])
     } else {
@@ -710,22 +764,72 @@ export default function PortalPage() {
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                  <div>
-                    <div style={{ fontSize: '13px', color: '#888', marginBottom: '2px' }}>
-                      {todayShift
-                        ? `Today: ${fmt(todayShift.start_time)} – ${fmt(todayShift.end_time)}`
-                        : 'No shift scheduled today'}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#888', marginBottom: '2px' }}>
+                        {todayShift
+                          ? `Today: ${fmt(todayShift.start_time)} – ${fmt(todayShift.end_time)}`
+                          : 'No shift scheduled today'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#bbb' }}>Ready to start your shift?</div>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#bbb' }}>Ready to start your shift?</div>
+                    <button
+                      onClick={clockIn}
+                      disabled={clockLoading || (verification.requireClockinPhoto && !clockInPhotoFile)}
+                      style={{ padding: '11px 28px', borderRadius: '9px', border: 'none', background: '#185fa5', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap', opacity: verification.requireClockinPhoto && !clockInPhotoFile ? 0.5 : 1 }}
+                    >
+                      {clockLoading ? 'Clocking in...' : 'Clock in'}
+                    </button>
                   </div>
-                  <button
-                    onClick={clockIn}
-                    disabled={clockLoading}
-                    style={{ padding: '11px 28px', borderRadius: '9px', border: 'none', background: '#185fa5', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    {clockLoading ? 'Clocking in...' : 'Clock in'}
-                  </button>
+
+                  {/* JAY-18 — geofence is advisory-only: shown so the employee knows
+                      location is being recorded, never blocks clock-in. Requested once
+                      on mount, not on every render. */}
+                  {verification.geofence && (
+                    <div style={{ marginTop: '0.75rem', fontSize: '11px', color: '#94a3b8' }}>
+                      {geoStatus === 'idle' && (
+                        <button onClick={requestGeolocation} style={{ background: 'none', border: 'none', color: '#185fa5', fontSize: '11px', cursor: 'pointer', padding: 0 }}>📍 Verify your location</button>
+                      )}
+                      {geoStatus === 'locating' && '📍 Verifying you\'re on-site…'}
+                      {geoStatus === 'ok' && '📍 Location recorded.'}
+                      {geoStatus === 'denied' && '📍 Location unavailable (permission denied) — clock-in still works.'}
+                      {geoStatus === 'unavailable' && '📍 Location not supported on this device.'}
+                    </div>
+                  )}
+
+                  {/* JAY-18 — photo capture; required to enable Clock in only when the
+                      owner has turned "Require photo at clock-in" on in Settings. */}
+                  {(verification.requireClockinPhoto || clockInPhotoPreview) && (
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f0f0f0' }}>
+                      <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '6px' }}>
+                        {verification.requireClockinPhoto ? 'Photo required at clock-in' : 'Add a photo (optional)'}
+                      </label>
+                      <input
+                        ref={clockInPhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null
+                          setClockInPhotoFile(file)
+                          setClockInPhotoPreview(file ? URL.createObjectURL(file) : null)
+                        }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {clockInPhotoPreview && (
+                          <img src={clockInPhotoPreview} alt="Clock-in preview" style={{ width: 44, height: 44, borderRadius: '8px', objectFit: 'cover', border: '1px solid #ddd' }} />
+                        )}
+                        <button
+                          onClick={() => clockInPhotoInputRef.current?.click()}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', color: '#333', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                        >
+                          {clockInPhotoFile ? 'Retake photo' : 'Take photo'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -899,13 +1003,27 @@ export default function PortalPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '0.65rem' }}>
                     <div>
                       <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>From</label>
-                      <input type="date" value={toStart} onChange={e => setToStart(e.target.value)} style={{ width: '100%', fontSize: '13px', padding: '7px 8px', border: '1px solid #dde1ea', borderRadius: '7px' }} />
+                      <input type="date" value={toStart} onChange={e => { setToStart(e.target.value); if (e.target.value !== toEnd) setToPortion('full') }} style={{ width: '100%', fontSize: '13px', padding: '7px 8px', border: '1px solid #dde1ea', borderRadius: '7px' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>To</label>
-                      <input type="date" value={toEnd} onChange={e => setToEnd(e.target.value)} min={toStart} style={{ width: '100%', fontSize: '13px', padding: '7px 8px', border: '1px solid #dde1ea', borderRadius: '7px' }} />
+                      <input type="date" value={toEnd} onChange={e => { setToEnd(e.target.value); if (e.target.value !== toStart) setToPortion('full') }} min={toStart} style={{ width: '100%', fontSize: '13px', padding: '7px 8px', border: '1px solid #dde1ea', borderRadius: '7px' }} />
                     </div>
                   </div>
+                  {/* JAY-9 — half-day portion only makes sense for a single-day request */}
+                  {toStart && toEnd && toStart === toEnd && (
+                    <div style={{ marginBottom: '0.65rem' }}>
+                      <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Portion</label>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        {([['full', 'Full day'], ['first_half', 'First half'], ['second_half', 'Second half']] as const).map(([val, label]) => (
+                          <label key={val} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: '#333', cursor: 'pointer' }}>
+                            <input type="radio" name="toPortion" checked={toPortion === val} onChange={() => setToPortion(val)} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ marginBottom: '0.65rem' }}>
                     <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Type</label>
                     <select value={toType} onChange={e => setToType(e.target.value)} style={{ width: '100%', fontSize: '13px', padding: '7px 8px', border: '1px solid #dde1ea', borderRadius: '7px' }}>
@@ -937,7 +1055,7 @@ export default function PortalPage() {
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: 500 }}>{r.type}</div>
-                        <div style={{ fontSize: '11px', color: '#aaa', marginTop: '1px' }}>{fmtDate(r.start_date)} – {fmtDate(r.end_date)}</div>
+                        <div style={{ fontSize: '11px', color: '#aaa', marginTop: '1px' }}>{fmtDate(r.start_date)} – {fmtDate(r.end_date)}{r.start_date === r.end_date && (r.portion === 'first_half' || r.portion === 'second_half') ? ` (${r.portion === 'first_half' ? 'first half' : 'second half'})` : ''}</div>
                       </div>
                       <span style={{ fontSize: '11px', fontWeight: 600, color: statusColor[r.status as keyof typeof statusColor] ?? '#888', textTransform: 'capitalize' }}>{r.status}</span>
                     </div>

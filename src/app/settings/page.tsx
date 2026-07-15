@@ -121,6 +121,16 @@ function SettingsContent() {
   const [laborBudget, setLaborBudget] = useState('')
   const [budgetSaving, setBudgetSaving] = useState(false)
 
+  // JAY-18 — clock-in trust package: geofence center entered manually (no
+  // geocoding integration in this environment) plus an optional required-photo
+  // toggle. Radius is stored in meters but shown to the owner in miles, since
+  // that's the unit people actually think in for "how far from the store."
+  const [geofenceLat, setGeofenceLat] = useState('')
+  const [geofenceLng, setGeofenceLng] = useState('')
+  const [geofenceRadiusMi, setGeofenceRadiusMi] = useState('')
+  const [requireClockinPhoto, setRequireClockinPhoto] = useState(false)
+  const [clockinTrustSaving, setClockinTrustSaving] = useState(false)
+
   // Account
   const [bizName, setBizName] = useState('')
   const [address, setAddress] = useState('')
@@ -215,6 +225,11 @@ function SettingsContent() {
       setAccountantEmail(bizData.profile.accountant_email ?? '')
       if (bizData.profile.business_hours) setBizHours(bizData.profile.business_hours)
       if (bizData.profile.weekly_labor_budget_cents != null) setLaborBudget((bizData.profile.weekly_labor_budget_cents / 100).toString())
+      // JAY-18
+      if (bizData.profile.geofence_lat != null) setGeofenceLat(String(bizData.profile.geofence_lat))
+      if (bizData.profile.geofence_lng != null) setGeofenceLng(String(bizData.profile.geofence_lng))
+      if (bizData.profile.geofence_radius_m != null) setGeofenceRadiusMi((bizData.profile.geofence_radius_m / 1609.34).toFixed(2))
+      setRequireClockinPhoto(!!bizData.profile.require_clockin_photo)
     }
 
     if (tmplRes.data?.fields?.length) setFields(tmplRes.data.fields)
@@ -334,6 +349,27 @@ function SettingsContent() {
     })
     showToast(res.ok ? 'Saved.' : 'Error saving.', res.ok ? 'success' : 'error')
     setBudgetSaving(false)
+  }
+
+  // JAY-18 — saved separately, same "own save button" pattern as the labor
+  // budget above. Clearing lat/lng/radius disables the geofence entirely
+  // (employee/me/route.ts only returns a geofence when all three are set).
+  async function saveClockinTrust() {
+    setClockinTrustSaving(true)
+    const lat = geofenceLat.trim() === '' ? null : parseFloat(geofenceLat)
+    const lng = geofenceLng.trim() === '' ? null : parseFloat(geofenceLng)
+    const radiusM = geofenceRadiusMi.trim() === '' ? null : Math.round(parseFloat(geofenceRadiusMi) * 1609.34)
+    const res = await fetch('/api/settings/business', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        business_name: bizName, address, timezone, contact_email: contactEmail,
+        geofence_lat: lat, geofence_lng: lng, geofence_radius_m: radiusM,
+        require_clockin_photo: requireClockinPhoto,
+      }),
+    })
+    showToast(res.ok ? 'Saved.' : 'Error saving.', res.ok ? 'success' : 'error')
+    setClockinTrustSaving(false)
   }
 
   async function saveTemplate() {
@@ -610,6 +646,40 @@ function SettingsContent() {
                 </div>
                 <button className="btn auth-btn-primary" onClick={saveLaborBudget} disabled={budgetSaving} style={{ marginTop: '1rem', width: 'auto' }}>
                   {budgetSaving ? 'Saving...' : 'Save budget'}
+                </button>
+              </div>
+
+              {/* JAY-18 — geofence is informational only (never blocks a clock-in);
+                  the photo toggle, when on, is enforced server-side. No geocoding
+                  integration here — the owner enters coordinates manually. */}
+              <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid #f0f0f0' }}>
+                <div className="section-label" style={{ marginBottom: '0.25rem' }}>Clock-in verification</div>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                  Optional. A geofence shows employees a location check at clock-in — it's advisory only and never blocks anyone from clocking in. Requiring a photo does block clock-in until one is taken.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', maxWidth: '480px', marginBottom: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Latitude</label>
+                    <input type="number" step="any" value={geofenceLat} onChange={e => setGeofenceLat(e.target.value)} placeholder="e.g. 40.7128" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Longitude</label>
+                    <input type="number" step="any" value={geofenceLng} onChange={e => setGeofenceLng(e.target.value)} placeholder="e.g. -74.0060" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Radius (miles)</label>
+                    <input type="number" min="0" step="0.1" value={geofenceRadiusMi} onChange={e => setGeofenceRadiusMi(e.target.value)} placeholder="e.g. 0.25" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '1rem' }}>
+                  Tip: search your business address on Google Maps, right-click the pin, and copy the coordinates shown.
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#333', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={requireClockinPhoto} onChange={e => setRequireClockinPhoto(e.target.checked)} />
+                  Require a photo at clock-in
+                </label>
+                <button className="btn auth-btn-primary" onClick={saveClockinTrust} disabled={clockinTrustSaving} style={{ marginTop: '1rem', width: 'auto' }}>
+                  {clockinTrustSaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>

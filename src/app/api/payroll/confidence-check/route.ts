@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
 
   const { data: paidTimeOffRows } = await supabaseAdmin
     .from('time_off_requests')
-    .select('employee_id, start_date, end_date, type')
+    .select('employee_id, start_date, end_date, type, portion')
     .eq('user_id', user.id)
     .eq('status', 'approved')
     .in('type', PAID_TIME_OFF_TYPES)
@@ -164,9 +164,12 @@ export async function GET(req: NextRequest) {
     const rangeEnd = req.end_date < periodEnd ? req.end_date : periodEnd
     let cursor = new Date(rangeStart + 'T00:00:00')
     const end = new Date(rangeEnd + 'T00:00:00')
+    // JAY-9 — half-day portion halves the hours for that single day.
+    const isHalfDay = req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')
     while (cursor <= end) {
       const dateStr = cursor.toISOString().slice(0, 10)
-      paidTimeOffHours += shiftHoursByEmpDate.get(`${req.employee_id}_${dateStr}`) ?? DEFAULT_PTO_HOURS_PER_DAY
+      const dayHours = shiftHoursByEmpDate.get(`${req.employee_id}_${dateStr}`) ?? DEFAULT_PTO_HOURS_PER_DAY
+      paidTimeOffHours += isHalfDay ? dayHours / 2 : dayHours
       cursor.setDate(cursor.getDate() + 1)
     }
   }

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data: requests } = await supabaseAdmin
     .from('time_off_requests')
-    .select('id, start_date, end_date, type, reason, status, created_at')
+    .select('id, start_date, end_date, type, reason, status, created_at, portion')
     .eq('employee_id', employee.id)
     .order('created_at', { ascending: false })
 
@@ -39,8 +39,17 @@ export async function POST(req: NextRequest) {
 
   if (!employee) return NextResponse.json({ error: 'Access revoked.' }, { status: 403 })
 
-  const { startDate, endDate, type, reason } = await req.json()
+  const { startDate, endDate, type, reason, portion } = await req.json()
   if (!startDate || !endDate || !type) return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
+
+  // JAY-9 — a portion (half day) only makes sense on a single-day request.
+  // Silently drop it for multi-day requests rather than erroring, since the
+  // portal UI only ever shows the picker when start === end.
+  const validPortions = ['first_half', 'second_half']
+  const normalizedPortion = startDate === endDate && validPortions.includes(portion) ? portion : null
+  if (portion && !validPortions.includes(portion) && startDate === endDate) {
+    return NextResponse.json({ error: 'Invalid portion.' }, { status: 400 })
+  }
 
   const { error } = await supabaseAdmin.from('time_off_requests').insert([{
     user_id: employee.user_id,
@@ -50,6 +59,7 @@ export async function POST(req: NextRequest) {
     type,
     reason: reason || null,
     status: 'pending',
+    portion: normalizedPortion,
   }])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

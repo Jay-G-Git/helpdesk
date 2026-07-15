@@ -31,7 +31,23 @@ export async function POST(req: NextRequest) {
       .eq('user_id', businessId)
       .single()
     if (!emp) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    if (channel !== 'general' && channel !== `dm_emp_${emp.id}`) {
+    // JAY-19 — a channel of shape 'group_<id>' is allowed if the employee is
+    // an actual member of that group; otherwise fall back to the original
+    // general/DM-only check.
+    let allowed = channel === 'general' || channel === `dm_emp_${emp.id}`
+    if (!allowed && channel.startsWith('group_')) {
+      const groupId = Number(channel.replace('group_', ''))
+      if (Number.isFinite(groupId)) {
+        const { data: membership } = await supabaseAdmin
+          .from('chat_channel_group_members')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('employee_id', emp.id)
+          .maybeSingle()
+        allowed = !!membership
+      }
+    }
+    if (!allowed) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     senderName = emp.name

@@ -26,12 +26,41 @@ export async function POST(req: NextRequest) {
 
   if (open) return NextResponse.json({ error: 'Already clocked in.' }, { status: 400 })
 
+  // JAY-18 — optional geofence coordinates + photo, sent only if the browser
+  // granted location/camera access. Body is optional (existing callers send
+  // none), parsed defensively same as the clock-out notes field.
+  let lat: number | null = null
+  let lng: number | null = null
+  let photoUrl: string | null = null
+  try {
+    const body = await req.json()
+    if (typeof body?.lat === 'number' && typeof body?.lng === 'number') { lat = body.lat; lng = body.lng }
+    if (typeof body?.photoUrl === 'string' && body.photoUrl.trim()) photoUrl = body.photoUrl.trim()
+  } catch { /* no body sent */ }
+
+  // If the business requires a clock-in photo, enforce it server-side —
+  // this is a deliberate owner setting, unlike the geofence below (which is
+  // advisory-only and never blocks, since GPS accuracy on mobile web varies
+  // too much to safely lock someone out of their own shift).
+  const { data: biz } = await supabaseAdmin
+    .from('business_profiles')
+    .select('require_clockin_photo')
+    .eq('user_id', employee.user_id)
+    .maybeSingle()
+
+  if (biz?.require_clockin_photo && !photoUrl) {
+    return NextResponse.json({ error: 'A clock-in photo is required.' }, { status: 400 })
+  }
+
   const { data: entry, error } = await supabaseAdmin
     .from('time_entries')
     .insert([{
       user_id: employee.user_id,
       employee_id: employee.id,
       clock_in: new Date().toISOString(),
+      ...(lat !== null ? { clock_in_lat: lat } : {}),
+      ...(lng !== null ? { clock_in_lng: lng } : {}),
+      ...(photoUrl ? { clock_in_photo_url: photoUrl } : {}),
     }])
     .select()
     .single()

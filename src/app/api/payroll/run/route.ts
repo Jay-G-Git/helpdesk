@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
 
   const { data: paidTimeOff } = await supabaseAdmin
     .from('time_off_requests')
-    .select('employee_id, start_date, end_date, type')
+    .select('employee_id, start_date, end_date, type, portion')
     .eq('user_id', user.id)
     .eq('status', 'approved')
     .in('type', PAID_TIME_OFF_TYPES)
@@ -171,10 +171,14 @@ export async function POST(req: NextRequest) {
     let cursor = new Date(rangeStart + 'T00:00:00')
     const end = new Date(rangeEnd + 'T00:00:00')
     let requestHours = 0
+    // JAY-9 — a single-day request with a half-day portion pays half the
+    // day's hours instead of the full day.
+    const isHalfDay = req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')
     while (cursor <= end) {
       const dateStr = cursor.toISOString().slice(0, 10)
       const scheduled = shiftHoursByEmpDate.get(`${req.employee_id}_${dateStr}`)
-      const dayHours = scheduled ?? DEFAULT_PTO_HOURS_PER_DAY
+      let dayHours = scheduled ?? DEFAULT_PTO_HOURS_PER_DAY
+      if (isHalfDay) dayHours = dayHours / 2
       requestHours += dayHours
       // JAY-51 — PTO days need to land in the same per-day bucket as worked
       // hours so a rate change mid-period also applies correctly to time off.

@@ -17,7 +17,7 @@ const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 type Employee = { id: number; name: string; role: string; pay_type: string; pay_rate: number | null; pto_days_per_year: number | null }
 type Shift = { id: number; employee_id: number | null; shift_date: string; start_time: string; end_time: string; notes: string | null; status?: string; is_open_shift?: boolean }
 type ShiftSwap = { id: number; requester_employee_id: number; requester_shift_id: number; target_employee_id: number | null; target_shift_id: number | null; status: string; notes: string | null; created_at: string }
-type TimeOffRequest = { id: number; employee_id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string; created_at: string }
+type TimeOffRequest = { id: number; employee_id: number; start_date: string; end_date: string; type: string; reason: string | null; status: string; created_at: string; portion?: string | null }
 // JAY-33 — optional free-text note an employee can leave at clock-out
 // ("low on register tape, restocked napkins"). `notes` already exists on
 // time_entries (pre-existing schema-drift column, previously fetched but
@@ -25,7 +25,10 @@ type TimeOffRequest = { id: number; employee_id: number; start_date: string; end
 // JAY-32 — optional unpaid break deduction, editable by the owner via the
 // entry edit modal below. total_minutes is recalculated server-side whenever
 // break_minutes changes, so this page never needs to redo that math itself.
-type TimeEntry = { id: number; employee_id: number; clock_in: string; clock_out: string | null; total_minutes: number | null; notes: string | null; break_minutes: number }
+// JAY-18 — optional geofence coordinates + photo captured at clock-in, shown
+// to the owner alongside the entry (geofence distance advisory-only, photo a
+// manual visual check — no facial-recognition matching, deliberately).
+type TimeEntry = { id: number; employee_id: number; clock_in: string; clock_out: string | null; total_minutes: number | null; notes: string | null; break_minutes: number; clock_in_lat: number | null; clock_in_lng: number | null; clock_in_photo_url: string | null }
 type Availability = { employee_id: number; day_of_week: number; start_time: string; end_time: string }
 type ShiftNote = { id: number; shift_date: string; author_name: string; note: string; created_at: string }
 
@@ -53,6 +56,11 @@ function ptoBalanceUsedDays(allRequests: TimeOffRequest[], employeeId: number, e
   for (const r of allRequests) {
     if (r.employee_id !== employeeId || r.status !== 'approved' || r.id === excludeRequestId) continue
     if (new Date(r.start_date).getFullYear() !== year) continue
+    // JAY-9 — a single-day request with a half-day portion counts as 0.5 days.
+    if (r.start_date === r.end_date && (r.portion === 'first_half' || r.portion === 'second_half')) {
+      used += 0.5
+      continue
+    }
     const start = new Date(r.start_date)
     const end = new Date(r.end_date || r.start_date)
     used += Math.round((end.getTime() - start.getTime()) / 86400000) + 1
@@ -60,6 +68,15 @@ function ptoBalanceUsedDays(allRequests: TimeOffRequest[], employeeId: number, e
   return used
 }
 function elapsed(clockIn: string) { return fmtMins(Math.floor((Date.now() - new Date(clockIn).getTime()) / 60000)) }
+// JAY-18 — haversine distance in miles, client-side only (geofence is
+// advisory: computed for display, never used to block anything).
+function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
 // JAY-32 — <input type="datetime-local"> needs "YYYY-MM-DDTHH:mm" in local time, not the UTC ISO string we store.
 function toLocalInputValue(iso: string) {
   const d = new Date(iso)
@@ -157,6 +174,8 @@ export default function TimePage() {
   const [weekOffset, setWeekOffset] = useState(0)
   // JAY-35: business-hours guardrail banner, dismissible per week
   const [dismissedHoursWarningWeek, setDismissedHoursWarningWeek] = useState<number | null>(null)
+  // JAY-6: short-notice schedule change banner, dismissible per week (same pattern)
+  const [dismissedChangeWarningWeek, setDismissedChangeWarningWeek] = useState<number | null>(null)
   // Active shift pill (for inline action panel)
   const [activeShiftId, setActiveShiftId] = useState<number | null>(null)
   // Drag-and-drop
@@ -176,6 +195,11 @@ export default function TimePage() {
   const [bizHours, setBizHours] = useState<BusinessHours | null>(null)
   // JAY-54 (prerequisite step) — weekly labor budget in cents, null if unset.
   const [laborBudgetCents, setLaborBudgetCents] = useState<number | null>(null)
+  // JAY-18
+  const [geofence, setGeofence] = useState<{ lat: number; lng: number; radiusM: number } | null>(null)
+  // JAY-6 — short-notice schedule change flags. Not persisted server-side —
+  // dismissal is per-week client state only, matching the JAY-35 pattern.
+  const [shiftChangeLog, setShiftChangeLog] = useState<{ id: number; shift_id: number; employee_id: number | null; shift_date: string; start_time: string; change_type: string; changed_at: string }[]>([])
 
   // Callout modal
   type CalloutTarget = { shiftId: number; shiftDate: string; startTime: string; endTime: string; employee: { id: number; name: string } }
@@ -186,6 +210,26 @@ export default function TimePage() {
   const [newLogText, setNewLogText] = useState('')
   const [savingLog, setSavingLog] = useState(false)
   const [authorName, setAuthorName] = useState('Manager')
+
+  // JAY-6 — short-notice schedule change flags. There is no existing
+  // shift-edit-history table (the ticket assumed one existed under
+  // `shift_logbook`; that name actually belongs to the free-text manager
+  // logbook table, `shift_notes` — a separate feature entirely, with no
+  // per-edit timestamps). This logs the mutable change types that actually
+  // exist in this UI today (create / move / reassign / delete); a passive
+  // banner reads it back in load() to flag anything changed within 24h of
+  // the shift's start.
+  async function logShiftChange(shift: { id: number; employee_id: number | null; shift_date: string; start_time: string; end_time: string }, changeType: 'created' | 'moved' | 'reassigned' | 'deleted') {
+    await supabase.from('shift_change_log').insert({
+      user_id: userId,
+      shift_id: shift.id,
+      employee_id: shift.employee_id,
+      shift_date: shift.shift_date,
+      start_time: shift.start_time,
+      end_time: shift.end_time,
+      change_type: changeType,
+    })
+  }
 
   async function handleDropShift(empId: number, date: string) {
     if (!draggingShiftId) return
@@ -200,6 +244,7 @@ export default function TimePage() {
     setShifts(prev => prev.map(s => s.id === draggingShiftId ? { ...s, employee_id: empId, shift_date: date } : s))
     setDraggingShiftId(null); setDragOverCell(null); setActiveShiftId(null)
     await supabase.from('shifts').update({ employee_id: empId, shift_date: date }).eq('id', draggingShiftId)
+    logShiftChange({ ...shift, employee_id: empId, shift_date: date }, 'moved')
   }
 
   function closeDrawer() {
@@ -235,6 +280,10 @@ export default function TimePage() {
       .then(r => r.json()).then(d => {
         if (d.profile?.business_hours) setBizHours(d.profile.business_hours)
         setLaborBudgetCents(d.profile?.weekly_labor_budget_cents ?? null)
+        // JAY-18
+        if (d.profile?.geofence_lat != null && d.profile?.geofence_lng != null && d.profile?.geofence_radius_m != null) {
+          setGeofence({ lat: d.profile.geofence_lat, lng: d.profile.geofence_lng, radiusM: d.profile.geofence_radius_m })
+        }
       })
 
     const [{ data: emps }, { data: sh }, { data: reqs }, { data: ents }, { data: depts }, { data: memberships }] = await Promise.all([
@@ -245,6 +294,18 @@ export default function TimePage() {
       supabase.from('departments').select('id, name, color').eq('user_id', tenantId).order('name'),
       supabase.from('department_members').select('employee_id, department_id'),
     ])
+    // JAY-6 — last 14 days of changes is enough to cover "this week" plus a
+    // little slack for week-boundary edge cases, without pulling the entire
+    // history.
+    const changeLogSince = new Date(); changeLogSince.setDate(changeLogSince.getDate() - 14)
+    const { data: changeLog } = await supabase
+      .from('shift_change_log')
+      .select('id, shift_id, employee_id, shift_date, start_time, change_type, changed_at')
+      .eq('user_id', tenantId)
+      .gte('changed_at', changeLogSince.toISOString())
+      .order('changed_at', { ascending: false })
+    setShiftChangeLog(changeLog ?? [])
+
     setDepartments(depts ?? [])
     const memberMap: Record<number, number[]> = {}
     for (const m of (memberships ?? [])) {
@@ -331,13 +392,16 @@ export default function TimePage() {
       showToast(repeatWeeks > 1 ? `${repeatWeeks} shifts added.` : 'Shift added.', 'success')
       setShowShiftForm(false); setShiftEmpId(''); setShiftDate(''); setShiftNotes('')
       setRepeatEnabled(false); setRepeatWeeks(1); setShiftIsOpen(false)
+      for (const s of data ?? []) logShiftChange(s, 'created')
     }
     setSavingShift(false)
   }
 
   async function handleDeleteShift(id: number) {
+    const shift = shifts.find(s => s.id === id)
     await supabase.from('shifts').delete().eq('id', id)
     setShifts(prev => prev.filter(s => s.id !== id))
+    if (shift) logShiftChange(shift, 'deleted')
   }
 
   async function handleSwapDecision(
@@ -353,6 +417,8 @@ export default function TimePage() {
       body: JSON.stringify({ status }),
     })
     if (status === 'approved' && reqShiftId && tgtShiftId && reqEmpId !== null && tgtEmpId !== null) {
+      const reqShift = shifts.find(s => s.id === reqShiftId)
+      const tgtShift = shifts.find(s => s.id === tgtShiftId)
       await supabase.from('shifts').update({ employee_id: tgtEmpId }).eq('id', reqShiftId)
       await supabase.from('shifts').update({ employee_id: reqEmpId }).eq('id', tgtShiftId)
       setShifts(prev => prev.map(s => {
@@ -360,6 +426,8 @@ export default function TimePage() {
         if (s.id === tgtShiftId) return { ...s, employee_id: reqEmpId }
         return s
       }))
+      if (reqShift) logShiftChange({ ...reqShift, employee_id: tgtEmpId }, 'reassigned')
+      if (tgtShift) logShiftChange({ ...tgtShift, employee_id: reqEmpId }, 'reassigned')
     }
     setSwapRequests(prev => prev.filter(s => s.id !== swapId))
   }
@@ -460,6 +528,17 @@ export default function TimePage() {
   const weekStart = new Date(weekDays[0] + 'T00:00:00')
   const weekEnd = new Date(weekDays[6] + 'T00:00:00')
   const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+  // JAY-6 — flag shift changes (create/move/reassign/delete) logged less
+  // than 24h before the affected shift's own scheduled start. Scoped to
+  // shifts falling in the currently-viewed week, matching the mockup
+  // ("N shifts changed with under 24h notice this week").
+  const shortNoticeChanges = shiftChangeLog.filter(c => {
+    if (!weekDays.includes(c.shift_date)) return false
+    const shiftStartMs = new Date(`${c.shift_date}T${c.start_time}`).getTime()
+    const hoursNotice = (shiftStartMs - new Date(c.changed_at).getTime()) / 3600000
+    return hoursNotice >= 0 && hoursNotice < 24
+  })
 
   // Scheduled hours + estimated cost this week
   const weekShifts = shifts.filter(s => weekDays.includes(s.shift_date) && s.status !== 'called_out')
@@ -744,6 +823,7 @@ export default function TimePage() {
                             if (!empId) return
                             await supabase.from('shifts').update({ employee_id: empId, is_open_shift: false }).eq('id', s.id)
                             setShifts(prev => prev.map(sh => sh.id === s.id ? { ...sh, employee_id: empId, is_open_shift: false } : sh))
+                            logShiftChange({ ...s, employee_id: empId }, 'reassigned')
                           }}
                           style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', background: '#0f172a', color: '#e2e8f0' }}
                         >
@@ -854,6 +934,44 @@ export default function TimePage() {
                       })}
                       {outOfHoursShifts.length > 5 && (
                         <div style={{ fontSize: '11px', color: '#64748b' }}>+{outOfHoursShifts.length - 5} more</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* JAY-6 — passive, dismissible, zero enforcement: some cities require
+                    extra pay for short-notice schedule changes (NYC/SF/Chicago/Seattle/
+                    Philadelphia/Oregon "Fair Workweek" laws), but this app doesn't attempt
+                    jurisdiction-specific penalty-pay math — it just surfaces the fact so
+                    the owner can decide whether to look into it. */}
+                {shortNoticeChanges.length > 0 && dismissedChangeWarningWeek !== weekOffset && (
+                  <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>⚠</span> {shortNoticeChanges.length} shift{shortNoticeChanges.length !== 1 ? 's' : ''} changed with under 24h notice this week
+                      </div>
+                      <button
+                        onClick={() => setDismissedChangeWarningWeek(weekOffset)}
+                        style={{ fontSize: '11px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                      Some cities require extra pay for late schedule changes. Review below.
+                    </div>
+                    <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {shortNoticeChanges.slice(0, 5).map(c => {
+                        const emp = c.employee_id != null ? empMap[c.employee_id] : null
+                        const verb = c.change_type === 'created' ? 'added' : c.change_type === 'deleted' ? 'removed' : c.change_type === 'reassigned' ? 'reassigned' : 'moved'
+                        return (
+                          <div key={c.id} style={{ fontSize: '12px', color: '#e2e8f0' }}>
+                            {emp?.name ?? 'Employee'} — {fmtDate(c.shift_date)} shift {verb} ({fmtTime(c.changed_at)})
+                          </div>
+                        )
+                      })}
+                      {shortNoticeChanges.length > 5 && (
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>+{shortNoticeChanges.length - 5} more</div>
                       )}
                     </div>
                   </div>
@@ -1166,7 +1284,8 @@ export default function TimePage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {pendingRequests.map(req => {
                     const emp = employees.find(e => e.id === req.employee_id)
-                    const requestDays = Math.round((new Date(req.end_date).getTime() - new Date(req.start_date).getTime()) / 86400000) + 1
+                    const isHalfDay = req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')
+                    const requestDays = isHalfDay ? 0.5 : Math.round((new Date(req.end_date).getTime() - new Date(req.start_date).getTime()) / 86400000) + 1
                     const totalPto = emp?.pto_days_per_year ?? null
                     const usedSoFar = emp ? ptoBalanceUsedDays(requests, emp.id, req.id) : 0
                     const wouldRemain = totalPto !== null ? totalPto - usedSoFar - requestDays : null
@@ -1177,7 +1296,7 @@ export default function TimePage() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>{emp?.name || 'Employee'} <span style={{ fontWeight: 400, color: '#64748b' }}>— {req.type}</span></div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}{req.reason ? ` · ${req.reason}` : ''}</div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}{isHalfDay ? ` (${req.portion === 'first_half' ? 'first half' : 'second half'})` : ''}{req.reason ? ` · ${req.reason}` : ''}</div>
                           {totalPto !== null && (
                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
                               Balance: {usedSoFar} of {totalPto} days used this year
@@ -1212,11 +1331,12 @@ export default function TimePage() {
                   {requests.map(req => {
                     const emp = employees.find(e => e.id === req.employee_id)
                     const statusColor = req.status === 'approved' ? '#4ade80' : req.status === 'denied' ? '#f87171' : '#fbbf24'
+                    const isHalfDay = req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')
                     return (
                       <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>{emp?.name || 'Employee'} <span style={{ fontWeight: 400, color: '#64748b' }}>— {req.type}</span></div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}</div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>{fmtDate(req.start_date)} – {fmtDate(req.end_date)}{isHalfDay ? ` (${req.portion === 'first_half' ? 'first half' : 'second half'})` : ''}</div>
                         </div>
                         <span style={{ fontSize: '11px', fontWeight: 600, color: statusColor, textTransform: 'capitalize' }}>{req.status}</span>
                       </div>
@@ -1314,6 +1434,21 @@ export default function TimePage() {
                         <div style={{ fontSize: '12px', color: '#93c5fd', marginTop: '3px' }}>
                           📝 {e.notes}
                         </div>
+                      )}
+                      {/* JAY-18 — geofence distance is advisory-only; shown, never used to
+                          flag/block anything automatically. Photo is a manual visual check. */}
+                      {(geofence && e.clock_in_lat != null && e.clock_in_lng != null) && (
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                          📍 {distanceMiles(geofence.lat, geofence.lng, e.clock_in_lat, e.clock_in_lng).toFixed(2)} mi from business
+                          {distanceMiles(geofence.lat, geofence.lng, e.clock_in_lat, e.clock_in_lng) * 1609.34 > geofence.radiusM && (
+                            <span style={{ color: '#f59e0b' }}> (outside geofence)</span>
+                          )}
+                        </div>
+                      )}
+                      {e.clock_in_photo_url && (
+                        <a href={e.clock_in_photo_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#93c5fd', marginTop: '3px', display: 'inline-block' }}>
+                          📷 View clock-in photo
+                        </a>
                       )}
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: e.clock_out ? '#94a3b8' : '#4ade80', minWidth: '40px', textAlign: 'right' }}>

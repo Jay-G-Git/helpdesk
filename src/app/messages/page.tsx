@@ -129,6 +129,12 @@ export default function MessagesPage() {
   // @mention autocomplete
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+
+  // JAY-19 — owner-only "Create group" modal (name + hand-picked members).
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [newGroupMemberIds, setNewGroupMemberIds] = useState<number[]>([])
+  const [creatingGroup, setCreatingGroup] = useState(false)
   const [mentionIndex, setMentionIndex] = useState(0)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -185,6 +191,25 @@ export default function MessagesPage() {
       loadEmployees(data.businessId, tk)
     }
     setLoadingChannels(false)
+  }
+
+  // JAY-19 — owner creates a named group with hand-picked members.
+  async function createGroup() {
+    if (!newGroupName.trim() || newGroupMemberIds.length === 0 || creatingGroup) return
+    setCreatingGroup(true)
+    const res = await fetch('/api/messages/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: newGroupName.trim(), employeeIds: newGroupMemberIds }),
+    })
+    const data = await res.json()
+    setCreatingGroup(false)
+    if (res.ok) {
+      setShowCreateGroup(false)
+      setNewGroupName('')
+      setNewGroupMemberIds([])
+      await loadChannels(token)
+    }
   }
 
   async function openChannel(ch: Channel, tk = token, bid = businessId) {
@@ -559,6 +584,15 @@ export default function MessagesPage() {
               <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Search messages…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '13px', outline: 'none', color: '#e2e8f0' }} />
               {search && <button onClick={() => { setSearch(''); setSearchResults([]) }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#475569', padding: 0, display: 'flex' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
             </div>
+            {/* JAY-19 — owner-only manual group creation. */}
+            {isOwner && (
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                style={{ width: '100%', marginTop: '8px', background: 'rgba(59,130,246,0.1)', border: '1px dashed rgba(59,130,246,0.35)', borderRadius: '8px', color: '#93c5fd', fontSize: '12px', fontWeight: 600, padding: '7px 10px', cursor: 'pointer', textAlign: 'left' }}
+              >
+                + New group
+              </button>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -798,6 +832,64 @@ export default function MessagesPage() {
           </div>
         )}
       </div>
+
+      {/* ── JAY-19: CREATE GROUP MODAL ── */}
+      {showCreateGroup && (
+        <div
+          onClick={() => setShowCreateGroup(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1.25rem', width: '340px', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#f1f5f9', marginBottom: '1rem' }}>New group</div>
+
+            <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Group name</label>
+            <input
+              value={newGroupName}
+              onChange={e => setNewGroupName(e.target.value)}
+              placeholder="e.g. Managers, Kitchen"
+              style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', padding: '8px 10px', fontSize: '13px', marginBottom: '0.75rem' }}
+            />
+
+            <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Members</label>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', marginBottom: '1rem', maxHeight: '220px' }}>
+              {employees.length === 0 ? (
+                <div style={{ padding: '0.75rem', fontSize: '12px', color: '#475569' }}>No employees found.</div>
+              ) : employees.map(emp => {
+                const checked = newGroupMemberIds.includes(emp.id)
+                return (
+                  <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', fontSize: '13px', color: '#e2e8f0', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setNewGroupMemberIds(prev => checked ? prev.filter(id => id !== emp.id) : [...prev, emp.id])}
+                    />
+                    {emp.name}
+                  </label>
+                )
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowCreateGroup(false)}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', padding: '8px 14px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createGroup}
+                disabled={creatingGroup || !newGroupName.trim() || newGroupMemberIds.length === 0}
+                style={{ background: '#3b82f6', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', padding: '8px 14px', cursor: creatingGroup ? 'default' : 'pointer', opacity: creatingGroup || !newGroupName.trim() || newGroupMemberIds.length === 0 ? 0.6 : 1 }}
+              >
+                {creatingGroup ? 'Creating…' : 'Create group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

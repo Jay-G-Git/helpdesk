@@ -22,6 +22,23 @@ describe('daysBetween', () => {
   it('handles a full week', () => {
     expect(daysBetween('2026-07-06', '2026-07-12')).toBe(7)
   })
+
+  // JAY-9 — half-day portion on a single-day request.
+  it('returns 0.5 for a single-day request with a first_half portion', () => {
+    expect(daysBetween('2026-07-10', '2026-07-10', 'first_half')).toBe(0.5)
+  })
+
+  it('returns 0.5 for a single-day request with a second_half portion', () => {
+    expect(daysBetween('2026-07-10', '2026-07-10', 'second_half')).toBe(0.5)
+  })
+
+  it('ignores portion when start and end dates differ', () => {
+    expect(daysBetween('2026-07-06', '2026-07-10', 'first_half')).toBe(5)
+  })
+
+  it('ignores a null portion', () => {
+    expect(daysBetween('2026-07-10', '2026-07-10', null)).toBe(1)
+  })
 })
 
 // ─── calcPTOBalance ───────────────────────────────────────────────────────────
@@ -76,6 +93,22 @@ describe('calcPTOBalance', () => {
       { start_date: '2026-07-10', end_date: '2026-07-10', status: 'denied' },   // ignored
     ]
     expect(calcPTOBalance(10, requests)).toEqual({ total: 10, used: 1, remaining: 9 })
+  })
+
+  // JAY-9 — half-day portion requests.
+  it('counts a half-day portion request as 0.5 days used', () => {
+    const requests = [
+      { start_date: '2026-07-10', end_date: '2026-07-10', status: 'approved', portion: 'first_half' },
+    ]
+    expect(calcPTOBalance(10, requests)).toEqual({ total: 10, used: 0.5, remaining: 9.5 })
+  })
+
+  it('mixes half-day and full-day approved requests', () => {
+    const requests = [
+      { start_date: '2026-07-10', end_date: '2026-07-10', status: 'approved', portion: 'second_half' },
+      { start_date: '2026-08-01', end_date: '2026-08-02', status: 'approved' },
+    ]
+    expect(calcPTOBalance(10, requests)).toEqual({ total: 10, used: 2.5, remaining: 7.5 })
   })
 })
 

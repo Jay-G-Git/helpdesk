@@ -725,7 +725,14 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
               ]
               const missing = items.filter(c => !c.isComplete)
               const onboardingIncomplete = welcomePackSent && !documentsSigned
-              if (missing.length === 0 && !onboardingIncomplete) {
+              // JAY-13 — the ticket's own mockup calls this out at the Employee
+              // panel level, not just the full detail page; the editable date
+              // input lives on the full profile (below), this is read-only.
+              const workAuthDays = employee.work_auth_expires_on
+                ? Math.ceil((new Date(employee.work_auth_expires_on + 'T00:00:00').getTime() - Date.now()) / 86400000)
+                : null
+              const workAuthExpiringSoon = workAuthDays !== null && workAuthDays <= 90
+              if (missing.length === 0 && !onboardingIncomplete && !workAuthExpiringSoon) {
                 return (
                   <div style={{ marginTop: '8px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(34,197,94,0.1)', color: '#4ade80' }}>
@@ -744,6 +751,11 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                   {onboardingIncomplete && (
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(59,130,246,0.13)', color: accent }}>
                       • Onboarding docs unsigned
+                    </span>
+                  )}
+                  {workAuthExpiringSoon && (
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: 'rgba(220,38,38,0.15)', color: '#f87171' }}>
+                      ⚠ Work auth {workAuthDays! < 0 ? 'expired' : `expires in ${workAuthDays}d`}
                     </span>
                   )}
                 </div>

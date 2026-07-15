@@ -81,6 +81,34 @@ describe('POST /api/payroll/run', () => {
     expect(casey.notes).toBeNull()
   })
 
+  // JAY-9: a single-day PTO request with a half-day portion should only pay
+  // half the default (or scheduled) day's hours, not the full day.
+  it('halves the default PTO hours for a half-day portion request', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: null, error: null }, // payroll_runs — no existing finalized run
+      { data: [{ id: 1, name: 'Jordan T.', pay_type: 'hourly', pay_rate: 20 }], error: null }, // employees
+      { data: [], error: null }, // time_entries — no worked hours
+      { data: [], error: null }, // pay_rate_history
+      { data: [{ employee_id: 1, start_date: '2026-07-05', end_date: '2026-07-05', type: 'PTO', portion: 'first_half' }], error: null },
+      { data: [], error: null }, // shifts — no scheduled shifts, falls back to 8h default → 4h half day
+      { data: { id: 101, period_start: '2026-07-01', period_end: '2026-07-14' }, error: null },
+      { data: null, error: null },
+    ])
+    const res = await POST(mockRequest({ token: 'good', body: { periodStart: '2026-07-01', periodEnd: '2026-07-14' } }) as never)
+    expect(res.status).toBe(200)
+
+    const fromMock = supabaseAdmin.from as jest.Mock
+    const itemsCall = fromMock.mock.results[7].value
+    const insertedItems = itemsCall.insert.mock.calls[0][0]
+    const jordan = insertedItems.find((i: { employee_id: number }) => i.employee_id === 1)
+
+    // 0 worked hrs + 0.5 day PTO * 8h default / 2 = 4 hrs, $20/hr = $80
+    expect(jordan.hours_worked).toBe(4)
+    expect(jordan.gross_pay).toBe(80)
+    expect(jordan.notes).toBe('+4.0 hrs PTO')
+  })
+
   it('does not add PTO hours for salaried employees', async () => {
     mockOwner({ id: 'owner-1' })
     queueFromResponses(supabaseAdmin, [

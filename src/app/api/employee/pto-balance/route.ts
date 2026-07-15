@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   // Count approved time-off days this year
   const { data: approved } = await supabaseAdmin
     .from('time_off_requests')
-    .select('start_date, end_date')
+    .select('start_date, end_date, portion')
     .eq('employee_id', emp.id)
     .eq('status', 'approved')
     .gte('start_date', startOfYear)
@@ -32,6 +32,11 @@ export async function GET(req: NextRequest) {
 
   let usedDays = 0
   for (const req of approved ?? []) {
+    // JAY-9 — a single-day request with a half-day portion counts as 0.5.
+    if (req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')) {
+      usedDays += 0.5
+      continue
+    }
     const start = new Date(req.start_date)
     const end = new Date(req.end_date ?? req.start_date)
     const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1

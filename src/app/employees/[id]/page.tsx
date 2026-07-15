@@ -26,6 +26,8 @@ type Employee = {
   pay_type: string
   pay_rate: number | null
   pay_period: string
+  // JAY-13
+  work_auth_expires_on: string | null
 }
 
 type Doc = {
@@ -154,6 +156,10 @@ export default function EmployeeProfile() {
       pay_type: form.pay_type,
       pay_rate: form.pay_rate,
       pay_period: form.pay_period,
+      // JAY-13 — kept in sync here too since ComplianceChecklist's own save
+      // writes directly to the DB; this just keeps the whitelist consistent
+      // if the value is ever edited through this page's form instead.
+      work_auth_expires_on: form.work_auth_expires_on || null,
     }).eq('id', form.id)
 
     if (error) {
@@ -304,6 +310,8 @@ export default function EmployeeProfile() {
               welcomePackSent={welcomePackSent}
               documentsSigned={documentsSigned}
               onUpdate={(field, value) => set(field as keyof Employee, value)}
+              workAuthExpiresOn={form.work_auth_expires_on}
+              onUpdateExpiration={value => set('work_auth_expires_on', value ?? '')}
             />
 
             <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
