@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 
-// Vercel Cron target — see vercel.json ("0 * * * *", hourly). Not user-triggered, so
-// auth is a shared secret (CRON_SECRET env var) instead of a bearer user token.
+// Vercel Cron target — see vercel.json ("0 14 * * *", once daily). Vercel's Hobby plan
+// caps cron jobs at once-per-day (hourly fails deployment outright), so this runs once
+// a day rather than the originally-planned hourly check. Not user-triggered, so auth is
+// a shared secret (CRON_SECRET env var) instead of a bearer user token.
 //
-// Window: interviews starting 24-25h from now. Assuming the cron runs hourly, each
-// interview_at falls into this window exactly once, so no "already sent" tracking is
-// needed — zero new tables, per the issue's own validation gut-check. If a run is
-// missed, that one reminder is simply skipped rather than sent late/duplicated.
+// Window: interviews starting 24-48h from now. Widened from the original 24-25h design
+// to match the daily (not hourly) cadence — since the job only fires once a day, the
+// window has to be as wide as the gap between runs so every interview_at falls into it
+// exactly once. No "already sent" tracking needed — zero new tables, per the issue's
+// own validation gut-check. If a run is missed, that one reminder is simply skipped
+// rather than sent late/duplicated. Net effect: reminder lands 1-2 days out instead of
+// a tight T-24h, which is the tradeoff for staying on Hobby's cron limits.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (secret) {
@@ -18,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now()
   const windowStart = new Date(now + 24 * 3600000).toISOString()
-  const windowEnd = new Date(now + 25 * 3600000).toISOString()
+  const windowEnd = new Date(now + 48 * 3600000).toISOString()
 
   const { data: applications, error } = await supabaseAdmin
     .from('job_applications')
@@ -45,16 +50,20 @@ export async function GET(req: NextRequest) {
     const dateLabel = when.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
     const timeLabel = when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     const locationLine = job?.location ? `<p>📍 ${job.location}</p>` : ''
+    // "tomorrow" vs "in N days" — the 24-48h window means this isn't always literally
+    // tomorrow, so phrase it off the actual day count instead of hardcoding "tomorrow".
+    const daysOut = Math.round((when.getTime() - now) / 86400000)
+    const whenPhrase = daysOut <= 1 ? 'tomorrow' : `in ${daysOut} days`
 
     const results = await Promise.allSettled([
       app.email
         ? resend.emails.send({
             from: 'Helpdesk <onboarding@resend.dev>',
             to: app.email,
-            subject: `Reminder: your interview tomorrow at ${timeLabel}`,
+            subject: `Reminder: your interview ${whenPhrase} at ${timeLabel}`,
             html: `
               <p>Hi ${app.name.split(' ')[0]},</p>
-              <p>Just a reminder — your interview for the <strong>${jobTitle}</strong> position at ${businessName} is tomorrow, ${dateLabel}, at ${timeLabel}.</p>
+              <p>Just a reminder — your interview for the <strong>${jobTitle}</strong> position at ${businessName} is ${whenPhrase}, ${dateLabel}, at ${timeLabel}.</p>
               ${locationLine}
               <p>See you then!</p>
             `,
@@ -64,9 +73,9 @@ export async function GET(req: NextRequest) {
         ? resend.emails.send({
             from: 'Helpdesk <onboarding@resend.dev>',
             to: profile.contact_email,
-            subject: `Reminder: interview with ${app.name} tomorrow at ${timeLabel}`,
+            subject: `Reminder: interview with ${app.name} ${whenPhrase} at ${timeLabel}`,
             html: `
-              <p>Reminder — your interview with <strong>${app.name}</strong> for the ${jobTitle} position is tomorrow, ${dateLabel}, at ${timeLabel}.</p>
+              <p>Reminder — your interview with <strong>${app.name}</strong> for the ${jobTitle} position is ${whenPhrase}, ${dateLabel}, at ${timeLabel}.</p>
               ${locationLine}
             `,
           })
