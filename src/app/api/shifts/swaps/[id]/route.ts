@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Verify swap belongs to this owner
   const { data: swap } = await supabaseAdmin
     .from('shift_swaps')
-    .select('id, requester_employee_id, requester_shift_id, target_employee_id')
+    .select('id, requester_employee_id, requester_shift_id, target_employee_id, target_shift_id')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -29,6 +29,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // JAY-52 — approving a swap previously only flipped shift_swaps.status; the
+  // shifts themselves never actually reassigned, so JAY-26's "your swap was
+  // approved" notification was telling employees something that hadn't
+  // really happened. When the request named a specific target shift/employee
+  // (the only case with enough info to act on — an "open" request with no
+  // target chosen has nothing concrete to reassign), swap the two shifts'
+  // employee_id on approval so the schedule actually reflects the outcome.
+  if (status === 'approved' && swap.target_shift_id && swap.target_employee_id) {
+    const { error: reassignError } = await supabaseAdmin
+      .from('shifts')
+      .update({ employee_id: swap.target_employee_id })
+      .eq('id', swap.requester_shift_id)
+      .eq('user_id', user.id)
+
+    if (reassignError) return NextResponse.json({ error: reassignError.message }, { status: 500 })
+
+    const { error: reassignError2 } = await supabaseAdmin
+      .from('shifts')
+      .update({ employee_id: swap.requester_employee_id })
+      .eq('id', swap.target_shift_id)
+      .eq('user_id', user.id)
+
+    if (reassignError2) return NextResponse.json({ error: reassignError2.message }, { status: 500 })
+  }
 
   // Email both parties on the outcome — not a `notifications` table insert, because
   // (unlike the owner-facing bell in Nav.tsx) the employee portal's notification bell

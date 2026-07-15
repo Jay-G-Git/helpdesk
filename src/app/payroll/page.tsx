@@ -454,17 +454,26 @@ export default function PayrollPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>This period</div>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalThisPeriod)}</div>
+        {/* Stats — JAY-56: before any payment has ever been logged, both cards
+            read $0.00 and burn the most valuable above-the-fold space showing
+            nothing. Collapse to a single "get started" banner in that case. */}
+        {entries.length === 0 ? (
+          <div style={{ ...cardStyle, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>No pay runs yet.</span>
+            <button style={primaryBtn} onClick={() => setShowForm(v => !v)}>+ Log payment</button>
           </div>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Total paid (all time)</div>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalAllTime)}</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
+            <div style={cardStyle}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>This period</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalThisPeriod)}</div>
+            </div>
+            <div style={cardStyle}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Total paid (all time)</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalAllTime)}</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Needs attention */}
         {!loading && hasAttentionItems && (

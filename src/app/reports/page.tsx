@@ -60,6 +60,7 @@ export default function ReportsPage() {
   // alone first per the issue's own staged validation; drill-down is deliberately
   // deferred until the picker itself sees real use.
   const [rangeMonths, setRangeMonths] = useState(12)
+  const [paperworkExpanded, setPaperworkExpanded] = useState(false) // JAY-56
 
   useEffect(() => {
     setLoading(true)
@@ -217,30 +218,61 @@ export default function ReportsPage() {
           )}
         </div>
 
-        {/* Compliance detail */}
-        {active.some(e => e.w4_status !== 'complete' || e.i9_status !== 'complete' || e.direct_deposit_status !== 'complete') && (
-          <div style={{ ...cardStyle, marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.28)' }}>
-            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: '#f87171' }}>Incomplete paperwork</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              {active.filter(e => e.w4_status !== 'complete' || e.i9_status !== 'complete' || e.direct_deposit_status !== 'complete').map(e => {
-                const missing = [e.w4_status !== 'complete' && 'W-4', e.i9_status !== 'complete' && 'I-9', e.direct_deposit_status !== 'complete' && 'Direct deposit'].filter(Boolean)
-                return (
-                  <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
-                    <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{e.name}</span>
-                    <span style={{ color: '#f87171' }}>{missing.join(', ')} pending</span>
-                  </div>
-                )
-              })}
+        {/* Compliance detail — JAY-56: when many employees share the exact
+            same missing item, that's one fact ("nobody has X set up"), not
+            N facts. Collapse into a summary line with an expand toggle
+            instead of rendering every row at full height. */}
+        {(() => {
+          const incomplete = active.filter(e => e.w4_status !== 'complete' || e.i9_status !== 'complete' || e.direct_deposit_status !== 'complete')
+          if (incomplete.length === 0) return null
+          const rows = incomplete.map(e => ({
+            employee: e,
+            missing: [e.w4_status !== 'complete' && 'W-4', e.i9_status !== 'complete' && 'I-9', e.direct_deposit_status !== 'complete' && 'Direct deposit'].filter(Boolean) as string[],
+          }))
+          const distinctCombos = new Set(rows.map(r => r.missing.join(',')))
+          const canCollapse = incomplete.length > 3 && distinctCombos.size === 1
+          return (
+            <div style={{ ...cardStyle, marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.28)' }}>
+              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: '#f87171' }}>Incomplete paperwork</div>
+              {canCollapse && !paperworkExpanded ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#f87171' }}>⚠ {incomplete.length} employees missing {rows[0].missing.join(', ').toLowerCase()}</span>
+                  <button onClick={() => setPaperworkExpanded(true)} style={{ fontSize: '12px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Show ▾</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {canCollapse && (
+                    <button onClick={() => setPaperworkExpanded(false)} style={{ alignSelf: 'flex-end', fontSize: '12px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '2px' }}>Hide ▴</button>
+                  )}
+                  {rows.map(({ employee: e, missing }) => (
+                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
+                      <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{e.name}</span>
+                      <span style={{ color: '#f87171' }}>{missing.join(', ')} pending</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Charts grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-          <div style={cardStyle}>
-            <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Headcount (6 months)</div>
-            <BarChart data={monthlyHeadcount} color="#3b82f6" />
-          </div>
+          {/* JAY-56: a bar chart where every bar reads the same value is
+              technically rendering but communicates zero information —
+              replace with a one-line summary when headcount hasn't moved
+              across the window. */}
+          {new Set(monthlyHeadcount.map(m => m.value)).size > 1 ? (
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Headcount (6 months)</div>
+              <BarChart data={monthlyHeadcount} color="#3b82f6" />
+            </div>
+          ) : (
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '0.5rem' }}>Headcount (6 months)</div>
+              <div style={emptyState}>Steady at {monthlyHeadcount[monthlyHeadcount.length - 1]?.value ?? 0} employees — no change this period</div>
+            </div>
+          )}
           {totalPayroll > 0 ? (
             <div style={cardStyle}>
               <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '1rem' }}>Payroll cost (6 months)</div>

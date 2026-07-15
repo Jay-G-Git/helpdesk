@@ -81,14 +81,14 @@ const TIMEZONES = [
 
 function toggle(val: boolean, setter: (v: boolean) => void, label: string, saving: boolean, onSave: () => void) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #f0f0f0' }}>
-      <span style={{ fontSize: '14px', color: '#333' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <span style={{ fontSize: '14px', color: '#e2e8f0' }}>{label}</span>
       <button
         onClick={() => { setter(!val); setTimeout(onSave, 100) }}
         disabled={saving}
         style={{
           width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: val ? '#185fa5' : '#d0d5dd', position: 'relative', transition: 'background 0.2s',
+          background: val ? '#3b82f6' : 'rgba(255,255,255,0.12)', position: 'relative', transition: 'background 0.2s',
           flexShrink: 0,
         }}
       >
@@ -520,62 +520,92 @@ function SettingsContent() {
     window.location.href = '/login'
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'account', label: 'Account' },
-    { key: 'hours', label: 'Hours' },
-    { key: 'onboarding', label: 'Onboarding' },
-    { key: 'notifications', label: 'Notifications' },
-    { key: 'billing', label: 'Billing' },
-    { key: 'team', label: 'Team' },
-    { key: 'departments', label: 'Departments' },
-    { key: 'integrations', label: 'Integrations' },
-    { key: 'danger', label: 'Danger zone' },
+  // JAY-55 — dark-theme conversion. Settings was the one page that never got
+  // the redesign pass every other page went through (Payroll/Reports/etc.);
+  // it was still rendering the shared light-mode `.card` class. This matches
+  // the palette already established in payroll/page.tsx.
+  const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }
+  const labelStyle: React.CSSProperties = { fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }
+  const sectionLabelStyle: React.CSSProperties = { fontSize: '11px', fontWeight: 500, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.6rem' }
+  // Secondary/ghost button — the shared `.btn` class defaults to a white
+  // background with no dark-mode override anywhere in globals.css, so every
+  // plain `className="btn"` (not `.auth-btn-primary`) needs this inline
+  // override here, same treatment Payroll gives its own ghost buttons.
+  const ghostBtnStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.12)' }
+
+  // JAY-55 — grouped into sections (General / Team & Access / Billing /
+  // Danger zone) instead of one flat undifferentiated row of 9 tabs, per the
+  // Linear ticket's mockup. Danger zone is visually distinct (red) even in
+  // the tab bar itself, not just on its own page, so it reads as a different
+  // class of action before you even click into it.
+  const tabGroups: { label: string; tabs: { key: Tab; label: string }[] }[] = [
+    { label: 'General', tabs: [{ key: 'account', label: 'Account' }, { key: 'hours', label: 'Hours' }, { key: 'onboarding', label: 'Onboarding' }, { key: 'notifications', label: 'Notifications' }] },
+    { label: 'Team & Access', tabs: [{ key: 'team', label: 'Team' }, { key: 'departments', label: 'Departments' }] },
+    { label: 'Billing & Tools', tabs: [{ key: 'billing', label: 'Billing' }, { key: 'integrations', label: 'Integrations' }] },
   ]
+  const dangerTab: { key: Tab; label: string } = { key: 'danger', label: 'Danger zone' }
 
   return (
     <div className="dash-wrap">
       <Nav active="settings" />
       <div className="dash-content">
-        <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '1.5rem' }}>Settings</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '1.5rem', color: '#e2e8f0' }}>Settings</div>
 
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1.5px solid #eee', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '8px 16px', fontSize: '13px', fontWeight: tab === t.key ? 700 : 400,
-              color: tab === t.key ? '#185fa5' : '#666',
-              background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: tab === t.key ? '2px solid #185fa5' : '2px solid transparent',
-              marginBottom: '-1.5px', transition: 'all 0.15s',
-            }}>{t.label}</button>
-          ))}
+        {/* Tab bar — grouped */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', borderBottom: '1.5px solid rgba(255,255,255,0.08)', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.5rem', flexWrap: 'wrap' }}>
+            {tabGroups.map(group => (
+              <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 2px' }}>{group.label}</div>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  {group.tabs.map(t => (
+                    <button key={t.key} onClick={() => setTab(t.key)} style={{
+                      padding: '8px 14px', fontSize: '13px', fontWeight: tab === t.key ? 700 : 400,
+                      color: tab === t.key ? '#93c5fd' : '#64748b',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      borderBottom: tab === t.key ? '2px solid #3b82f6' : '2px solid transparent',
+                      marginBottom: '-1.5px', transition: 'all 0.15s', fontFamily: 'inherit',
+                    }}>{t.label}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Danger zone — isolated on the far side, red-tinted, own group */}
+          <button onClick={() => setTab(dangerTab.key)} style={{
+            padding: '8px 14px', fontSize: '13px', fontWeight: tab === dangerTab.key ? 700 : 500,
+            color: tab === dangerTab.key ? '#f87171' : '#b91c1c',
+            background: tab === dangerTab.key ? 'rgba(248,113,113,0.1)' : 'none',
+            border: '1px solid rgba(248,113,113,0.25)', borderRadius: '7px', cursor: 'pointer',
+            marginBottom: '6px', transition: 'all 0.15s', fontFamily: 'inherit',
+          }}>{dangerTab.label}</button>
         </div>
 
         <div style={{ maxWidth: '540px' }}>
 
           {/* ACCOUNT */}
           {tab === 'account' && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '1rem' }}>Business information</div>
+            <div style={cardStyle}>
+              <div style={sectionLabelStyle}>Business information</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Business name</label>
+                  <label style={labelStyle}>Business name</label>
                   <input value={bizName} onChange={e => setBizName(e.target.value)} placeholder="e.g. Acme Coffee Co." />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Address</label>
+                  <label style={labelStyle}>Address</label>
                   <input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St, City, State" />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Contact email</label>
+                  <label style={labelStyle}>Contact email</label>
                   <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder={userEmail} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Accountant email</label>
+                  <label style={labelStyle}>Accountant email</label>
                   <input type="email" value={accountantEmail} onChange={e => setAccountantEmail(e.target.value)} placeholder="accountant@example.com" />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#888', display: 'block', marginBottom: '4px' }}>Timezone</label>
+                  <label style={labelStyle}>Timezone</label>
                   <select value={timezone} onChange={e => setTimezone(e.target.value)} style={{ width: '100%' }}>
                     {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>)}
                   </select>
@@ -589,31 +619,31 @@ function SettingsContent() {
 
           {/* HOURS */}
           {tab === 'hours' && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '0.25rem' }}>Business hours</div>
-              <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+            <div style={cardStyle}>
+              <div style={{ ...sectionLabelStyle, marginBottom: '0.25rem' }}>Business hours</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1.25rem', lineHeight: 1.5 }}>
                 Set when you're open. These times pre-fill the shift form and bound auto-generated schedules.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                 {DAY_KEYS.map((day, i) => {
                   const h = bizHours[day]
                   return (
-                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i < 6 ? '1px solid #f0f0f0' : 'none' }}>
-                      <div style={{ width: '96px', fontSize: '13px', fontWeight: 500, color: h.closed ? '#bbb' : '#1a1a1a', flexShrink: 0 }}>{DAY_LABELS[day]}</div>
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i < 6 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                      <div style={{ width: '96px', fontSize: '13px', fontWeight: 500, color: h.closed ? '#475569' : '#e2e8f0', flexShrink: 0 }}>{DAY_LABELS[day]}</div>
                       {h.closed ? (
-                        <div style={{ flex: 1, fontSize: '13px', color: '#bbb' }}>Closed</div>
+                        <div style={{ flex: 1, fontSize: '13px', color: '#475569' }}>Closed</div>
                       ) : (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="time" value={h.open} onChange={e => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}
-                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', border: '1px solid #dde1ea', borderRadius: '6px' }} />
-                          <span style={{ fontSize: '12px', color: '#aaa' }}>to</span>
+                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', borderRadius: '6px' }} />
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>to</span>
                           <input type="time" value={h.close} onChange={e => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}
-                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', border: '1px solid #dde1ea', borderRadius: '6px' }} />
+                            style={{ width: '120px', fontSize: '13px', padding: '5px 8px', borderRadius: '6px' }} />
                         </div>
                       )}
                       <button
                         onClick={() => setBizHours(prev => ({ ...prev, [day]: { ...prev[day], closed: !prev[day].closed } }))}
-                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: `1px solid ${h.closed ? '#dde1ea' : '#fcd4d4'}`, background: h.closed ? '#f5f5f5' : '#fff5f5', color: h.closed ? '#888' : '#c0392b', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}
+                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: `1px solid ${h.closed ? 'rgba(255,255,255,0.1)' : 'rgba(248,113,113,0.3)'}`, background: h.closed ? 'rgba(255,255,255,0.04)' : 'rgba(248,113,113,0.1)', color: h.closed ? '#94a3b8' : '#f87171', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}
                       >
                         {h.closed ? 'Open' : 'Close'}
                       </button>
@@ -628,13 +658,13 @@ function SettingsContent() {
               {/* JAY-54 (prerequisite step) — the missing input a "budget vs. actual"
                   comparison needs. Optional: leaving it blank hides the comparison
                   on the Schedule page rather than showing a false $0 target. */}
-              <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                <div className="section-label" style={{ marginBottom: '0.25rem' }}>Weekly labor budget</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+              <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.25rem' }}>Weekly labor budget</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                   Optional. Set a target and the Schedule page will show projected cost against it. Leave blank to hide the comparison.
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '220px' }}>
-                  <span style={{ fontSize: '13px', color: '#888' }}>$</span>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>$</span>
                   <input
                     type="number"
                     min="0"
@@ -652,29 +682,29 @@ function SettingsContent() {
               {/* JAY-18 — geofence is informational only (never blocks a clock-in);
                   the photo toggle, when on, is enforced server-side. No geocoding
                   integration here — the owner enters coordinates manually. */}
-              <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                <div className="section-label" style={{ marginBottom: '0.25rem' }}>Clock-in verification</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+              <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.25rem' }}>Clock-in verification</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                   Optional. A geofence shows employees a location check at clock-in — it's advisory only and never blocks anyone from clocking in. Requiring a photo does block clock-in until one is taken.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', maxWidth: '480px', marginBottom: '0.5rem' }}>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Latitude</label>
+                    <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '3px' }}>Latitude</label>
                     <input type="number" step="any" value={geofenceLat} onChange={e => setGeofenceLat(e.target.value)} placeholder="e.g. 40.7128" />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Longitude</label>
+                    <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '3px' }}>Longitude</label>
                     <input type="number" step="any" value={geofenceLng} onChange={e => setGeofenceLng(e.target.value)} placeholder="e.g. -74.0060" />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '3px' }}>Radius (miles)</label>
+                    <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '3px' }}>Radius (miles)</label>
                     <input type="number" min="0" step="0.1" value={geofenceRadiusMi} onChange={e => setGeofenceRadiusMi(e.target.value)} placeholder="e.g. 0.25" />
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '1rem' }}>
                   Tip: search your business address on Google Maps, right-click the pin, and copy the coordinates shown.
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#333', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0', cursor: 'pointer' }}>
                   <input type="checkbox" checked={requireClockinPhoto} onChange={e => setRequireClockinPhoto(e.target.checked)} />
                   Require a photo at clock-in
                 </label>
@@ -688,9 +718,9 @@ function SettingsContent() {
           {/* ONBOARDING */}
           {tab === 'onboarding' && (
             <>
-              <div className="card">
-                <div className="section-label">Onboarding fields</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={cardStyle}>
+                <div style={sectionLabelStyle}>Onboarding fields</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   Customize the fields you fill in when adding a new hire.
                 </div>
                 <div className="template-fields">
@@ -703,22 +733,22 @@ function SettingsContent() {
                 </div>
                 <div className="template-add-row">
                   <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g. Food handler's permit" onKeyDown={e => e.key === 'Enter' && (() => { if (!newLabel.trim()) return; setFields(prev => [...prev, { id: newLabel.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: newLabel, placeholder: '' }]); setNewLabel('') })()} />
-                  <button className="btn" onClick={() => { if (!newLabel.trim()) return; setFields(prev => [...prev, { id: newLabel.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: newLabel, placeholder: '' }]); setNewLabel('') }}>+ Add</button>
+                  <button className="btn" style={ghostBtnStyle} onClick={() => { if (!newLabel.trim()) return; setFields(prev => [...prev, { id: newLabel.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: newLabel, placeholder: '' }]); setNewLabel('') }}>+ Add</button>
                 </div>
                 <button className="btn auth-btn-primary" onClick={saveTemplate} disabled={tmplSaving} style={{ marginTop: '1.25rem', width: 'auto' }}>
                   {tmplSaving ? 'Saving...' : 'Save template'}
                 </button>
               </div>
 
-              <div className="card" style={{ marginTop: '1rem' }}>
-                <div className="section-label">Welcome pack template</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={{ ...cardStyle, marginTop: '1rem' }}>
+                <div style={sectionLabelStyle}>Welcome pack template</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   Click a tag below to insert it — it will be replaced with the employee's actual info when you send the welcome pack.
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
                   {[{ label: 'Name' }, { label: 'Role' }, { label: 'Start date' }, { label: 'Phone' }, ...fields.map(f => ({ label: f.label }))].map(({ label }) => (
                     <button key={label} onClick={() => setWelcomePack(prev => prev + `[${label}]`)}
-                      style={{ padding: '4px 10px', borderRadius: '6px', border: '1.5px solid #d0d5e8', background: '#f4f6fc', color: '#185fa5', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                      style={{ padding: '4px 10px', borderRadius: '6px', border: '1.5px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.12)', color: '#93c5fd', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                       {label}
                     </button>
                   ))}
@@ -737,14 +767,14 @@ function SettingsContent() {
 
           {/* NOTIFICATIONS */}
           {tab === 'notifications' && (
-            <div className="card">
-              <div className="section-label" style={{ marginBottom: '0.5rem' }}>Email notifications</div>
-              <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.25rem' }}>Choose which events send you an email.</div>
+            <div style={cardStyle}>
+              <div style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>Email notifications</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '0.25rem' }}>Choose which events send you an email.</div>
               {toggle(notifTimeOff, setNotifTimeOff, 'Employee requests time off', notifSaving, saveNotifs)}
               {toggle(notifFormSubmit, setNotifFormSubmit, 'Employee submits W-4, I-9, or direct deposit form', notifSaving, saveNotifs)}
               {toggle(notifWelcomeSigned, setNotifWelcomeSigned, 'Employee signs their welcome pack', notifSaving, saveNotifs)}
               {toggle(notifNewEmployee, setNotifNewEmployee, 'New employee is added', notifSaving, saveNotifs)}
-              {notifSaving && <div style={{ fontSize: '12px', color: '#999', marginTop: '0.75rem' }}>Saving...</div>}
+              {notifSaving && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '0.75rem' }}>Saving...</div>}
             </div>
           )}
 
@@ -752,23 +782,23 @@ function SettingsContent() {
           {tab === 'billing' && (
             <div>
               {billingLoading || !billing ? (
-                <div className="card" style={{ color: '#bbb', fontSize: '14px' }}>Loading billing info…</div>
+                <div style={{ ...cardStyle, color: '#64748b', fontSize: '14px' }}>Loading billing info…</div>
               ) : (
                 <>
                   {/* Current plan card */}
-                  <div className="card" style={{ marginBottom: '1rem' }}>
-                    <div className="section-label" style={{ marginBottom: '1rem' }}>Current plan</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: '#f7f9fc', borderRadius: '10px', marginBottom: '1.25rem' }}>
+                  <div style={cardStyle}>
+                    <div style={{ ...sectionLabelStyle, marginBottom: '1rem' }}>Current plan</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', marginBottom: '1.25rem' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: '16px', color: '#185fa5' }}>{billing.planName}</div>
-                        <div style={{ fontSize: '12px', color: '#888', marginTop: '3px' }}>
+                        <div style={{ fontWeight: 700, fontSize: '16px', color: '#93c5fd' }}>{billing.planName}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px' }}>
                           ${billing.planPrice}/mo · {billing.employeeLimit ? `up to ${billing.employeeLimit} employees` : 'unlimited employees'}
                         </div>
                       </div>
                       <span style={{
                         fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', textTransform: 'capitalize',
-                        background: billing.status === 'active' ? '#e6f9f0' : billing.status === 'trialing' ? '#fff8e6' : billing.status === 'past_due' ? '#fef2f2' : '#f5f5f5',
-                        color: billing.status === 'active' ? '#15803d' : billing.status === 'trialing' ? '#b45309' : billing.status === 'past_due' ? '#b91c1c' : '#666',
+                        background: billing.status === 'active' ? 'rgba(34,197,94,0.15)' : billing.status === 'trialing' ? 'rgba(217,119,6,0.15)' : billing.status === 'past_due' ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.06)',
+                        color: billing.status === 'active' ? '#4ade80' : billing.status === 'trialing' ? '#fbbf24' : billing.status === 'past_due' ? '#f87171' : '#94a3b8',
                       }}>
                         {billing.status === 'trialing' ? `Trial · ${billing.trialDaysLeft} days left` : billing.status}
                       </span>
@@ -776,24 +806,24 @@ function SettingsContent() {
 
                     <div style={{ display: 'flex', gap: '24px', marginBottom: '1.25rem' }}>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active employees</div>
-                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1a1a1a' }}>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active employees</div>
+                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#e2e8f0' }}>
                           {billing.employeeCount}
-                          {billing.employeeLimit && <span style={{ fontSize: '13px', color: '#bbb', fontWeight: 400 }}> / {billing.employeeLimit}</span>}
+                          {billing.employeeLimit && <span style={{ fontSize: '13px', color: '#475569', fontWeight: 400 }}> / {billing.employeeLimit}</span>}
                         </div>
                       </div>
                       {billing.currentPeriodEnd && (
                         <div>
-                          <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Next billing date</div>
-                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Next billing date</div>
+                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#e2e8f0' }}>
                             {new Date(billing.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
                       )}
                       {billing.status === 'trialing' && !billing.hasSubscription && (
                         <div>
-                          <div style={{ fontSize: '11px', color: '#999', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trial ends</div>
-                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#b45309' }}>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trial ends</div>
+                          <div style={{ fontSize: '15px', fontWeight: 600, color: '#fbbf24' }}>
                             {new Date(billing.trialEndsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
@@ -803,7 +833,7 @@ function SettingsContent() {
                     {billing.hasSubscription && (
                       <button
                         className="btn"
-                        style={{ fontSize: '13px', padding: '8px 18px', background: '#f5f6fa', color: '#333', border: '1px solid #e5e7eb' }}
+                        style={{ fontSize: '13px', padding: '8px 18px', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.1)' }}
                         disabled={portalLoading}
                         onClick={async () => {
                           setPortalLoading(true)
@@ -823,8 +853,8 @@ function SettingsContent() {
 
                   {/* Plan picker (shown on trial or if not on pro) */}
                   {(billing.status === 'trialing' || billing.plan !== 'pro') && (
-                    <div className="card">
-                      <div className="section-label" style={{ marginBottom: '1rem' }}>
+                    <div style={cardStyle}>
+                      <div style={{ ...sectionLabelStyle, marginBottom: '1rem' }}>
                         {billing.status === 'trialing' ? 'Choose a plan to continue after your trial' : 'Upgrade your plan'}
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
@@ -837,29 +867,29 @@ function SettingsContent() {
                           const isPopular = p.key === 'growth'
                           return (
                             <div key={p.key} style={{
-                              border: `1.5px solid ${isPopular ? '#185fa5' : '#e5e7eb'}`,
+                              border: `1.5px solid ${isPopular ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
                               borderRadius: '12px', padding: '20px', position: 'relative',
-                              background: isPopular ? '#f0f6ff' : '#fff',
+                              background: isPopular ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)',
                             }}>
                               {isPopular && (
-                                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#185fa5', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
+                                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#1d4ed8', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
                                   MOST POPULAR
                                 </div>
                               )}
-                              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>{p.name}</div>
-                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', marginBottom: '2px' }}>${p.price}<span style={{ fontSize: '13px', fontWeight: 400, color: '#888' }}>/mo</span></div>
-                              <div style={{ fontSize: '11px', color: '#888', marginBottom: '14px' }}>{p.limit}</div>
+                              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px', color: '#e2e8f0' }}>{p.name}</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#e2e8f0', marginBottom: '2px' }}>${p.price}<span style={{ fontSize: '13px', fontWeight: 400, color: '#64748b' }}>/mo</span></div>
+                              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '14px' }}>{p.limit}</div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
                                 {p.features.map(f => (
-                                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#444' }}>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#94a3b8' }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     {f}
                                   </div>
                                 ))}
                               </div>
                               <button
                                 className="btn auth-btn-primary"
-                                style={{ width: '100%', fontSize: '13px', padding: '9px', background: isPopular ? '#185fa5' : '#1a1a1a', opacity: isCurrent ? 0.5 : 1 }}
+                                style={{ width: '100%', fontSize: '13px', padding: '9px', background: isPopular ? '#1d4ed8' : 'rgba(255,255,255,0.08)', opacity: isCurrent ? 0.5 : 1 }}
                                 disabled={isCurrent || checkoutLoading === p.key}
                                 onClick={async () => {
                                   // JAY-45 — an existing live subscription gets a proration preview +
@@ -886,7 +916,7 @@ function SettingsContent() {
                           )
                         })}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#aaa', marginTop: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '12px', textAlign: 'center' }}>
                         14-day free trial included · Cancel anytime · No setup fees
                       </div>
                     </div>
@@ -894,26 +924,26 @@ function SettingsContent() {
 
                   {/* Plan-switch confirm modal (JAY-45) */}
                   {switchTarget && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                      <div style={{ background: '#fff', borderRadius: '12px', padding: '1.5rem', width: '380px', maxWidth: '90vw' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '0.5rem' }}>Switch to {switchTarget.name}?</div>
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                      <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '1.5rem', width: '380px', maxWidth: '90vw' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '0.5rem', color: '#e2e8f0' }}>Switch to {switchTarget.name}?</div>
                         {switchPreviewLoading ? (
-                          <div style={{ fontSize: '13px', color: '#888', padding: '1rem 0' }}>Loading preview...</div>
+                          <div style={{ fontSize: '13px', color: '#64748b', padding: '1rem 0' }}>Loading preview...</div>
                         ) : switchPreview?.isNewSubscription ? (
-                          <div style={{ fontSize: '13px', color: '#444', lineHeight: 1.6, marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '1rem' }}>
                             This will start a new subscription with a 14-day free trial.
                           </div>
                         ) : switchPreview ? (
-                          <div style={{ fontSize: '13px', color: '#444', lineHeight: 1.6, marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '1rem' }}>
                             <p style={{ margin: '0 0 8px' }}>Your existing subscription updates in place — you won&apos;t be charged twice.</p>
-                            <div style={{ background: '#f5f6fa', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#888' }}>Due today (prorated)</span>
-                                <span style={{ fontWeight: 600 }}>${((switchPreview.dueTodayCents ?? 0) / 100).toFixed(2)}</span>
+                                <span style={{ color: '#64748b' }}>Due today (prorated)</span>
+                                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>${((switchPreview.dueTodayCents ?? 0) / 100).toFixed(2)}</span>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#888' }}>Next full charge</span>
-                                <span style={{ fontWeight: 600 }}>
+                                <span style={{ color: '#64748b' }}>Next full charge</span>
+                                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>
                                   ${((switchPreview.nextChargeCents ?? 0) / 100).toFixed(2)}
                                   {switchPreview.nextChargeDate && ` on ${new Date(switchPreview.nextChargeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                                 </span>
@@ -921,12 +951,12 @@ function SettingsContent() {
                             </div>
                           </div>
                         ) : (
-                          <div style={{ fontSize: '13px', color: '#c0392b', marginBottom: '1rem' }}>Could not load a preview. Try again.</div>
+                          <div style={{ fontSize: '13px', color: '#f87171', marginBottom: '1rem' }}>Could not load a preview. Try again.</div>
                         )}
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button
                             className="btn"
-                            style={{ flex: 1, fontSize: '13px', padding: '9px' }}
+                            style={{ ...ghostBtnStyle, flex: 1, fontSize: '13px', padding: '9px' }}
                             onClick={() => { setSwitchTarget(null); setSwitchPreview(null) }}
                             disabled={switchConfirming}
                           >
@@ -953,31 +983,31 @@ function SettingsContent() {
           {tab === 'team' && (
             <div>
               {/* Role legend */}
-              <div className="card" style={{ marginBottom: '1rem' }}>
-                <div className="section-label" style={{ marginBottom: '0.75rem' }}>Access levels</div>
+              <div style={cardStyle}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.75rem' }}>Access levels</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {[
-                    { label: 'Owner', color: '#185fa5', bg: '#e8f0fb', desc: 'Full access including billing and account settings. Only one per business.' },
-                    { label: 'Admin', color: '#7c3aed', bg: '#f3f0ff', desc: 'Full dashboard access — employees, shifts, payroll, hiring. Cannot delete the account or change billing.' },
-                    { label: 'Manager', color: '#d97706', bg: '#fffbeb', desc: 'Can view employees, manage shifts, approve time off and swap requests. No payroll rates or settings.' },
-                    { label: 'Employee', color: '#555', bg: '#f5f5f5', desc: 'Portal only — their own schedule, clock in/out, PTO requests, shift swaps.' },
+                    { label: 'Owner', color: '#93c5fd', bg: 'rgba(59,130,246,0.15)', desc: 'Full access including billing and account settings. Only one per business.' },
+                    { label: 'Admin', color: '#c4b5fd', bg: 'rgba(139,92,246,0.15)', desc: 'Full dashboard access — employees, shifts, payroll, hiring. Cannot delete the account or change billing.' },
+                    { label: 'Manager', color: '#fbbf24', bg: 'rgba(217,119,6,0.15)', desc: 'Can view employees, manage shifts, approve time off and swap requests. No payroll rates or settings.' },
+                    { label: 'Employee', color: '#94a3b8', bg: 'rgba(255,255,255,0.06)', desc: 'Portal only — their own schedule, clock in/out, PTO requests, shift swaps.' },
                   ].map(r => (
                     <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', background: r.bg, color: r.color, flexShrink: 0, minWidth: '60px', textAlign: 'center' }}>{r.label}</span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>{r.desc}</span>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>{r.desc}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Employee list with inline role change */}
-              <div className="card" style={{ marginBottom: '1rem' }}>
+              <div style={cardStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <div className="section-label" style={{ marginBottom: 0 }}>
+                  <div style={{ ...sectionLabelStyle, marginBottom: 0 }}>
                     Team ({teamEmployees.filter(e => showTerminated || e.status !== 'terminated').length})
                   </div>
                   {teamEmployees.some(e => e.status === 'terminated') && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#888', cursor: 'pointer', userSelect: 'none' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer', userSelect: 'none' }}>
                       <input
                         type="checkbox"
                         checked={showTerminated}
@@ -989,13 +1019,13 @@ function SettingsContent() {
                   )}
                 </div>
                 {teamEmployees.filter(e => showTerminated || e.status !== 'terminated').length === 0 && (
-                  <div style={{ fontSize: '13px', color: '#bbb', padding: '8px 0' }}>No employees yet.</div>
+                  <div style={{ fontSize: '13px', color: '#475569', padding: '8px 0' }}>No employees yet.</div>
                 )}
                 {teamEmployees.filter(e => showTerminated || e.status !== 'terminated').map(emp => {
                   const roleColors: Record<string, { bg: string; color: string }> = {
-                    admin: { bg: '#f3f0ff', color: '#7c3aed' },
-                    manager: { bg: '#fffbeb', color: '#d97706' },
-                    employee: { bg: '#f5f5f5', color: '#555' },
+                    admin: { bg: 'rgba(139,92,246,0.15)', color: '#c4b5fd' },
+                    manager: { bg: 'rgba(217,119,6,0.15)', color: '#fbbf24' },
+                    employee: { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8' },
                   }
                   const rc = roleColors[emp.access_role] ?? roleColors.employee
                   const isOpen = permEmployee?.id === emp.id
@@ -1005,29 +1035,29 @@ function SettingsContent() {
                     <div key={emp.id}>
                       <div
                         onClick={() => openPermPanel(emp)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: isOpen ? 'none' : '1px solid #f5f5f5', cursor: 'pointer' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: isOpen ? 'none' : '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}
                       >
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(59,130,246,0.15)', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
                           {emp.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name}</div>
-                          <div style={{ fontSize: '11px', color: '#aaa', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.email || emp.role}</div>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.email || emp.role}</div>
                         </div>
                         {isPending && (
                           <>
-                            <span style={{ fontSize: '10px', color: '#d97706', background: '#fffbeb', padding: '2px 7px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>Not yet accepted</span>
+                            <span style={{ fontSize: '10px', color: '#fbbf24', background: 'rgba(217,119,6,0.15)', padding: '2px 7px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>Not yet accepted</span>
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); resendInvite(emp.id) }}
                               disabled={resendingId === emp.id}
-                              style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #dde1ea', background: '#fff', cursor: 'pointer', color: '#185fa5', fontWeight: 500, flexShrink: 0 }}
+                              style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', color: '#93c5fd', fontWeight: 500, flexShrink: 0 }}
                             >
                               {resendingId === emp.id ? 'Sending…' : 'Resend invite'}
                             </button>
                           </>
                         )}
-                        {hasCustom && <span style={{ fontSize: '10px', color: '#185fa5', background: '#e8f0fb', padding: '2px 7px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>Custom</span>}
+                        {hasCustom && <span style={{ fontSize: '10px', color: '#93c5fd', background: 'rgba(59,130,246,0.15)', padding: '2px 7px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>Custom</span>}
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', background: rc.bg, color: rc.color, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                           {emp.access_role}
                         </span>
@@ -1036,37 +1066,37 @@ function SettingsContent() {
                           disabled={roleUpdating === emp.id}
                           onClick={e => e.stopPropagation()}
                           onChange={e => { e.stopPropagation(); updateEmployeeRole(emp.id, e.target.value) }}
-                          style={{ fontSize: '12px', padding: '4px 7px', border: '1px solid #dde1ea', borderRadius: '6px', cursor: 'pointer', color: '#555', flexShrink: 0, width: 'auto' }}
+                          style={{ fontSize: '12px', padding: '4px 7px', borderRadius: '6px', cursor: 'pointer', flexShrink: 0, width: 'auto' }}
                         >
                           <option value="employee">Employee</option>
                           <option value="manager">Manager</option>
                           <option value="admin">Admin</option>
                         </select>
-                        <span style={{ fontSize: '14px', color: '#bbb', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
+                        <span style={{ fontSize: '14px', color: '#475569', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
                       </div>
 
                       {/* Inline permission panel */}
                       {isOpen && (
-                        <div onClick={e => e.stopPropagation()} style={{ background: '#f9fafc', border: '1px solid #e8eaf0', borderRadius: 10, padding: '1rem', marginBottom: '0.5rem' }}>
+                        <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '1rem', marginBottom: '0.5rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '12px', color: '#888' }}>Apply preset:</span>
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>Apply preset:</span>
                             {(['employee','manager','admin'] as const).map(r => (
-                              <button type="button" key={r} onClick={() => applyRolePreset(r)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 10, border: '1px solid #dde1ea', background: '#fff', cursor: 'pointer', color: '#555', fontWeight: 500, textTransform: 'capitalize' }}>{r}</button>
+                              <button type="button" key={r} onClick={() => applyRolePreset(r)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', color: '#94a3b8', fontWeight: 500, textTransform: 'capitalize' }}>{r}</button>
                             ))}
                           </div>
                           {(['Scheduling','Employees','Time off','Payroll','Hiring'] as const).map(section => (
                             <div key={section}>
-                              <div style={{ fontSize: '10px', fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 4px', borderBottom: '1px solid #eee', marginBottom: 2 }}>{section}</div>
+                              <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 4px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 2 }}>{section}</div>
                               {PERM_KEYS.filter(k => PERM_META[k].section === section).map(key => (
-                                <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f3f4f6', gap: 8 }}>
+                                <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', gap: 8 }}>
                                   <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>{PERM_META[key].label}</div>
-                                    <div style={{ fontSize: '11px', color: '#aaa' }}>{PERM_META[key].sub}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: 500, color: '#e2e8f0' }}>{PERM_META[key].label}</div>
+                                    <div style={{ fontSize: '11px', color: '#64748b' }}>{PERM_META[key].sub}</div>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => setPermValues(prev => ({ ...prev, [key]: !prev[key] }))}
-                                    style={{ width: 38, height: 21, borderRadius: 11, border: 'none', cursor: 'pointer', background: permValues[key] ? '#185fa5' : '#d0d5dd', position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}
+                                    style={{ width: 38, height: 21, borderRadius: 11, border: 'none', cursor: 'pointer', background: permValues[key] ? '#3b82f6' : 'rgba(255,255,255,0.12)', position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}
                                   >
                                     <span style={{ position: 'absolute', top: 3, left: permValues[key] ? 19 : 3, width: 15, height: 15, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', display: 'block' }} />
                                   </button>
@@ -1078,7 +1108,7 @@ function SettingsContent() {
                             <button className="btn auth-btn-primary" onClick={savePermissions} disabled={permSaving} style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
                               {permSaving ? 'Saving...' : 'Save permissions'}
                             </button>
-                            {permSaved && <span style={{ fontSize: '12px', color: '#27ae60' }}>Saved.</span>}
+                            {permSaved && <span style={{ fontSize: '12px', color: '#4ade80' }}>Saved.</span>}
                           </div>
                         </div>
                       )}
@@ -1088,9 +1118,9 @@ function SettingsContent() {
               </div>
 
               {/* Invite new person */}
-              <div className="card">
-                <div className="section-label" style={{ marginBottom: '0.5rem' }}>Invite someone new</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={cardStyle}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>Invite someone new</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   If the email matches an existing employee, their access level is updated. Otherwise an invite is sent and a record is created.
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
@@ -1107,16 +1137,16 @@ function SettingsContent() {
               </div>
 
               {/* Join link (JAY-29) */}
-              <div className="card" style={{ marginTop: '1rem' }}>
-                <div className="section-label" style={{ marginBottom: '0.5rem' }}>Share a join link</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={{ ...cardStyle, marginTop: '1rem' }}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>Share a join link</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   Don't have their email handy? Share this link and let them fill in their own name, email, and phone. They'll show up here as pending — assign their role afterward.
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <input readOnly value={joinLink} onClick={e => (e.target as HTMLInputElement).select()} style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: '#666' }} />
+                  <input readOnly value={joinLink} onClick={e => (e.target as HTMLInputElement).select()} style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: '#94a3b8' }} />
                   <button
                     className="btn"
-                    style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}
+                    style={{ ...ghostBtnStyle, width: 'auto', fontSize: '13px', padding: '7px 16px' }}
                     onClick={() => {
                       navigator.clipboard.writeText(joinLink)
                       showToast('Join link copied.', 'success')
@@ -1132,29 +1162,29 @@ function SettingsContent() {
           {/* DEPARTMENTS */}
           {tab === 'departments' && (
             <div>
-              <div className="card" style={{ marginBottom: '1rem' }}>
-                <div className="section-label" style={{ marginBottom: '0.75rem' }}>Departments</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={{ ...cardStyle, marginBottom: '1rem' }}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.75rem' }}>Departments</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   Group your team by department. Assign employees in their profile.
                 </div>
                 {departments.length === 0 && (
-                  <div style={{ fontSize: '13px', color: '#bbb', padding: '8px 0', marginBottom: '0.75rem' }}>No departments yet.</div>
+                  <div style={{ fontSize: '13px', color: '#475569', padding: '8px 0', marginBottom: '0.75rem' }}>No departments yet.</div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   {departments.map((dept, i) => (
-                    <div key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: i < departments.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                    <div key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: i < departments.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                       <div style={{ width: 12, height: 12, borderRadius: '50%', background: dept.color, flexShrink: 0 }} />
                       {editingDept === dept.id ? (
                         <>
                           <input value={editDeptName} onChange={e => setEditDeptName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveDeptName(dept.id); if (e.key === 'Escape') setEditingDept(null) }} style={{ flex: 1, fontSize: '13px', padding: '4px 8px' }} autoFocus />
                           <button className="btn auth-btn-primary" style={{ fontSize: '12px', padding: '4px 10px', width: 'auto' }} onClick={() => saveDeptName(dept.id)}>Save</button>
-                          <button className="btn" style={{ fontSize: '12px', padding: '4px 10px' }} onClick={() => setEditingDept(null)}>Cancel</button>
+                          <button className="btn" style={{ ...ghostBtnStyle, fontSize: '12px', padding: '4px 10px' }} onClick={() => setEditingDept(null)}>Cancel</button>
                         </>
                       ) : (
                         <>
-                          <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: '#1a1a1a' }}>{dept.name}</span>
-                          <button onClick={() => { setEditingDept(dept.id); setEditDeptName(dept.name) }} style={{ fontSize: '12px', color: '#888', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>Rename</button>
-                          <button onClick={() => deleteDept(dept.id)} style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>Delete</button>
+                          <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>{dept.name}</span>
+                          <button onClick={() => { setEditingDept(dept.id); setEditDeptName(dept.name) }} style={{ fontSize: '12px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>Rename</button>
+                          <button onClick={() => deleteDept(dept.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>Delete</button>
                         </>
                       )}
                     </div>
@@ -1162,20 +1192,20 @@ function SettingsContent() {
                 </div>
               </div>
 
-              <div className="card">
-                <div className="section-label" style={{ marginBottom: '0.75rem' }}>Add department</div>
+              <div style={cardStyle}>
+                <div style={{ ...sectionLabelStyle, marginBottom: '0.75rem' }}>Add department</div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <input value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder="e.g. Kitchen" onKeyDown={e => e.key === 'Enter' && createDept()} style={{ flex: 1, minWidth: '140px' }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', color: '#888' }}>Color</label>
-                    <input type="color" value={newDeptColor} onChange={e => setNewDeptColor(e.target.value)} style={{ width: 32, height: 32, padding: 2, border: '1px solid #dde1ea', borderRadius: 6, cursor: 'pointer' }} />
+                    <label style={{ fontSize: '12px', color: '#64748b' }}>Color</label>
+                    <input type="color" value={newDeptColor} onChange={e => setNewDeptColor(e.target.value)} style={{ width: 32, height: 32, padding: 2, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, cursor: 'pointer' }} />
                   </div>
                   <button className="btn auth-btn-primary" onClick={createDept} disabled={deptSaving || !newDeptName.trim()} style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
                     {deptSaving ? 'Adding...' : '+ Add'}
                   </button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '11px', color: '#aaa' }}>Colorblind-safe picks:</span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>Colorblind-safe picks:</span>
                   {COLORBLIND_SAFE_PALETTE.map(c => (
                     <button
                       key={c}
@@ -1185,7 +1215,7 @@ function SettingsContent() {
                       aria-label={`Use color ${c}`}
                       style={{
                         width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
-                        border: newDeptColor === c ? '2px solid #1a1a1a' : '1px solid rgba(0,0,0,0.15)',
+                        border: newDeptColor === c ? '2px solid #e2e8f0' : '1px solid rgba(255,255,255,0.15)',
                       }}
                     />
                   ))}
@@ -1202,34 +1232,36 @@ function SettingsContent() {
           {/* DANGER ZONE */}
           {tab === 'danger' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="card">
-                <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '0.5rem' }}>Export your data</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={cardStyle}>
+                <div style={{ fontWeight: 700, fontSize: '14px', color: '#e2e8f0', marginBottom: '0.5rem' }}>Export your data</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   Download all your employees, payroll entries, and shifts as a JSON file.
                 </div>
-                <button className="btn" onClick={exportData} disabled={exporting} style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
+                <button className="btn" onClick={exportData} disabled={exporting} style={{ ...ghostBtnStyle, width: 'auto', fontSize: '13px', padding: '7px 16px' }}>
                   {exporting ? 'Preparing...' : 'Export data'}
                 </button>
               </div>
 
-              <div className="card" style={{ border: '1.5px solid #fde8e8' }}>
-                <div style={{ fontWeight: 700, fontSize: '14px', color: '#c0392b', marginBottom: '0.5rem' }}>Delete account</div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+              {/* JAY-55 — visually isolate the destructive action: red-tinted
+                  background/border, distinct from the plain-dark card above. */}
+              <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: '12px', padding: '1.25rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '14px', color: '#f87171', marginBottom: '0.5rem' }}>Delete account</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5 }}>
                   This permanently deletes your account and all data. Type your email address to confirm.
                 </div>
                 <input
                   value={deleteConfirm}
                   onChange={e => setDeleteConfirm(e.target.value)}
                   placeholder={userEmail}
-                  style={{ marginBottom: '0.75rem', borderColor: deleteConfirm && deleteConfirm !== userEmail ? '#c0392b' : undefined }}
+                  style={{ marginBottom: '0.75rem', borderColor: deleteConfirm && deleteConfirm !== userEmail ? '#f87171' : undefined }}
                 />
                 <button
                   onClick={deleteAccount}
                   disabled={deleteConfirm !== userEmail || deleting}
                   style={{
                     width: 'auto', fontSize: '13px', padding: '7px 16px',
-                    background: deleteConfirm === userEmail ? '#c0392b' : '#f5f5f5',
-                    color: deleteConfirm === userEmail ? '#fff' : '#aaa',
+                    background: deleteConfirm === userEmail ? '#f87171' : 'rgba(255,255,255,0.05)',
+                    color: deleteConfirm === userEmail ? '#1e1e1e' : '#475569',
                     border: 'none', borderRadius: '8px', cursor: deleteConfirm === userEmail ? 'pointer' : 'default',
                     fontWeight: 600,
                   }}
@@ -1247,6 +1279,8 @@ function SettingsContent() {
 }
 
 function IntegrationsTab() {
+  const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
+  const ghostBtnStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.12)' }
   const { showToast } = useToast()
   // JAY-46 — last_synced_at/last_sync_summary persist sync outcome across
   // page loads (previously only a one-time toast, gone on refresh).
@@ -1318,83 +1352,83 @@ function IntegrationsTab() {
       </div>
     )
   }
-  const connectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#e8f8ef', color: '#27ae60' }}>● Connected</span>
-  const notConnectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#f5f6fa', color: '#9a9a9a' }}>○ Not connected</span>
+  const connectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>● Connected</span>
+  const notConnectedBadge = <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'rgba(255,255,255,0.06)', color: '#64748b' }}>○ Not connected</span>
 
   return (
     <div>
-      <div style={{ fontSize: '13px', color: '#666', marginBottom: '1.25rem' }}>Connect your tools to keep data in sync.</div>
+      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1.25rem' }}>Connect your tools to keep data in sync.</div>
       <div style={{ display: 'grid', gap: '1rem', maxWidth: '560px' }}>
 
         {/* Gusto */}
-        <div className="card">
+        <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#f5ece8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ReceiptIcon size={18} color="#c0692b" /></div>
-            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Gusto</div><div style={{ fontSize: '12px', color: '#888' }}>Payroll &amp; HR</div></div>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(192,105,43,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ReceiptIcon size={18} color="#e0925a" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px', color: '#e2e8f0' }}>Gusto</div><div style={{ fontSize: '12px', color: '#64748b' }}>Payroll &amp; HR</div></div>
             {!loading && <div style={{ marginLeft: 'auto' }}>{gusto ? connectedBadge : notConnectedBadge}</div>}
           </div>
-          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : gusto ? (
+          {loading ? <div style={{ fontSize: '13px', color: '#64748b' }}>Loading...</div> : gusto ? (
             <>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(gusto.connected_at)}</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '0.75rem' }}>Connected {fmtDate(gusto.connected_at)}</div>
               {syncStatusLine(gusto)}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                 <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_employees', '/api/gusto/sync', { action: 'push_employees' })} disabled={!!syncing}>{syncing === 'push_employees' ? 'Syncing…' : '↑ Push employees'}</button>
-                <button className="btn" style={{ fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('pull_payrolls', '/api/gusto/sync', { action: 'pull_payrolls' })} disabled={!!syncing}>{syncing === 'pull_payrolls' ? 'Importing…' : '↓ Pull payrolls'}</button>
+                <button className="btn" style={{ ...ghostBtnStyle, fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('pull_payrolls', '/api/gusto/sync', { action: 'pull_payrolls' })} disabled={!!syncing}>{syncing === 'pull_payrolls' ? 'Importing…' : '↓ Pull payrolls'}</button>
               </div>
-              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('gusto')}>Disconnect</button>
+              <button style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('gusto')}>Disconnect</button>
             </>
           ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('gusto')}>Connect Gusto</button>}
         </div>
 
         {/* Google Calendar */}
-        <div className="card">
+        <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#e8f0fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CalendarIcon size={18} color="#1a73e8" /></div>
-            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Google Calendar</div><div style={{ fontSize: '12px', color: '#888' }}>Schedule sync</div></div>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(26,115,232,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CalendarIcon size={18} color="#93c5fd" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px', color: '#e2e8f0' }}>Google Calendar</div><div style={{ fontSize: '12px', color: '#64748b' }}>Schedule sync</div></div>
             {!loading && <div style={{ marginLeft: 'auto' }}>{google ? connectedBadge : notConnectedBadge}</div>}
           </div>
-          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : google ? (
+          {loading ? <div style={{ fontSize: '13px', color: '#64748b' }}>Loading...</div> : google ? (
             <>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(google.connected_at)}</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '0.75rem' }}>Connected {fmtDate(google.connected_at)}</div>
               {syncStatusLine(google)}
               <div style={{ marginBottom: '0.75rem' }}>
                 <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_shifts', '/api/google/sync', {})} disabled={!!syncing}>{syncing === 'push_shifts' ? 'Syncing…' : '↑ Push this week\'s shifts'}</button>
               </div>
-              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('google')}>Disconnect</button>
+              <button style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('google')}>Disconnect</button>
             </>
           ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('google')}>Connect Google Calendar</button>}
         </div>
 
         {/* QuickBooks */}
-        <div className="card">
+        <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><BookOpenIcon size={18} color="#2e7d32" /></div>
-            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>QuickBooks</div><div style={{ fontSize: '12px', color: '#888' }}>Accounting sync</div></div>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(46,125,50,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><BookOpenIcon size={18} color="#4ade80" /></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px', color: '#e2e8f0' }}>QuickBooks</div><div style={{ fontSize: '12px', color: '#64748b' }}>Accounting sync</div></div>
             {!loading && <div style={{ marginLeft: 'auto' }}>{qb ? connectedBadge : notConnectedBadge}</div>}
           </div>
-          {loading ? <div style={{ fontSize: '13px', color: '#999' }}>Loading...</div> : qb ? (
+          {loading ? <div style={{ fontSize: '13px', color: '#64748b' }}>Loading...</div> : qb ? (
             <>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.75rem' }}>Connected {fmtDate(qb.connected_at)}</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '0.75rem' }}>Connected {fmtDate(qb.connected_at)}</div>
               {syncStatusLine(qb)}
               <div style={{ marginBottom: '0.75rem' }}>
                 <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 14px' }} onClick={() => sync('push_payroll', '/api/quickbooks/sync', {})} disabled={!!syncing}>{syncing === 'push_payroll' ? 'Syncing…' : '↑ Push this month\'s payroll'}</button>
               </div>
-              <button style={{ fontSize: '12px', color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('quickbooks')}>Disconnect</button>
+              <button style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleDisconnect('quickbooks')}>Disconnect</button>
             </>
           ) : <button className="btn auth-btn-primary" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px' }} onClick={() => handleConnect('quickbooks')}>Connect QuickBooks</button>}
         </div>
 
         {/* Indeed */}
-        <div className="card">
+        <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.75rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#fff3e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1.5" fill="#e65100" stroke="none"/><line x1="12" y1="9" x2="12" y2="20"/><path d="M8 20h8"/></svg>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(230,81,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1.5" fill="#fbbf24" stroke="none"/><line x1="12" y1="9" x2="12" y2="20"/><path d="M8 20h8"/></svg>
             </div>
-            <div><div style={{ fontWeight: 700, fontSize: '14px' }}>Indeed</div><div style={{ fontSize: '12px', color: '#888' }}>Job board publishing</div></div>
-            <div style={{ marginLeft: 'auto' }}><span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: '#fff8f0', color: '#e65100' }}>Via Hiring page</span></div>
+            <div><div style={{ fontWeight: 700, fontSize: '14px', color: '#e2e8f0' }}>Indeed</div><div style={{ fontSize: '12px', color: '#64748b' }}>Job board publishing</div></div>
+            <div style={{ marginLeft: 'auto' }}><span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>Via Hiring page</span></div>
           </div>
-          <div style={{ fontSize: '13px', color: '#555', marginBottom: '0.75rem', lineHeight: '1.5' }}>Post jobs to Indeed directly from the Hiring page.</div>
-          <a href="/hiring" className="btn" style={{ width: 'auto', fontSize: '13px', padding: '7px 16px', display: 'inline-block', textDecoration: 'none' }}>Go to Hiring →</a>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '0.75rem', lineHeight: '1.5' }}>Post jobs to Indeed directly from the Hiring page.</div>
+          <a href="/hiring" className="btn" style={{ ...ghostBtnStyle, width: 'auto', fontSize: '13px', padding: '7px 16px', display: 'inline-block', textDecoration: 'none' }}>Go to Hiring →</a>
         </div>
 
       </div>

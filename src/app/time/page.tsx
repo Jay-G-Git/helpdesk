@@ -97,6 +97,17 @@ function shiftHours(s: Shift) {
   return ((eh * 60 + em) - (sh * 60 + sm)) / 60
 }
 
+// JAY-53 — same per-shift cost math already used for the week's estimatedCost
+// total (JAY-16's overtime-cost warning), just exposed per shift instead of
+// only summed. Salary employees get an implied hourly rate (annual / 52
+// weeks / 40 hours) since there's no other rate to attribute a shift's cost
+// to — same convention the existing weekly total already uses.
+function shiftCost(s: Shift, emp: Employee | undefined | null) {
+  if (!emp?.pay_rate) return null
+  const hrs = shiftHours(s)
+  return emp.pay_type === 'salary' ? (emp.pay_rate / 52 / 40) * hrs : emp.pay_rate * hrs
+}
+
 // Role → dark-theme color mapping for schedule grid
 function getRoleColor(role: string): { bg: string; text: string; border: string } {
   const r = role.toLowerCase()
@@ -1100,6 +1111,18 @@ export default function TimePage() {
                                       {shiftHours(dayShift) % 1 === 0 ? shiftHours(dayShift) : shiftHours(dayShift).toFixed(1)}h
                                     </div>
                                   )}
+                                  {/* JAY-53 — per-shift labor cost, same math as the week's
+                                      estimatedCost total, just shown per shift so an owner sees
+                                      cost while building the schedule, not only in the weekly
+                                      budget banner below. */}
+                                  {!isCallout && (() => {
+                                    const cost = shiftCost(dayShift, emp)
+                                    return cost != null ? (
+                                      <div style={{ fontSize: '10px', color: cellColor!.text, opacity: 0.5, marginTop: '1px' }}>
+                                        ${cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                      </div>
+                                    ) : null
+                                  })()}
                                 </div>
                               ) : (
                                 <div style={{ fontSize: '10px', color: isDragOver ? '#93c5fd' : '#334155', textAlign: 'center' }}>

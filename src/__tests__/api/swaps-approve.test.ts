@@ -60,11 +60,11 @@ describe('PATCH /api/shifts/swaps/[id]', () => {
     expect(res.status).toBe(500)
   })
 
-  it('emails both the requester and target employee on approval', async () => {
+  it('emails both the requester and target employee on approval (no target shift, so no reassignment)', async () => {
     mockOwner({ id: 'owner-1' })
     queueFromResponses(supabaseAdmin, [
-      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2 }, error: null }, // swap lookup
-      { data: null, error: null }, // update
+      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2, target_shift_id: null }, error: null }, // swap lookup
+      { data: null, error: null }, // update status
       { data: [{ id: 1, name: 'Jordan Taylor', email: 'jordan@example.com' }, { id: 2, name: 'Casey Reed', email: 'casey@example.com' }], error: null }, // employees
       { data: { shift_date: '2026-07-18', start_time: '09:00', end_time: '17:00' }, error: null }, // shift
     ])
@@ -82,7 +82,7 @@ describe('PATCH /api/shifts/swaps/[id]', () => {
     mockOwner({ id: 'owner-1' })
     sendMock.mockRejectedValueOnce(new Error('resend down'))
     queueFromResponses(supabaseAdmin, [
-      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2 }, error: null },
+      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2, target_shift_id: null }, error: null },
       { data: null, error: null },
       { data: [{ id: 1, name: 'Jordan Taylor', email: 'jordan@example.com' }, { id: 2, name: 'Casey Reed', email: 'casey@example.com' }], error: null },
       { data: { shift_date: '2026-07-18', start_time: '09:00', end_time: '17:00' }, error: null },
@@ -91,5 +91,51 @@ describe('PATCH /api/shifts/swaps/[id]', () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
+  })
+
+  // JAY-52 — a swap naming a specific target shift/employee now actually
+  // reassigns both shifts on approval instead of only flipping status.
+  it('swaps the two shifts employee_id when the request named a specific target', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2, target_shift_id: 20 }, error: null }, // swap lookup
+      { data: null, error: null }, // update status
+      { data: null, error: null }, // reassign requester_shift_id -> target_employee_id
+      { data: null, error: null }, // reassign target_shift_id -> requester_employee_id
+      { data: [{ id: 1, name: 'Jordan Taylor', email: 'jordan@example.com' }, { id: 2, name: 'Casey Reed', email: 'casey@example.com' }], error: null }, // employees
+      { data: { shift_date: '2026-07-18', start_time: '09:00', end_time: '17:00' }, error: null }, // shift
+    ])
+    const fromMock = supabaseAdmin.from as jest.Mock
+    const res = await PATCH(mockRequest({ token: 'good', body: { status: 'approved' } }) as never, params('5'))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.success).toBe(true)
+    // 6 total .from() calls: swap lookup, status update, 2 shift reassigns, employees, shift
+    expect(fromMock).toHaveBeenCalledTimes(6)
+  })
+
+  it('does not attempt reassignment (or extra .from() calls) when denying a swap with a target', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2, target_shift_id: 20 }, error: null },
+      { data: null, error: null },
+      { data: [{ id: 1, name: 'Jordan Taylor', email: 'jordan@example.com' }, { id: 2, name: 'Casey Reed', email: 'casey@example.com' }], error: null },
+      { data: { shift_date: '2026-07-18', start_time: '09:00', end_time: '17:00' }, error: null },
+    ])
+    const fromMock = supabaseAdmin.from as jest.Mock
+    const res = await PATCH(mockRequest({ token: 'good', body: { status: 'denied' } }) as never, params('5'))
+    expect(res.status).toBe(200)
+    expect(fromMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('returns 500 and stops if the first shift reassignment fails', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 5, requester_employee_id: 1, requester_shift_id: 10, target_employee_id: 2, target_shift_id: 20 }, error: null },
+      { data: null, error: null },
+      { data: null, error: { message: 'reassign failed' } },
+    ])
+    const res = await PATCH(mockRequest({ token: 'good', body: { status: 'approved' } }) as never, params('5'))
+    expect(res.status).toBe(500)
   })
 })

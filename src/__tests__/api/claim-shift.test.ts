@@ -28,11 +28,16 @@ describe('POST /api/employee/claim-shift', () => {
     expect(res.status).toBe(404)
   })
 
-  it('returns 409 when the shift is already claimed', async () => {
+  // JAY-52 — the open/unclaimed check moved into the update's own WHERE
+  // clause (atomic claim) instead of a separate select-then-branch, so a
+  // shift that's already claimed now surfaces as zero rows updated
+  // (maybeSingle resolves to null data) rather than a pre-check failing.
+  it('returns 409 when the shift is already claimed (update matches zero rows)', async () => {
     mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
     queueFromResponses(supabaseAdmin, [
-      { data: { id: 1, user_id: 'u1' }, error: null },
-      { data: { id: 5, is_open_shift: true, employee_id: 9 }, error: null },
+      { data: { id: 1, user_id: 'u1' }, error: null }, // employee lookup
+      { data: { id: 5, user_id: 'u1' }, error: null }, // shift existence check
+      { data: null, error: null }, // conditional update matches nothing — already claimed
     ])
     const res = await POST(mockRequest({ token: 'good', body: { shiftId: 5 } }) as never)
     expect(res.status).toBe(409)
@@ -42,12 +47,23 @@ describe('POST /api/employee/claim-shift', () => {
     mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
     queueFromResponses(supabaseAdmin, [
       { data: { id: 1, user_id: 'u1' }, error: null },
-      { data: { id: 5, is_open_shift: true, employee_id: null }, error: null },
+      { data: { id: 5, user_id: 'u1' }, error: null },
       { data: { id: 5, employee_id: 1, is_open_shift: false }, error: null },
     ])
     const res = await POST(mockRequest({ token: 'good', body: { shiftId: 5 } }) as never)
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.shift.employee_id).toBe(1)
+  })
+
+  it('returns 500 when the conditional update itself errors', async () => {
+    mockAuthUser(supabaseAdmin, { email: 'jane@example.com' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 1, user_id: 'u1' }, error: null },
+      { data: { id: 5, user_id: 'u1' }, error: null },
+      { data: null, error: { message: 'db error' } },
+    ])
+    const res = await POST(mockRequest({ token: 'good', body: { shiftId: 5 } }) as never)
+    expect(res.status).toBe(500)
   })
 })

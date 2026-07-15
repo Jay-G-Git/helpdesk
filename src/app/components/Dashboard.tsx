@@ -424,19 +424,28 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* ── Stats row ── */}
+        {/* ── Stats row ──
+            JAY-56: these are live daily counters (not permanently-empty
+            first-run state), so we keep all four rather than collapsing the
+            grid — but a "0" shouldn't compete visually with real numbers.
+            Zero-value cards get a muted/dimmed treatment instead of full
+            emphasis, so attention naturally goes to the cards carrying
+            actual information. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '18px' }}>
           {[
             { val: loading ? '–' : clockedInEntries.length, label: 'Clocked in now', color: '#f1f5f9' },
             { val: loading ? '–' : todayCallouts.length, label: 'Called out today', color: todayCallouts.length > 0 ? '#f87171' : '#f1f5f9' },
             { val: loading ? '–' : pendingCount, label: 'Pending approvals', color: pendingCount > 0 ? '#fbbf24' : '#f1f5f9' },
             { val: loading ? '–' : todayShifts.length, label: 'On shift today', color: '#f1f5f9' },
-          ].map(stat => (
-            <div key={stat.label} style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px' }}>
-              <div style={{ fontSize: '26px', fontWeight: 600, color: stat.color }}>{stat.val}</div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{stat.label}</div>
-            </div>
-          ))}
+          ].map(stat => {
+            const isZero = !loading && stat.val === 0
+            return (
+              <div key={stat.label} style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', opacity: isZero ? 0.55 : 1 }}>
+                <div style={{ fontSize: '26px', fontWeight: 600, color: isZero ? '#475569' : stat.color }}>{stat.val}</div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{stat.label}</div>
+              </div>
+            )
+          })}
         </div>
 
         {/* ── Needs your attention ── */}
