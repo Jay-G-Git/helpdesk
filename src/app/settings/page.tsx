@@ -705,7 +705,7 @@ function SettingsContent() {
                   Tip: search your business address on Google Maps, right-click the pin, and copy the coordinates shown.
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={requireClockinPhoto} onChange={e => setRequireClockinPhoto(e.target.checked)} />
+                  <input type="checkbox" checked={requireClockinPhoto} onChange={e => setRequireClockinPhoto(e.target.checked)} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
                   Require a photo at clock-in
                 </label>
                 <button className="btn auth-btn-primary" onClick={saveClockinTrust} disabled={clockinTrustSaving} style={{ marginTop: '1rem', width: 'auto' }}>
@@ -1012,7 +1012,7 @@ function SettingsContent() {
                         type="checkbox"
                         checked={showTerminated}
                         onChange={e => setShowTerminated(e.target.checked)}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', width: '14px', height: '14px', flexShrink: 0 }}
                       />
                       Show terminated
                     </label>

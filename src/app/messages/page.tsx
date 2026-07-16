@@ -865,6 +865,7 @@ export default function MessagesPage() {
                       type="checkbox"
                       checked={checked}
                       onChange={() => setNewGroupMemberIds(prev => checked ? prev.filter(id => id !== emp.id) : [...prev, emp.id])}
+                      style={{ width: '16px', height: '16px', flexShrink: 0 }}
                     />
                     {emp.name}
                   </label>
