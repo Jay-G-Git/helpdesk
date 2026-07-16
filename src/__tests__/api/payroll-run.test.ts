@@ -50,7 +50,13 @@ describe('POST /api/payroll/run', () => {
     queueFromResponses(supabaseAdmin, [
       { data: null, error: null }, // payroll_runs — no existing finalized run
       { data: [{ id: 1, name: 'Jordan T.', pay_type: 'hourly', pay_rate: 20 }, { id: 2, name: 'Casey R.', pay_type: 'hourly', pay_rate: 15 }], error: null }, // employees
-      { data: [{ employee_id: 1, total_minutes: 4800, clock_in: '2026-07-03T09:00:00' }], error: null }, // time_entries — 80 hrs worked for Jordan
+      // 80 hrs worked for Jordan, split across two separate calendar weeks
+      // (40h each) so this stays under the JAY-57 overtime threshold — this
+      // test is about PTO addition, not overtime, which has its own test below.
+      { data: [
+        { employee_id: 1, total_minutes: 2400, clock_in: '2026-07-01T09:00:00' },
+        { employee_id: 1, total_minutes: 2400, clock_in: '2026-07-08T09:00:00' },
+      ], error: null }, // time_entries
       { data: [], error: null }, // pay_rate_history — no logged changes, everyone falls back to current rate
       // time_off_requests — the route's own `.in('type', PAID_TIME_OFF_TYPES)` filter means an
       // Unpaid row for Casey would never come back from the real query at all; the mock returns
@@ -166,5 +172,64 @@ describe('POST /api/payroll/run', () => {
     expect(jordan.hours_worked).toBe(16)
     expect(jordan.gross_pay).toBe(304)
     expect(jordan.notes).toBe('8h @ $18.00/hr + 8h @ $20.00/hr')
+  })
+
+  // JAY-57 — hours worked past 40 in a single calendar week get a 1.5x
+  // premium. 48 hours in one week: 40 regular + 8 overtime.
+  it('pays 1.5x for hours worked past 40 in a single week', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: null, error: null }, // payroll_runs — no existing finalized run
+      { data: [{ id: 1, name: 'Jordan T.', pay_type: 'hourly', pay_rate: 20 }], error: null },
+      { data: [{ employee_id: 1, total_minutes: 2880, clock_in: '2026-07-01T09:00:00' }], error: null }, // 48 hrs, one day, one week
+      { data: [], error: null }, // pay_rate_history
+      { data: [], error: null }, // time_off_requests
+      { data: [], error: null }, // shifts
+      { data: { id: 200, period_start: '2026-07-01', period_end: '2026-07-14' }, error: null },
+      { data: null, error: null },
+    ])
+    const res = await POST(mockRequest({ token: 'good', body: { periodStart: '2026-07-01', periodEnd: '2026-07-14' } }) as never)
+    expect(res.status).toBe(200)
+
+    const fromMock = supabaseAdmin.from as jest.Mock
+    const itemsCall = fromMock.mock.results[7].value
+    const insertedItems = itemsCall.insert.mock.calls[0][0]
+    const jordan = insertedItems.find((i: { employee_id: number }) => i.employee_id === 1)
+
+    // 40h regular @ $20 + 8h OT @ $30 (1.5x) = 800 + 240 = 1040
+    expect(jordan.hours_worked).toBe(48)
+    expect(jordan.overtime_hours).toBe(8)
+    expect(jordan.gross_pay).toBe(1040)
+    expect(jordan.notes).toBe('8h OT @ 1.5x')
+  })
+
+  // JAY-57 — PTO hours must never count toward the 40h overtime threshold,
+  // even though they're added to the same total hours_worked figure.
+  it('does not count PTO hours toward the overtime threshold', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: null, error: null },
+      { data: [{ id: 1, name: 'Jordan T.', pay_type: 'hourly', pay_rate: 20 }], error: null },
+      { data: [{ employee_id: 1, total_minutes: 2400, clock_in: '2026-07-01T09:00:00' }], error: null }, // 40 hrs worked
+      { data: [], error: null },
+      { data: [{ employee_id: 1, start_date: '2026-07-02', end_date: '2026-07-02', type: 'PTO' }], error: null }, // +8h PTO, same week
+      { data: [], error: null }, // shifts — falls back to 8h default
+      { data: { id: 201, period_start: '2026-07-01', period_end: '2026-07-14' }, error: null },
+      { data: null, error: null },
+    ])
+    const res = await POST(mockRequest({ token: 'good', body: { periodStart: '2026-07-01', periodEnd: '2026-07-14' } }) as never)
+    expect(res.status).toBe(200)
+
+    const fromMock = supabaseAdmin.from as jest.Mock
+    const itemsCall = fromMock.mock.results[7].value
+    const insertedItems = itemsCall.insert.mock.calls[0][0]
+    const jordan = insertedItems.find((i: { employee_id: number }) => i.employee_id === 1)
+
+    // 40h worked + 8h PTO = 48 total hours, but PTO isn't "worked," so no
+    // overtime premium applies — all 48 hours pay at the straight rate.
+    expect(jordan.hours_worked).toBe(48)
+    expect(jordan.overtime_hours).toBeNull()
+    expect(jordan.gross_pay).toBe(960)
+    expect(jordan.notes).toBe('+8.0 hrs PTO')
   })
 })

@@ -90,6 +90,25 @@ export async function POST(req: NextRequest) {
     addDailyHours(entry.employee_id, entry.clock_in.slice(0, 10), hrs)
   }
 
+  // JAY-57 — snapshot worked-only daily hours before PTO gets merged into
+  // dailyHoursByEmp below. FLSA overtime is computed on hours *actually
+  // worked* in a week — paid time off doesn't count toward the 40h
+  // threshold, so the weekly-overtime pass further down must only look at
+  // this snapshot, not the combined worked+PTO map used for total pay.
+  const workedDailyHoursByEmp = new Map<number, Map<string, number>>()
+  for (const [empId, dayMap] of dailyHoursByEmp) {
+    workedDailyHoursByEmp.set(empId, new Map(dayMap))
+  }
+
+  // Sunday-start week key, matching the existing >40h/week overtime warning
+  // already shown at schedule-build time (JAY-16, time/page.tsx's
+  // weekStartISO/getWeekDays) — same boundary convention throughout the app.
+  function weekStartKey(dateStr: string): string {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() - d.getDay())
+    return d.toISOString().slice(0, 10)
+  }
+
   // JAY-51 — pay_rate_history holds one row per rate change, keyed by the date
   // it took effect. To find the rate in effect on a given day, take the most
   // recent row with effective_from <= that day. Employees with zero history
@@ -196,6 +215,8 @@ export async function POST(req: NextRequest) {
     let grossPay: number
     const ptoHours = Math.round((ptoHoursMap[emp.id] ?? 0) * 100) / 100
     let rateSplitNote: string | null = null
+    let overtimeHours: number | null = null
+    let overtimeNote: string | null = null
 
     if (emp.pay_type === 'salary') {
       // Bi-weekly pay = annual / 26 — fixed regardless of time off, so PTO
@@ -204,28 +225,74 @@ export async function POST(req: NextRequest) {
     } else {
       hoursWorked = Math.round(((hoursMap[emp.id] ?? 0) + ptoHours) * 100) / 100
 
+      // JAY-57 — figure out, per calendar week, which worked hours (not PTO)
+      // fall past the 40h FLSA threshold. Days are walked in chronological
+      // order within each week; once the running weekly total crosses 40,
+      // the remaining hours that day (and any later days that week) are
+      // overtime. Multiple engineers could reasonably pick a different
+      // convention for *which* hours within a week count as the "last" ones
+      // when a single day pushes the total over the line — this uses
+      // straightforward chronological order, which is the common convention
+      // and keeps the per-day rate already resolved for JAY-51.
+      const workedDayMap = workedDailyHoursByEmp.get(emp.id)
+      const otHoursByDate = new Map<string, number>()
+      if (workedDayMap && workedDayMap.size > 0) {
+        const sortedDates = [...workedDayMap.keys()].sort()
+        const weekRunningTotal = new Map<string, number>()
+        for (const dateStr of sortedDates) {
+          const wk = weekStartKey(dateStr)
+          const hrs = workedDayMap.get(dateStr) ?? 0
+          const before = weekRunningTotal.get(wk) ?? 0
+          const after = before + hrs
+          weekRunningTotal.set(wk, after)
+          if (after > 40) {
+            const otForDay = Math.min(hrs, after - 40)
+            if (otForDay > 0) otHoursByDate.set(dateStr, otForDay)
+          }
+        }
+      }
+
       // JAY-51 — sum pay day-by-day using whatever rate was in effect on
       // each specific day, instead of applying the current rate to every
       // hour in the period. Falls back to a flat calculation (old behavior)
-      // if there's no per-day data at all.
+      // if there's no per-day data at all. Now also splits each day's hours
+      // into regular (straight rate) and overtime (1.5x) per JAY-57 — PTO
+      // hours are always regular-rate since they're excluded from
+      // otHoursByDate (built only from workedDailyHoursByEmp).
       const dayMap = dailyHoursByEmp.get(emp.id)
+      let totalOtHours = 0
       if (dayMap && dayMap.size > 0) {
         let sum = 0
-        const segments: { rate: number; hours: number }[] = []
+        const segments: { rate: number; hours: number; isOt: boolean }[] = []
         for (const [dateStr, hrs] of dayMap) {
           const r = effectiveRate(emp.id, dateStr, rate)
-          sum += hrs * r
-          const seg = segments.find(s => s.rate === r)
-          if (seg) seg.hours += hrs; else segments.push({ rate: r, hours: hrs })
+          const otHrs = Math.min(hrs, otHoursByDate.get(dateStr) ?? 0)
+          const regHrs = hrs - otHrs
+          sum += regHrs * r + otHrs * r * 1.5
+          totalOtHours += otHrs
+          if (regHrs > 0) {
+            const seg = segments.find(s => s.rate === r && !s.isOt)
+            if (seg) seg.hours += regHrs; else segments.push({ rate: r, hours: regHrs, isOt: false })
+          }
+          if (otHrs > 0) {
+            const seg = segments.find(s => s.rate === r && s.isOt)
+            if (seg) seg.hours += otHrs; else segments.push({ rate: r, hours: otHrs, isOt: true })
+          }
         }
         grossPay = sum
-        if (segments.length > 1) {
-          rateSplitNote = segments
+        const regSegments = segments.filter(s => !s.isOt)
+        if (regSegments.length > 1) {
+          rateSplitNote = regSegments
             .map(s => `${(Math.round(s.hours * 100) / 100) % 1 === 0 ? s.hours : s.hours.toFixed(1)}h @ $${s.rate.toFixed(2)}/hr`)
             .join(' + ')
         }
       } else {
         grossPay = hoursWorked * rate
+      }
+      totalOtHours = Math.round(totalOtHours * 100) / 100
+      if (totalOtHours > 0) {
+        overtimeHours = totalOtHours
+        overtimeNote = `${totalOtHours % 1 === 0 ? totalOtHours : totalOtHours.toFixed(1)}h OT @ 1.5x`
       }
     }
 
@@ -238,10 +305,11 @@ export async function POST(req: NextRequest) {
       pay_type: emp.pay_type,
       pay_rate: rate,
       hours_worked: hoursWorked,
+      overtime_hours: overtimeHours,
       gross_pay: Math.round(grossPay * 100) / 100,
       deductions: { federal: 0, state: 0, other: 0 },
       net_pay: Math.round(grossPay * 100) / 100,
-      notes: [rateSplitNote, ptoNote].filter(Boolean).join(' · ') || null,
+      notes: [rateSplitNote, overtimeNote, ptoNote].filter(Boolean).join(' · ') || null,
     }
   })
 

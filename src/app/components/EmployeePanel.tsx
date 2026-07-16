@@ -207,6 +207,10 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   const [expandedForm, setExpandedForm] = useState<number | null>(null)
   const [docSignatures, setDocSignatures] = useState<DocSignature[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
+  // JAY-63/64 — revealed bank fields live only in this component's memory
+  // for the current session, keyed by form id; never persisted client-side.
+  const [revealedFields, setRevealedFields] = useState<Record<number, Record<string, string>>>({})
+  const [revealingForm, setRevealingForm] = useState<number | null>(null)
 
   // Payroll tab state
   const [payrollEntries, setPayrollEntries] = useState<PayrollEntry[]>([])
@@ -351,6 +355,42 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
     if (docs) setEmployeeDocs(docs)
     if (sigs) setDocSignatures(sigs)
     setDocsLoading(false)
+  }
+
+  // JAY-64 — fire-and-forget: log that this specific form was opened. Not
+  // awaited by the UI (expanding the form shouldn't wait on a network
+  // round-trip), and a failure here shouldn't block the owner from actually
+  // viewing the form — it only degrades the audit trail, not the feature.
+  function logFormView(formId: number) {
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      const token = sessionData.session?.access_token
+      if (!token) return
+      fetch(`/api/employee-forms/${formId}/view`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    })
+  }
+
+  // JAY-63 — explicit reveal action for encrypted bank fields. Decrypted
+  // values are kept only in this component's state (revealedFields), never
+  // written back to employeeForms/localStorage — they disappear on refresh.
+  async function revealForm(formId: number) {
+    setRevealingForm(formId)
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) { setRevealingForm(null); return }
+    const res = await fetch(`/api/employee-forms/${formId}/reveal`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const { revealed } = await res.json()
+      setRevealedFields(prev => ({ ...prev, [formId]: revealed }))
+    } else {
+      showToast('Could not reveal this field.', 'error')
+    }
+    setRevealingForm(null)
   }
 
   async function loadPayroll() {
@@ -1028,7 +1068,11 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                   {employeeForms.map(f => (
                     <div key={f.id}>
                       <div
-                        onClick={() => setExpandedForm(expandedForm === f.id ? null : f.id)}
+                        onClick={() => {
+                          const opening = expandedForm !== f.id
+                          setExpandedForm(opening ? f.id : null)
+                          if (opening) logFormView(f.id) // JAY-64
+                        }}
                         style={{
                           ...listItemStyle, cursor: 'pointer',
                           background: expandedForm === f.id ? 'rgba(29,78,216,0.1)' : 'rgba(255,255,255,0.03)',
@@ -1050,12 +1094,52 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
                       </div>
                       {expandedForm === f.id && (
                         <div style={{ background: 'rgba(29,78,216,0.05)', border: '1px solid rgba(29,78,216,0.2)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '10px 12px' }}>
-                          {Object.entries(f.form_data).map(([k, v]) => v ? (
-                            <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '4px 0', borderBottom: `1px solid ${border}` }}>
-                              <span style={{ color: mutedDark, minWidth: '120px', flexShrink: 0 }}>{formatKey(k)}</span>
-                              <span style={{ color: text, wordBreak: 'break-word' }}>{String(v)}</span>
-                            </div>
-                          ) : null)}
+                          {/* JAY-63 — routingNumber/accountNumber are stored as
+                              `${field}_encrypted` + `${field}_last4` pairs, never
+                              plaintext. Render those as a single masked row with
+                              an explicit, logged Reveal action instead of two raw
+                              key/value rows. Every other field (bankName, I-9/W-4
+                              fields, etc.) renders exactly as before. */}
+                          {(() => {
+                            const entries = Object.entries(f.form_data)
+                            const encryptedFieldNames = entries
+                              .map(([k]) => k)
+                              .filter(k => k.endsWith('_encrypted'))
+                              .map(k => k.replace(/_encrypted$/, ''))
+                            const rows: React.ReactNode[] = []
+                            for (const [k, v] of entries) {
+                              if (k.endsWith('_encrypted') || k.endsWith('_last4')) continue
+                              if (!v) continue
+                              rows.push(
+                                <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '4px 0', borderBottom: `1px solid ${border}` }}>
+                                  <span style={{ color: mutedDark, minWidth: '120px', flexShrink: 0 }}>{formatKey(k)}</span>
+                                  <span style={{ color: text, wordBreak: 'break-word' }}>{String(v)}</span>
+                                </div>
+                              )
+                            }
+                            for (const field of encryptedFieldNames) {
+                              const revealedValue = revealedFields[f.id]?.[field]
+                              const maskedLast4 = f.form_data[`${field}_last4`]
+                              rows.push(
+                                <div key={field} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', padding: '4px 0', borderBottom: `1px solid ${border}` }}>
+                                  <span style={{ color: mutedDark, minWidth: '120px', flexShrink: 0 }}>{formatKey(field)}</span>
+                                  <span style={{ color: text, wordBreak: 'break-word', fontFamily: 'monospace' }}>
+                                    {revealedValue ?? `${'•'.repeat(Math.max(5, 9 - 4))}${maskedLast4 ?? ''}`}
+                                  </span>
+                                  {!revealedValue && (
+                                    <button
+                                      onClick={e => { e.stopPropagation(); revealForm(f.id) }}
+                                      disabled={revealingForm === f.id}
+                                      style={{ fontSize: '11px', color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', flexShrink: 0 }}
+                                    >
+                                      {revealingForm === f.id ? 'Revealing…' : 'Reveal full number'}
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            }
+                            return rows
+                          })()}
                         </div>
                       )}
                     </div>

@@ -1,13 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin'
+import { encryptField, last4 } from '../../../../lib/fieldEncryption'
+
+// JAY-63 — bank routing/account numbers were previously written to
+// form_data verbatim, in plain text, despite the form's own copy claiming
+// "your information is encrypted." Encrypt the two sensitive fields before
+// they ever reach the insert/update below; store only a last-4 alongside the
+// ciphertext so the masked default view (EmployeePanel.tsx) never needs to
+// touch the encryption key at all — only the explicit "Reveal" action does.
+const SENSITIVE_FIELDS = ['routingNumber', 'accountNumber'] as const
+
+function encryptSensitiveFields(formType: string, formData: Record<string, unknown>): Record<string, unknown> {
+  if (formType !== 'direct_deposit') return formData
+  const result: Record<string, unknown> = { ...formData }
+  for (const field of SENSITIVE_FIELDS) {
+    const value = result[field]
+    if (typeof value !== 'string' || !value) continue
+    result[`${field}_encrypted`] = encryptField(value)
+    result[`${field}_last4`] = last4(value)
+    delete result[field]
+  }
+  // confirmAccountNumber is a client-side-only confirmation field — never
+  // meant to be persisted at all, encrypted or otherwise.
+  delete result.confirmAccountNumber
+  return result
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const { formType, formData, employeeId, userId } = await req.json()
+  const { formType, formData: rawFormData, employeeId, userId } = await req.json()
 
-  if (!formType || !formData || !employeeId || !userId) {
+  if (!formType || !rawFormData || !employeeId || !userId) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
+
+  const formData = encryptSensitiveFields(formType, rawFormData)
 
   // Verify token is valid
   const { data: link } = await supabaseAdmin

@@ -13,6 +13,25 @@ There are two separate local clones of this repo:
 
 If a deployment seems to be "missing" changes that were supposedly committed, the first thing to check is whether the commit actually landed in `01_Dev/helpdesk` (`cd ~/Documents/01_Dev/helpdesk && git log -1` should show the expected commit) rather than in the stale `~/helpdesk` clone. This exact mix-up happened once already (JAY-58–62 batch, 2026-07-15): the user ran the commit in `~/helpdesk`, the push was silently rejected as non-fast-forward, and Vercel had nothing new to deploy even though the user believed the push succeeded.
 
+## Recurring issue: stale `.git/index.lock`
+
+Even in the correct directory (`01_Dev/helpdesk`), `git commit` has repeatedly failed with:
+
+```
+fatal: Unable to create '.../01_Dev/helpdesk/.git/index.lock': File exists.
+```
+
+This is a leftover lock file from an earlier interrupted git process, not an actual concurrent process — if the same commit is retried and fails the same way a second time, no process is really holding it. A `git push` run right after a failed commit will report "Everything up-to-date" (misleadingly implying success) even though nothing new was ever committed, since the commit itself never happened. Fix:
+
+```
+cd ~/Documents/01_Dev/helpdesk
+rm -f .git/index.lock
+git status   # confirm the expected files still show as modified/deleted
+git add -A && git commit -m "..." && git push
+```
+
+If this keeps recurring, it's worth checking what's interrupting git mid-commit in the first place (e.g. a GUI git client or editor integration racing with terminal commands) rather than just deleting the lock file each time.
+
 # Testing protocol
 
 See `TESTING.md` for the full protocol (unit vs. integration conventions, mocking patterns, coverage status).
