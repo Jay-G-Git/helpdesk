@@ -8,24 +8,33 @@ export async function DELETE(req: NextRequest) {
 
   // Delete all user data in order (FK constraints)
   const uid = user.id
-  await supabaseAdmin.from('payroll_entries').delete().eq('user_id', uid)
-  await supabaseAdmin.from('shifts').delete().eq('user_id', uid)
-  await supabaseAdmin.from('time_off_requests').delete().eq('user_id', uid)
-  await supabaseAdmin.from('notifications').delete().eq('user_id', uid)
-  await supabaseAdmin.from('employee_forms').delete().eq('user_id', uid)
-  await supabaseAdmin.from('onboarding_links').delete().eq('user_id', uid)
-  await supabaseAdmin.from('employees').delete().eq('user_id', uid)
-  await supabaseAdmin.from('onboarding_templates').delete().eq('user_id', uid)
-  await supabaseAdmin.from('job_postings').delete().eq('user_id', uid)
-  await supabaseAdmin.from('gusto_connections').delete().eq('user_id', uid)
-  await supabaseAdmin.from('google_connections').delete().eq('user_id', uid)
-  await supabaseAdmin.from('quickbooks_connections').delete().eq('user_id', uid)
-  await supabaseAdmin.from('team_members').delete().eq('owner_id', uid)
-  await supabaseAdmin.from('business_profiles').delete().eq('user_id', uid)
-  await supabaseAdmin.from('notification_preferences').delete().eq('user_id', uid)
+  const cascadeDeletes: [string, string][] = [
+    ['payroll_entries', 'user_id'],
+    ['payroll_run_items', 'user_id'],
+    ['payroll_runs', 'user_id'],
+    ['shifts', 'user_id'],
+    ['time_off_requests', 'user_id'],
+    ['notifications', 'user_id'],
+    ['employee_forms', 'user_id'],
+    ['onboarding_links', 'user_id'],
+    ['employees', 'user_id'],
+    ['onboarding_templates', 'user_id'],
+    ['job_postings', 'user_id'],
+    ['gusto_connections', 'user_id'],
+    ['google_connections', 'user_id'],
+    ['quickbooks_connections', 'user_id'],
+    ['team_members', 'owner_id'],
+    ['business_profiles', 'user_id'],
+    ['notification_preferences', 'user_id'],
+  ]
+  for (const [table, column] of cascadeDeletes) {
+    const { error } = await supabaseAdmin.from(table).delete().eq(column, uid)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   // Delete the auth user last
-  await supabaseAdmin.auth.admin.deleteUser(uid)
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(uid)
+  if (authError) return NextResponse.json({ error: authError.message }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

@@ -20,13 +20,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!emp) return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
 
   // Cascade delete all related records (FK constraints would block the main delete)
-  await supabaseAdmin.from('department_members').delete().eq('employee_id', empId)
-  await supabaseAdmin.from('time_off_requests').delete().eq('employee_id', empId)
-  await supabaseAdmin.from('time_entries').delete().eq('employee_id', empId)
-  await supabaseAdmin.from('shifts').delete().eq('employee_id', empId)
-  await supabaseAdmin.from('shift_swaps').delete().eq('requester_id', empId)
-  await supabaseAdmin.from('shift_swaps').delete().eq('target_id', empId)
-  await supabaseAdmin.from('payroll_entries').delete().eq('employee_id', empId)
+  const cascadeDeletes: [string, string, number][] = [
+    ['department_members', 'employee_id', empId],
+    ['time_off_requests', 'employee_id', empId],
+    ['time_entries', 'employee_id', empId],
+    ['shifts', 'employee_id', empId],
+    ['shift_swaps', 'requester_id', empId],
+    ['shift_swaps', 'target_id', empId],
+    ['payroll_entries', 'employee_id', empId],
+    ['payroll_run_items', 'employee_id', empId],
+  ]
+  for (const [table, column, value] of cascadeDeletes) {
+    const { error: cascadeError } = await supabaseAdmin.from(table).delete().eq(column, value)
+    if (cascadeError) return NextResponse.json({ error: cascadeError.message }, { status: 500 })
+  }
 
   const { error } = await supabaseAdmin.from('employees').delete().eq('id', empId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -36,6 +36,7 @@ describe('DELETE /api/employees/[id]', () => {
       { data: null, error: null }, // shift_swaps requester
       { data: null, error: null }, // shift_swaps target
       { data: null, error: null }, // payroll_entries
+      { data: null, error: null }, // payroll_run_items
       { data: null, error: null }, // final employees delete
     ])
     const res = await DELETE(mockRequest({ token: 'good' }) as never, params('5'))
@@ -44,14 +45,32 @@ describe('DELETE /api/employees/[id]', () => {
     expect(body.ok).toBe(true)
     expect(fromMock.mock.calls.map(c => c[0])).toEqual([
       'employees', 'department_members', 'time_off_requests', 'time_entries',
-      'shifts', 'shift_swaps', 'shift_swaps', 'payroll_entries', 'employees',
+      'shifts', 'shift_swaps', 'shift_swaps', 'payroll_entries', 'payroll_run_items', 'employees',
     ])
+  })
+
+  it('returns 500 when a payroll_run_items row still exists (FK would otherwise block the delete)', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: { id: 5 }, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: null, error: { message: 'update or delete on table "payroll_run_items" violates foreign key constraint' } },
+    ])
+    const res = await DELETE(mockRequest({ token: 'good' }) as never, params('5'))
+    expect(res.status).toBe(500)
   })
 
   it('returns 500 when the final delete fails', async () => {
     mockOwner({ id: 'owner-1' })
     queueFromResponses(supabaseAdmin, [
       { data: { id: 5 }, error: null },
+      { data: null, error: null },
       { data: null, error: null },
       { data: null, error: null },
       { data: null, error: null },
