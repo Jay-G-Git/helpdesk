@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
   const { data: biz } = await supabaseAdmin.from('business_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
   if (!biz) return NextResponse.json({ error: 'Forbidden — only owner can pin' }, { status: 403 })
 
+  const { data: message } = await supabaseAdmin.from('chat_messages').select('business_id').eq('id', messageId).maybeSingle()
+  if (!message || message.business_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { error } = await supabaseAdmin
     .from('chat_messages')
     .update({ is_pinned: pin ?? true })
