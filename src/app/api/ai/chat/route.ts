@@ -191,7 +191,7 @@ function localDate(timezone: string): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: timezone }) // YYYY-MM-DD
 }
 
-async function executeTool(
+export async function executeTool(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   input: Record<string, any>,
@@ -243,8 +243,8 @@ async function executeTool(
       // Check for a scheduled shift today in the user's timezone
       const today = localDate(timezone)
       const { data: shift } = await supabaseAdmin
-        .from('schedules').select('start_time, end_time')
-        .eq('employee_id', role.employeeId ?? 0).eq('date', today).maybeSingle()
+        .from('shifts').select('start_time, end_time')
+        .eq('employee_id', role.employeeId ?? 0).eq('shift_date', today).maybeSingle()
 
       const { error } = await supabaseAdmin.from('time_entries').insert({
         employee_id: role.employeeId,
@@ -274,10 +274,10 @@ async function executeTool(
     case 'get_my_schedule': {
       const today = localDate(timezone)
       const { data } = await supabaseAdmin
-        .from('schedules').select('date, start_time, end_time, notes')
-        .eq('employee_id', role.employeeId ?? 0).gte('date', today).order('date').limit(14)
+        .from('shifts').select('shift_date, start_time, end_time, notes')
+        .eq('employee_id', role.employeeId ?? 0).gte('shift_date', today).order('shift_date').limit(14)
       if (!data?.length) return 'No upcoming shifts scheduled.'
-      return data.map(s => `${s.date}: ${s.start_time}–${s.end_time}${s.notes ? ` (${s.notes})` : ''}`).join('\n')
+      return data.map(s => `${s.shift_date}: ${s.start_time}–${s.end_time}${s.notes ? ` (${s.notes})` : ''}`).join('\n')
     }
 
     case 'get_my_time_off_requests': {
