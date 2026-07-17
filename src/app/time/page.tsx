@@ -383,24 +383,47 @@ export default function TimePage() {
     if (!shiftDate) { showToast('Select a date.', 'error'); return }
     setSavingShift(true)
 
+    const approvedOff = requests.filter(r => r.status === 'approved')
+    const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
+
     const baseDate = new Date(shiftDate + 'T00:00:00')
+    let skippedClosed = 0
+    let skippedTimeOff = 0
     const shiftsToInsert = Array.from({ length: repeatWeeks }, (_, i) => {
       const d = new Date(baseDate); d.setDate(baseDate.getDate() + i * 7)
-      return {
-        user_id: userId,
-        employee_id: shiftIsOpen ? null : shiftEmpId,
-        is_open_shift: shiftIsOpen,
-        shift_date: d.toISOString().slice(0, 10),
-        start_time: shiftStart, end_time: shiftEnd,
-        notes: shiftNotes.trim() || null,
-      }
-    })
+      const date = d.toISOString().slice(0, 10)
+      const dayKey = DAY_KEYS[d.getDay()]
+      return { date, dayKey, i }
+    }).filter(({ date, dayKey }) => {
+      // JAY-84 — skip closed business days / approved time off, same guards
+      // already enforced by generateSchedule and copyLastWeek.
+      if (bizHours?.[dayKey]?.closed) { skippedClosed++; return false }
+      if (!shiftIsOpen && shiftEmpId && isOff(shiftEmpId, date)) { skippedTimeOff++; return false }
+      return true
+    }).map(({ date }) => ({
+      user_id: userId,
+      employee_id: shiftIsOpen ? null : shiftEmpId,
+      is_open_shift: shiftIsOpen,
+      shift_date: date,
+      start_time: shiftStart, end_time: shiftEnd,
+      notes: shiftNotes.trim() || null,
+    }))
+
+    if (!shiftsToInsert.length) {
+      showToast('No shifts created — business closed and/or employee has approved time off on the selected date(s).', 'error')
+      setSavingShift(false)
+      return
+    }
 
     const { data, error } = await supabase.from('shifts').insert(shiftsToInsert).select()
     if (error) { showToast('Error saving.', 'error') }
     else {
       setShifts(prev => [...prev, ...(data ?? [])].sort((a, b) => a.shift_date.localeCompare(b.shift_date)))
-      showToast(repeatWeeks > 1 ? `${repeatWeeks} shifts added.` : 'Shift added.', 'success')
+      const skippedParts = []
+      if (skippedClosed) skippedParts.push(`${skippedClosed} on closed day${skippedClosed > 1 ? 's' : ''}`)
+      if (skippedTimeOff) skippedParts.push(`${skippedTimeOff} on approved time off`)
+      const skippedNote = skippedParts.length ? ` (${skippedParts.join(', ')} skipped)` : ''
+      showToast((shiftsToInsert.length > 1 ? `${shiftsToInsert.length} shifts added.` : 'Shift added.') + skippedNote, 'success')
       setShowShiftForm(false); setShiftEmpId(''); setShiftDate(''); setShiftNotes('')
       setRepeatEnabled(false); setRepeatWeeks(1); setShiftIsOpen(false)
       for (const s of data ?? []) logShiftChange(s, 'created')
