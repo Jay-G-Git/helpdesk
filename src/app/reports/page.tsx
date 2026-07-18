@@ -349,7 +349,7 @@ export default function ReportsPage() {
           ) : (
             <div style={cardStyle}>
               <div style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9', marginBottom: '0.5rem' }}>Payroll cost</div>
-              <div style={emptyState}>No payroll data yet.</div>
+              <div style={emptyState}>No payroll data yet — run payroll to see cost trends here.</div>
             </div>
           )}
         </div>
