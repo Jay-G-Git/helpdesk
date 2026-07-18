@@ -341,7 +341,12 @@ export async function POST(req: NextRequest) {
 
   // Insert line items
   const itemsWithRunId = items.map(i => ({ ...i, run_id: run.id }))
-  await supabaseAdmin.from('payroll_run_items').insert(itemsWithRunId)
+  const { error: itemsErr } = await supabaseAdmin.from('payroll_run_items').insert(itemsWithRunId)
+
+  if (itemsErr) {
+    await supabaseAdmin.from('payroll_runs').delete().eq('id', run.id)
+    return NextResponse.json({ error: itemsErr.message }, { status: 500 })
+  }
 
   return NextResponse.json({ run })
 }

@@ -229,6 +229,33 @@ describe('POST /api/payroll/run', () => {
     expect(jordan.notes).toBe('8h OT @ 1.5x')
   })
 
+  // JAY-95: if the payroll_run_items insert fails, the route must not report
+  // success — the just-created payroll_runs row (with its already-committed
+  // total_gross/employee_count) must be deleted, and a 500 returned.
+  it('returns 500 and deletes the run when the payroll_run_items insert fails', async () => {
+    mockOwner({ id: 'owner-1' })
+    const fromMock = queueFromResponses(supabaseAdmin, [
+      { data: null, error: null }, // payroll_runs — no existing finalized run
+      { data: [{ id: 1, name: 'Jordan T.', pay_type: 'hourly', pay_rate: 20 }], error: null }, // employees
+      { data: [], error: null }, // time_entries
+      { data: [], error: null }, // pay_rate_history
+      { data: [], error: null }, // time_off_requests
+      { data: [], error: null }, // shifts
+      { data: { id: 300, period_start: '2026-07-01', period_end: '2026-07-14' }, error: null }, // payroll_runs insert
+      { data: null, error: { message: 'insert failed' } }, // payroll_run_items insert — fails
+      { data: null, error: null }, // payroll_runs delete (cleanup)
+    ])
+    const res = await POST(mockRequest({ token: 'good', body: { periodStart: '2026-07-01', periodEnd: '2026-07-14' } }) as never)
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('insert failed')
+
+    // The 9th .from() call is the cleanup delete of the orphaned run.
+    const deleteCall = fromMock.mock.results[8].value
+    expect(deleteCall.delete).toHaveBeenCalled()
+    expect(deleteCall.eq).toHaveBeenCalledWith('id', 300)
+  })
+
   // JAY-57 — PTO hours must never count toward the 40h overtime threshold,
   // even though they're added to the same total hours_worked figure.
   it('does not count PTO hours toward the overtime threshold', async () => {
