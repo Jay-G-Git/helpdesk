@@ -35,6 +35,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This job posting is no longer accepting applications.' }, { status: 400 })
   }
 
+  // JAY-119 — public endpoint had no duplicate-submission guard, so a
+  // double-clicked Submit (or a script) could create N application rows for
+  // the same candidate/posting pair with no dedup.
+  const { data: existing } = await supabaseAdmin
+    .from('job_applications')
+    .select('id')
+    .eq('job_posting_id', job_posting_id)
+    .ilike('email', email)
+    .maybeSingle()
+
+  if (existing) {
+    return NextResponse.json({ error: 'You\'ve already applied to this position.' }, { status: 409 })
+  }
+
   const { data: inserted, error } = await supabaseAdmin.from('job_applications').insert({
     job_posting_id,
     user_id: owner_id,
