@@ -86,6 +86,10 @@ TOOLS_DEPLOY=(
   "Bash(git status*)" "Bash(git log*)" "Bash(git fetch*)" "Bash(curl*)" "Bash(echo*)"
   "mcp__claude_ai_Linear__save_issue" "mcp__claude_ai_Linear__save_comment"
 )
+TOOLS_IDEAGEN=(
+  "Read" "Grep" "Glob" "Bash(git log*)"
+  "mcp__claude_ai_Linear__list_issues" "mcp__claude_ai_Linear__get_issue" "mcp__claude_ai_Linear__save_issue"
+)
 
 # Optional Vercel deployment-verification config (Deploy stage Check D).
 # Sourced from a gitignored local file so the token isn't hardcoded here.
@@ -98,8 +102,28 @@ fi
 TIMEOUT_SECS=600      # per-stage hang protection
 COOLDOWN_SECS=20      # pause between successive issues
 IDLE_SLEEP_SECS=120   # pause when Todo is empty/all-data-schema
+IDEAGEN_COOLDOWN_SECS=3600  # at most once per hour, even if idle the whole time
+LAST_IDEAGEN_TS=0
 ALREADY_ATTEMPTED=()
 ITER=0
+
+# Called from the idle branches below. Runs the emergency top-up stage at
+# most once per IDEAGEN_COOLDOWN_SECS, so a long idle stretch doesn't
+# trigger it on every single idle poll. The prompt itself checks Backlog
+# count and self-aborts if there's already enough waiting for review —
+# emptying Todo isn't the same as running out of ideas, it usually just
+# means the user hasn't approved anything from Backlog yet.
+maybe_run_ideagen() {
+  local now
+  now="$(date +%s)"
+  if [ "$((now - LAST_IDEAGEN_TS))" -lt "$IDEAGEN_COOLDOWN_SECS" ]; then
+    return
+  fi
+  LAST_IDEAGEN_TS="$now"
+  local prompt
+  prompt="$(cat scripts/autopilot-prompt-5-ideagen.md)"
+  run_stage "IDEAGEN" "$prompt" TOOLS_IDEAGEN
+}
 
 # Runs one claude -p call with the given prompt text and allowed-tools array
 # (passed as a name-reference to avoid re-quoting issues), with the same
@@ -167,15 +191,17 @@ treat it the same as an empty Todo list and stop."
   fi
 
   if echo "$OUTPUT" | grep -qi "No Todo issues, nothing to do"; then
-    echo "Todo is empty — clearing attempted-list, sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    echo "Todo is empty — clearing attempted-list, checking whether a Backlog top-up is needed." >> "$LOG"
     ALREADY_ATTEMPTED=()
+    maybe_run_ideagen
     sleep "$IDLE_SLEEP_SECS"
     continue
   fi
 
   if echo "$OUTPUT" | grep -qi "Only data-schema issues in Todo"; then
-    echo "Remaining Todo issues are all data-schema — clearing attempted-list, sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    echo "Remaining Todo issues are all data-schema — clearing attempted-list, checking whether a Backlog top-up is needed." >> "$LOG"
     ALREADY_ATTEMPTED=()
+    maybe_run_ideagen
     sleep "$IDLE_SLEEP_SECS"
     continue
   fi
