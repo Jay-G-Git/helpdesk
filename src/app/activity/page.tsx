@@ -93,9 +93,16 @@ export default function ActivityPage() {
       const since = new Date(); since.setDate(since.getDate() - 60)
       const sinceIso = since.toISOString()
 
-      const [{ data: emps }, { data: payroll }, { data: apps }, { data: announcements }, { data: swaps }] = await Promise.all([
+      const [{ data: emps }, { data: payroll }, { data: runItems }, { data: apps }, { data: announcements }, { data: swaps }] = await Promise.all([
         supabase.from('employees').select('id, name, role, created_at').eq('user_id', uid).gte('created_at', sinceIso),
         supabase.from('payroll_entries').select('id, employee_id, gross_pay, created_at').eq('user_id', uid).gte('created_at', sinceIso),
+        // JAY-88 — "Run Payroll" writes to payroll_run_items, not
+        // payroll_entries, so payroll processed that way never showed up
+        // here even though it's the primary payroll path. payroll_run_items
+        // carries user_id directly (see supabase/migrations/payroll_runs.sql),
+        // same direct-query shape already used in api/ai/chat/route.ts's
+        // get_analytics_summary tool.
+        supabase.from('payroll_run_items').select('id, employee_id, gross_pay, created_at').eq('user_id', uid).gte('created_at', sinceIso),
         supabase.from('job_applications').select('id, name, status, created_at').eq('user_id', uid).gte('created_at', sinceIso),
         supabase.from('announcements').select('id, title, message, created_at').eq('user_id', uid).gte('created_at', sinceIso),
         supabase.from('shift_swaps').select('id, status, created_at, requester_employee_id, target_employee_id').eq('user_id', uid).gte('created_at', sinceIso),
@@ -114,6 +121,11 @@ export default function ActivityPage() {
       for (const p of payroll ?? []) {
         const name = empMap.get(p.employee_id) ?? 'An employee'
         evts.push({ id: `pay-${p.id}`, type: 'payroll', title: `Payroll logged for ${name}`, detail: fmtMoney(p.gross_pay), created_at: p.created_at, actorId: p.employee_id, actorName: name })
+      }
+
+      for (const p of runItems ?? []) {
+        const name = empMap.get(p.employee_id) ?? 'An employee'
+        evts.push({ id: `pay-run-${p.id}`, type: 'payroll', title: `Payroll logged for ${name}`, detail: fmtMoney(p.gross_pay), created_at: p.created_at, actorId: p.employee_id, actorName: name })
       }
 
       for (const a of apps ?? []) {
