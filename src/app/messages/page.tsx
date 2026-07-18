@@ -448,18 +448,18 @@ export default function MessagesPage() {
           {isHovered && !isEditing && !msg.is_deleted && (
             <div style={{ position: 'absolute', top: -34, right: isMe ? 0 : 'auto', left: isMe ? 'auto' : 38, display: 'flex', gap: '4px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 6px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 10 }}>
               {/* Reaction trigger */}
-              <button title="React" onClick={() => { setReactionPickerMsgId(showReactionPicker ? null : msg.id); setMoreEmojiOpen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+              <button title="React" onClick={() => { setReactionPickerMsgId(showReactionPicker ? null : msg.id); setMoreEmojiOpen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </button>
               {/* Reply */}
               {!inThread && (
-                <button title="Reply in thread" onClick={() => openThread(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                <button title="Reply in thread" onClick={() => openThread(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
                 </button>
               )}
               {/* Edit — own messages only */}
               {isMe && (
-                <button title="Edit" onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                <button title="Edit" onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
               )}
@@ -471,7 +471,7 @@ export default function MessagesPage() {
               )}
               {/* Pin — owner only */}
               {isOwner && !inThread && (
-                <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => pinMsg(msg.id, !msg.is_pinned)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: msg.is_pinned ? '#93c5fd' : '#94a3b8', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => pinMsg(msg.id, !msg.is_pinned)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: msg.is_pinned ? '#93c5fd' : 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
                 </button>
               )}
@@ -485,11 +485,11 @@ export default function MessagesPage() {
             <div style={{ position: 'absolute', top: -72, right: isMe ? 0 : 'auto', left: isMe ? 'auto' : 38, display: 'flex', flexDirection: 'column', gap: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '6px 10px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', zIndex: 20 }}>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {REACTIONS.map(r => (
-                  <button key={r.key} title={r.label} onClick={() => toggleReaction(msg.id, r.key, inThread)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button key={r.key} title={r.label} onClick={() => toggleReaction(msg.id, r.key, inThread)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {r.icon}
                   </button>
                 ))}
-                <button title="More reactions" onClick={() => setMoreEmojiOpen(v => !v)} style={{ background: moreEmojiOpen ? 'rgba(59,130,246,0.15)' : 'none', border: 'none', cursor: 'pointer', color: moreEmojiOpen ? '#93c5fd' : '#94a3b8', padding: '4px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, lineHeight: 1 }}>
+                <button title="More reactions" onClick={() => setMoreEmojiOpen(v => !v)} style={{ background: moreEmojiOpen ? 'rgba(59,130,246,0.15)' : 'none', border: 'none', cursor: 'pointer', color: moreEmojiOpen ? '#93c5fd' : 'var(--text-secondary)', padding: '4px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, lineHeight: 1 }}>
                   +
                 </button>
               </div>
@@ -507,7 +507,7 @@ export default function MessagesPage() {
 
           {/* Message content */}
           {msg.is_deleted ? (
-            <div style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', color: '#64748b', fontSize: '13px', fontStyle: 'italic', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', color: 'var(--text-tertiary)', fontSize: '13px', fontStyle: 'italic', border: '1px solid rgba(255,255,255,0.08)' }}>
               This message was deleted
             </div>
           ) : isEditing ? (
@@ -519,7 +519,7 @@ export default function MessagesPage() {
               />
               <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
                 <button onClick={() => submitEdit(msg.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: '#1d4ed8', color: '#fff', border: 'none', cursor: 'pointer' }}>Save</button>
-                <button onClick={() => setEditingMsgId(null)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => setEditingMsgId(null)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>Cancel</button>
               </div>
             </div>
           ) : (
@@ -553,7 +553,7 @@ export default function MessagesPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
               {msg.reactions.map(r => (
                 <button key={r.reaction} onClick={() => toggleReaction(msg.id, r.reaction, inThread)} title={r.users.join(', ')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '99px', border: `1px solid ${r.reacted ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`, background: r.reacted ? 'rgba(29,78,216,0.15)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: '12px', color: r.reacted ? '#93c5fd' : '#94a3b8' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '99px', border: `1px solid ${r.reacted ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`, background: r.reacted ? 'rgba(29,78,216,0.15)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: '12px', color: r.reacted ? '#93c5fd' : 'var(--text-secondary)' }}>
                   {REACTIONS.find(rx => rx.key === r.reaction)?.icon ?? <span style={{ fontSize: '13px', lineHeight: 1 }}>{r.reaction}</span>}
                   <span>{r.count}</span>
                 </button>
@@ -590,8 +590,8 @@ export default function MessagesPage() {
         <div style={{ width: '260px', flexShrink: 0, background: '#1e293b', borderRight: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>Messages</div>
-              {totalUnread > 0 && <div style={{ fontSize: '11px', color: '#64748b' }}>{totalUnread} unread</div>}
+              <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>Messages</div>
+              {totalUnread > 0 && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{totalUnread} unread</div>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 10px', border: '1px solid rgba(255,255,255,0.1)' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -627,8 +627,8 @@ export default function MessagesPage() {
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#93c5fd' }}>{ch?.name ?? result.channel}</div>
                       <div style={{ fontSize: '11px', color: '#475569' }}>{timeAgo(result.created_at)}</div>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '2px', fontWeight: 500 }}>{result.sender_name}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{snippet}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '2px', fontWeight: 500 }}>{result.sender_name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{snippet}</div>
                   </div>
                 )
               })
@@ -647,7 +647,7 @@ export default function MessagesPage() {
                     <div style={{ fontSize: '13px', fontWeight: ch.unreadCount > 0 ? 700 : 500, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</div>
                     {ch.lastMessage && <div style={{ fontSize: '11px', color: '#475569', flexShrink: 0, marginLeft: '6px' }}>{timeAgo(ch.lastMessage.created_at)}</div>}
                   </div>
-                  {ch.lastMessage ? <div style={{ fontSize: '12px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.lastMessage.sender_name}: {ch.lastMessage.content}</div>
+                  {ch.lastMessage ? <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.lastMessage.sender_name}: {ch.lastMessage.content}</div>
                   : <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic' }}>No messages yet</div>}
                 </div>
                 {ch.mentioned ? (
@@ -671,10 +671,10 @@ export default function MessagesPage() {
                 : activeChannel.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>{activeChannel.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>{activeChannel.type === 'group' ? 'Team group chat' : 'Direct message'}</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>{activeChannel.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{activeChannel.type === 'group' ? 'Team group chat' : 'Direct message'}</div>
               </div>
-              {threadParent && <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', padding: '4px 8px', borderRadius: '6px' }}>Close thread</button>}
+              {threadParent && <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '12px', padding: '4px 8px', borderRadius: '6px' }}>Close thread</button>}
             </div>
           )}
 
@@ -713,7 +713,7 @@ export default function MessagesPage() {
                     const showName = msg.sender_id !== userId && prevMsg?.sender_id !== msg.sender_id
                     return (
                       <div key={msg.id} style={{ marginBottom: '6px', marginTop: showName ? '12px' : '0' }}>
-                        {showName && <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
+                        {showName && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
                         <MsgBubble msg={msg} />
                       </div>
                     )
@@ -730,8 +730,8 @@ export default function MessagesPage() {
               {pendingFiles.map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(29,78,216,0.12)', border: '1px solid rgba(29,78,216,0.3)', borderRadius: '8px', padding: '6px 10px', fontSize: '12px' }}>
                   <span style={{ color: '#93c5fd' }}>{f.file_name}</span>
-                  <span style={{ color: '#64748b' }}>{fmtBytes(f.file_size)}</span>
-                  <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0, display: 'flex' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>{fmtBytes(f.file_size)}</span>
+                  <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 0, display: 'flex' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
@@ -757,7 +757,7 @@ export default function MessagesPage() {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 {/* File attach button */}
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  style={{ width: 30, height: 30, borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  style={{ width: 30, height: 30, borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {uploading ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                   : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>}
                 </button>
@@ -799,8 +799,8 @@ export default function MessagesPage() {
         {threadParent && (
           <div style={{ width: '320px', flexShrink: 0, background: '#1e293b', borderLeft: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9' }}>Thread</div>
-              <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>Thread</div>
+              <button onClick={() => setThreadParent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -821,7 +821,7 @@ export default function MessagesPage() {
                 const showName = msg.sender_id !== userId && prevMsg?.sender_id !== msg.sender_id
                 return (
                   <div key={msg.id} style={{ marginBottom: '6px', marginTop: showName ? '12px' : '0' }}>
-                    {showName && <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
+                    {showName && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: '4px', marginLeft: '38px' }}>{msg.sender_name}</div>}
                     <MsgBubble msg={msg} inThread />
                   </div>
                 )
@@ -864,9 +864,9 @@ export default function MessagesPage() {
             onClick={e => e.stopPropagation()}
             style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1.25rem', width: '340px', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#f1f5f9', marginBottom: '1rem' }}>New group</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '1rem' }}>New group</div>
 
-            <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Group name</label>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Group name</label>
             <input
               value={newGroupName}
               onChange={e => setNewGroupName(e.target.value)}
@@ -874,7 +874,7 @@ export default function MessagesPage() {
               style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', padding: '8px 10px', fontSize: '13px', marginBottom: '0.75rem' }}
             />
 
-            <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Members</label>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Members</label>
             <div style={{ flex: 1, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', marginBottom: '1rem', maxHeight: '220px' }}>
               {employees.length === 0 ? (
                 <div style={{ padding: '0.75rem', fontSize: '12px', color: '#475569' }}>No employees found.</div>
@@ -897,7 +897,7 @@ export default function MessagesPage() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowCreateGroup(false)}
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#94a3b8', fontSize: '13px', padding: '8px 14px', cursor: 'pointer' }}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '13px', padding: '8px 14px', cursor: 'pointer' }}
               >
                 Cancel
               </button>

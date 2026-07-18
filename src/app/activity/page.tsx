@@ -190,13 +190,13 @@ export default function ActivityPage() {
 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9' }}>Activity</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>What&apos;s happened across your team in the last 60 days</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)' }}>Activity</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px' }}>What&apos;s happened across your team in the last 60 days</div>
           </div>
           <button
             onClick={exportCSV}
             disabled={filtered.length === 0}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: filtered.length === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: filtered.length === 0 ? '#475569' : '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: filtered.length === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: filtered.length === 0 ? '#475569' : 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
@@ -215,7 +215,7 @@ export default function ActivityPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '99px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
                   background: isActive ? '#1d4ed8' : 'rgba(255,255,255,0.05)',
-                  color: isActive ? '#fff' : '#94a3b8',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
                   border: `1px solid ${isActive ? '#1d4ed8' : 'rgba(255,255,255,0.1)'}`,
                 }}
               >
@@ -259,7 +259,7 @@ export default function ActivityPage() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 500 }}>{ev.title}</div>
-                          {ev.detail && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.detail}</div>}
+                          {ev.detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.detail}</div>}
                         </div>
                         <div style={{ fontSize: '11.5px', color: '#475569', flexShrink: 0, whiteSpace: 'nowrap', paddingTop: '2px' }}>{timeAgo(ev.created_at)}</div>
                       </div>

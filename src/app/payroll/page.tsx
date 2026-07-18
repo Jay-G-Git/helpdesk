@@ -468,7 +468,7 @@ export default function PayrollPage() {
   })
 
   const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
-  const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }
+  const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }
   const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: 'none', background: '#1d4ed8', color: '#fff', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
   const sectionLabel: React.CSSProperties = { fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }
   const emptyState: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }
@@ -480,8 +480,8 @@ export default function PayrollPage() {
       <div className="dash-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Payroll</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Pay periods vary by employee</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>Payroll</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Pay periods vary by employee</div>
           </div>
           <div style={{ display: 'flex', gap: '6px' }}>
             {entries.length > 0 && (
@@ -498,18 +498,18 @@ export default function PayrollPage() {
             nothing. Collapse to a single "get started" banner in that case. */}
         {entries.length === 0 ? (
           <div style={{ ...cardStyle, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>No pay runs yet.</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No pay runs yet.</span>
             <button style={primaryBtn} onClick={() => setShowForm(v => !v)}>+ Log payment</button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
             <div style={cardStyle}>
-              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>This period</div>
-              <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalThisPeriod)}</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>This period</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(totalThisPeriod)}</div>
             </div>
             <div style={cardStyle}>
-              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Total paid (all time)</div>
-              <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(totalAllTime)}</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Total paid (all time)</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(totalAllTime)}</div>
             </div>
           </div>
         )}
@@ -517,7 +517,7 @@ export default function PayrollPage() {
         {/* Needs attention */}
         {!loading && hasAttentionItems && (
           <div style={{ ...cardStyle, marginBottom: '1.25rem', border: '1px solid rgba(245,158,11,0.25)' }}>
-            <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.75rem' }}>Needs attention</div>
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.75rem' }}>Needs attention</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {missingPayRate.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0' }}>
@@ -542,7 +542,7 @@ export default function PayrollPage() {
               )}
               {(hoursAnomalies.length > 0 || clockOverlaps.length > 0 || openTimeEntries.length > 0 || paidTimeOff.requestCount > 0) && (
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Before you run
                     {openTimeEntriesByEmployee.length > 0 && ` (${openTimeEntriesByEmployee.length} employee${openTimeEntriesByEmployee.length !== 1 ? 's' : ''}, ${openTimeEntries.length} open clock-in${openTimeEntries.length !== 1 ? 's' : ''})`}
                   </div>
@@ -582,7 +582,7 @@ export default function PayrollPage() {
         {/* Log payment form */}
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: '1.25rem' }}>
-            <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '1rem' }}>Log a payment</div>
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '1rem' }}>Log a payment</div>
             <div className="row2" style={{ marginBottom: '0.75rem' }}>
               <div className="field">
                 <label>Employee</label>
@@ -651,7 +651,7 @@ export default function PayrollPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           {([['dashboard', 'Dashboard'], ['overview', 'By employee'], ['history', 'Full history'], ['runs', 'Pay runs']] as [typeof activeTab, string][]).map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)} style={{ padding: '8px 18px', fontWeight: activeTab === key ? 600 : 400, fontSize: '13px', color: activeTab === key ? '#93c5fd' : '#64748b', background: 'none', border: 'none', borderBottom: activeTab === key ? '2px solid #3b82f6' : '2px solid transparent', marginBottom: '-1px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button key={key} onClick={() => setActiveTab(key)} style={{ padding: '8px 18px', fontWeight: activeTab === key ? 600 : 400, fontSize: '13px', color: activeTab === key ? '#93c5fd' : 'var(--text-tertiary)', background: 'none', border: 'none', borderBottom: activeTab === key ? '2px solid #3b82f6' : '2px solid transparent', marginBottom: '-1px', cursor: 'pointer', fontFamily: 'inherit' }}>
               {label}
             </button>
           ))}
@@ -718,27 +718,27 @@ export default function PayrollPage() {
                   {/* Stat cards */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
                     <div style={cardStyle}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>This month</div>
-                      <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(monthTotal)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>This month</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(monthTotal)}</div>
                     </div>
                     <div style={cardStyle}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>YTD {thisYear}</div>
-                      <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(ytd)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>YTD {thisYear}</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(ytd)}</div>
                     </div>
                     <div style={cardStyle}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Avg per period</div>
-                      <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>{formatMoney(avgPerPeriod)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Avg per period</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(avgPerPeriod)}</div>
                     </div>
                     <div style={cardStyle}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Active employees</div>
-                      <div style={{ fontSize: '20px', fontWeight: 600, color: '#f1f5f9' }}>{employees.length}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Active employees</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{employees.length}</div>
                     </div>
                   </div>
 
                   {/* Payroll over time */}
                   {sortedMonths.length > 1 && (
                     <div style={{ ...cardStyle, marginBottom: '1.25rem' }}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9', marginBottom: '1.25rem' }}>Payroll by month</div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)', marginBottom: '1.25rem' }}>Payroll by month</div>
                       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '140px', paddingBottom: '24px', position: 'relative' }}>
                         {sortedMonths.map((key, i) => {
                           const val = byMonth[key]
@@ -772,7 +772,7 @@ export default function PayrollPage() {
                     {/* Cost by employee */}
                     {sortedEmps.length > 0 && (
                       <div style={cardStyle}>
-                        <div style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9', marginBottom: '1rem' }}>Cost by employee</div>
+                        <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)', marginBottom: '1rem' }}>Cost by employee</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           {sortedEmps.map(({ emp, total }) => (
                             <div key={emp!.id}>
@@ -791,25 +791,25 @@ export default function PayrollPage() {
 
                     {/* Pay type split */}
                     <div style={cardStyle}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9', marginBottom: '1rem' }}>Pay type</div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)', marginBottom: '1rem' }}>Pay type</div>
                       {employees.length === 0 ? (
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>No employees.</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>No employees.</div>
                       ) : (
                         <>
                           <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                             <div style={{ flex: 1, textAlign: 'center', background: 'rgba(29,78,216,0.12)', borderRadius: '8px', padding: '12px' }}>
                               <div style={{ fontSize: '24px', fontWeight: 700, color: '#93c5fd' }}>{hourlyCount}</div>
-                              <div style={{ fontSize: '12px', color: '#64748b' }}>Hourly</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Hourly</div>
                             </div>
                             <div style={{ flex: 1, textAlign: 'center', background: 'rgba(34,197,94,0.1)', borderRadius: '8px', padding: '12px' }}>
                               <div style={{ fontSize: '24px', fontWeight: 700, color: '#4ade80' }}>{salaryCount}</div>
-                              <div style={{ fontSize: '12px', color: '#64748b' }}>Salary</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Salary</div>
                             </div>
                           </div>
                           <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${(hourlyCount / totalEmps) * 100}%`, background: '#3b82f6', borderRadius: '4px' }} />
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
                             <span>{Math.round((hourlyCount / totalEmps) * 100)}% hourly</span>
                             <span>{Math.round((salaryCount / totalEmps) * 100)}% salary</span>
                           </div>
@@ -833,12 +833,12 @@ export default function PayrollPage() {
                   const last = empEntries[0]
                   return (
                     <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', cursor: 'pointer' }} onClick={() => router.push(`/employees/${emp.id}`)}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(100,116,139,0.18)', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(100,116,139,0.18)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
                         {emp.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>{emp.name}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                           {emp.pay_type === 'salary'
                             ? `${formatMoney(emp.pay_rate ?? 0)}/yr`
                             : `${formatMoney(emp.pay_rate ?? 0)}/hr`}
@@ -851,7 +851,7 @@ export default function PayrollPage() {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 600, color: '#93c5fd' }}>{formatMoney(total)}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>total paid</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>total paid</div>
                       </div>
                     </div>
                   )
@@ -863,7 +863,7 @@ export default function PayrollPage() {
           <div>
             {/* Run payroll form */}
             <div style={{ ...cardStyle, marginBottom: '1.25rem' }}>
-              <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '1rem' }}>Run payroll</div>
+              <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '1rem' }}>Run payroll</div>
 
               {/* JAY-115 — off-cycle runs (bonus/correction/one-off pay),
                   scoped to hand-picked employees, exempt from the JAY-48
@@ -951,7 +951,7 @@ export default function PayrollPage() {
                         }}
                       >
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {formatDate(run.period_start)} – {formatDate(run.period_end)}
                             {run.run_type === 'off_cycle' && (
                               <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', background: 'rgba(147,51,234,0.16)', color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -959,7 +959,7 @@ export default function PayrollPage() {
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                             {run.employee_count} employee{run.employee_count !== 1 ? 's' : ''} · run on {formatDate(run.run_date)}
                             {run.notes ? ` · ${run.notes}` : ''}
                           </div>
@@ -972,7 +972,7 @@ export default function PayrollPage() {
                         }}>
                           {run.status === 'finalized' ? 'Finalized' : 'Draft'}
                         </span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                           style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
                           <polyline points="6 9 12 15 18 9" />
                         </svg>
@@ -981,18 +981,18 @@ export default function PayrollPage() {
                       {isExpanded && (
                         <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1rem' }}>
                           {items.length === 0 ? (
-                            <div style={{ fontSize: '13px', color: '#64748b' }}>Loading...</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>Loading...</div>
                           ) : (
                             <>
                               <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '1rem' }}>
                                   <thead>
                                     <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                                      <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>Employee</th>
-                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>Gross</th>
-                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>Federal</th>
-                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>State</th>
-                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>Other</th>
+                                      <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>Employee</th>
+                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>Gross</th>
+                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>Federal</th>
+                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>State</th>
+                                      <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>Other</th>
                                       <th style={{ textAlign: 'right', padding: '8px 10px', fontWeight: 600, color: '#93c5fd' }}>Net pay</th>
                                       {run.status === 'draft' && <th style={{ padding: '8px 10px' }}></th>}
                                     </tr>
@@ -1012,7 +1012,7 @@ export default function PayrollPage() {
                                         <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                           <td style={{ padding: '8px 10px' }}>
                                             <div style={{ fontWeight: 500, color: '#e2e8f0' }}>{item.employee_name}</div>
-                                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                                               {item.pay_type === 'salary' ? 'Salary' : `${item.hours_worked ?? 0} hrs`}
                                               {item.notes && <span style={{ color: '#4ade80', marginLeft: '6px' }}>{item.notes}</span>}
                                             </div>
@@ -1044,9 +1044,9 @@ export default function PayrollPage() {
                                             </>
                                           ) : (
                                             <>
-                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#94a3b8' }}>{formatMoney(item.deductions?.federal ?? 0)}</td>
-                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#94a3b8' }}>{formatMoney(item.deductions?.state ?? 0)}</td>
-                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#94a3b8' }}>{formatMoney(item.deductions?.other ?? 0)}</td>
+                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatMoney(item.deductions?.federal ?? 0)}</td>
+                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatMoney(item.deductions?.state ?? 0)}</td>
+                                              <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatMoney(item.deductions?.other ?? 0)}</td>
                                               <td style={{ padding: '8px 10px', textAlign: 'right', color: '#93c5fd', fontWeight: 600 }}>{formatMoney(item.net_pay)}</td>
                                             </>
                                           )}
@@ -1099,7 +1099,7 @@ export default function PayrollPage() {
                       <div style={{ width: 32, textAlign: 'center', flexShrink: 0 }}><DollarIcon size={16} color="#93c5fd" /></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: 500, color: '#e2e8f0' }}>{emp?.name ?? 'Unknown'}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                           {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
                           {entry.hours_worked != null ? ` · ${entry.hours_worked} hrs` : ''}
                           {entry.notes ? ` · ${entry.notes}` : ''}

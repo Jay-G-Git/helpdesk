@@ -453,12 +453,12 @@ export default function Dashboard({
   const s = {
     card: { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' as const },
     cardPad: { padding: '14px 16px' },
-    sectionLabel: { fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' },
+    sectionLabel: { fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' },
     row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)' },
     avatar: (color = '#1e3a5f', text = '#93c5fd') => ({ width: 32, height: 32, borderRadius: '50%', background: color, color: text, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
     pill: (bg: string, color: string) => ({ fontSize: '10px', fontWeight: 600, padding: '2px 9px', borderRadius: '99px', background: bg, color, flexShrink: 0 }),
     btnApprove: { fontSize: '12px', padding: '5px 14px', borderRadius: '7px', background: '#1d4ed8', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 500, flexShrink: 0 },
-    btnDeny: { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', flexShrink: 0 },
+    btnDeny: { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', flexShrink: 0 },
     btnCallout: { fontSize: '12px', padding: '5px 14px', borderRadius: '7px', background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 500, flexShrink: 0 },
     btnReview: { fontSize: '12px', padding: '5px 14px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.25)', cursor: 'pointer', fontWeight: 500, flexShrink: 0, textDecoration: 'none' as const, display: 'inline-block' as const },
   }
@@ -473,10 +473,10 @@ export default function Dashboard({
         {/* ── Top bar ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 0 1rem' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 500, color: '#f1f5f9' }}>
+            <div style={{ fontSize: '20px', fontWeight: 500, color: 'var(--text)' }}>
               {greeting()}{firstName ? `, ${firstName}` : ''}
             </div>
-            {businessName && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{businessName}</div>}
+            {businessName && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{businessName}</div>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
@@ -498,16 +498,16 @@ export default function Dashboard({
             actual information. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '18px' }}>
           {[
-            { val: loading ? '–' : clockedInEntries.length, label: 'Clocked in now', color: '#f1f5f9' },
-            { val: loading ? '–' : todayCallouts.length, label: 'Called out today', color: todayCallouts.length > 0 ? '#f87171' : '#f1f5f9' },
-            { val: loading ? '–' : pendingCount, label: 'Pending approvals', color: pendingCount > 0 ? '#fbbf24' : '#f1f5f9' },
-            { val: loading ? '–' : todayShifts.length, label: 'On shift today', color: '#f1f5f9' },
+            { val: loading ? '–' : clockedInEntries.length, label: 'Clocked in now', color: 'var(--text)' },
+            { val: loading ? '–' : todayCallouts.length, label: 'Called out today', color: todayCallouts.length > 0 ? '#f87171' : 'var(--text)' },
+            { val: loading ? '–' : pendingCount, label: 'Pending approvals', color: pendingCount > 0 ? '#fbbf24' : 'var(--text)' },
+            { val: loading ? '–' : todayShifts.length, label: 'On shift today', color: 'var(--text)' },
           ].map(stat => {
             const isZero = !loading && stat.val === 0
             return (
               <div key={stat.label} style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', opacity: isZero ? 0.55 : 1 }}>
                 <div style={{ fontSize: '26px', fontWeight: 600, color: isZero ? '#475569' : stat.color }}>{stat.val}</div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{stat.label}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>{stat.label}</div>
               </div>
             )
           })}
@@ -536,8 +536,8 @@ export default function Dashboard({
                   <div key={req.id} style={s.row}>
                     <div style={s.avatar()}>{emp ? initials(emp.name) : '??'}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{emp?.name ?? 'Employee'}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{emp?.name ?? 'Employee'}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                         PTO request · {fmtShortDate(req.start_date)} – {fmtShortDate(req.end_date)}
                         {req.reason ? ` · "${req.reason}"` : ''}
                       </div>
@@ -558,10 +558,10 @@ export default function Dashboard({
                   <div key={swap.id} style={s.row}>
                     <div style={s.avatar('rgba(34,197,94,0.15)', '#86efac')}>{swap.requester_name ? initials(swap.requester_name) : '??'}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>
                         {swap.requester_name} → {swap.target_name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>Shift swap request · {timeAgo(swap.created_at)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Shift swap request · {timeAgo(swap.created_at)}</div>
                     </div>
                     <span style={s.pill('rgba(34,197,94,0.15)', '#86efac')}>Swap</span>
                     <button onClick={() => handleSwap(swap.id, 'approved')} disabled={!!approving[key]} style={s.btnApprove}>
@@ -579,8 +579,8 @@ export default function Dashboard({
                   <div key={shift.id} style={s.row}>
                     <div style={s.avatar('rgba(248,113,113,0.15)', '#fca5a5')}>{emp ? initials(emp.name) : '??'}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{emp?.name ?? 'Employee'} called out</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{emp?.name ?? 'Employee'} called out</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                         Today {formatTime(shift.start_time)}–{formatTime(shift.end_time)}
                         {emp?.role ? ` · ${emp.role}` : ''}
                       </div>
@@ -601,8 +601,8 @@ export default function Dashboard({
                 <div key={`int_${app.id}`} style={s.row}>
                   <div style={s.avatar('rgba(192,132,252,0.15)', '#d8b4fe')}>{initials(app.name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{app.name}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{app.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                       Interview {new Date(app.interview_at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
                     </div>
                   </div>
@@ -618,8 +618,8 @@ export default function Dashboard({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{newApplicants.length} new applicant{newApplicants.length !== 1 ? 's' : ''}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Applied in the last 7 days, not yet reviewed</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{newApplicants.length} new applicant{newApplicants.length !== 1 ? 's' : ''}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Applied in the last 7 days, not yet reviewed</div>
                   </div>
                   <span style={s.pill('rgba(192,132,252,0.15)', '#d8b4fe')}>Hiring</span>
                   <a href="/hiring" style={s.btnReview}>Review</a>
@@ -633,8 +633,8 @@ export default function Dashboard({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{missingPayRateEmps.length} employee{missingPayRateEmps.length !== 1 ? 's' : ''} missing a pay rate</div>
-                    <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{missingPayRateEmps.length} employee{missingPayRateEmps.length !== 1 ? 's' : ''} missing a pay rate</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {missingPayRateEmps.map(e => e.name).join(', ')}
                     </div>
                   </div>
@@ -650,8 +650,8 @@ export default function Dashboard({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{draftRunCount} draft payroll run{draftRunCount !== 1 ? 's' : ''}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Awaiting finalization</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{draftRunCount} draft payroll run{draftRunCount !== 1 ? 's' : ''}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Awaiting finalization</div>
                   </div>
                   <span style={s.pill('rgba(251,191,36,0.15)', '#fbbf24')}>Payroll</span>
                   <a href="/payroll" style={s.btnReview}>Review</a>
@@ -667,12 +667,12 @@ export default function Dashboard({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>
                       {workAuthExpiringEmps.length === 1
                         ? `${workAuthExpiringEmps[0].name}'s work authorization expires within 90 days`
                         : `${workAuthExpiringEmps.length} employees' work authorization expires within 90 days`}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {workAuthExpiringEmps.map(e => e.name).join(', ')}
                     </div>
                   </div>
@@ -700,7 +700,7 @@ export default function Dashboard({
               {/* Roster header */}
               <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#e2e8f0' }}>Today&apos;s roster</span>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>{todayShifts.length} on shift</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{todayShifts.length} on shift</span>
               </div>
               {todayShifts.length === 0 ? (
                 <div style={{ ...s.cardPad, fontSize: '13px', color: '#475569', textAlign: 'center', padding: '1.5rem' }}>No shifts scheduled today</div>
@@ -710,17 +710,17 @@ export default function Dashboard({
                   const isIn = clockedInIds.has(shift.employee_id)
                   const isCallout = shift.status === 'called_out'
                   const dotColor = isCallout ? '#f87171' : isIn ? '#4ade80' : '#475569'
-                  const statusColor = isCallout ? '#f87171' : isIn ? '#4ade80' : '#64748b'
+                  const statusColor = isCallout ? '#f87171' : isIn ? '#4ade80' : 'var(--text-tertiary)'
                   const statusLabel = isCallout ? 'Called out' : isIn ? 'Clocked in' : 'Not yet in'
                   const avatarBg = isCallout ? 'rgba(248,113,113,0.15)' : isIn ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.07)'
-                  const avatarColor = isCallout ? '#fca5a5' : isIn ? '#86efac' : '#94a3b8'
+                  const avatarColor = isCallout ? '#fca5a5' : isIn ? '#86efac' : 'var(--text-secondary)'
                   return (
                     <div key={shift.id} style={{ ...s.row, cursor: 'pointer' }} onClick={() => emp && onSelectEmp(emp)}>
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
                       <div style={s.avatar(avatarBg, avatarColor)}>{emp ? initials(emp.name) : '??'}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name ?? 'Unknown'}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{emp?.role} · {formatTime(shift.start_time)}–{formatTime(shift.end_time)}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name ?? 'Unknown'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{emp?.role} · {formatTime(shift.start_time)}–{formatTime(shift.end_time)}</div>
                       </div>
                       <div style={{ fontSize: '11px', fontWeight: 500, color: statusColor, flexShrink: 0 }}>{statusLabel}</div>
                     </div>
@@ -731,7 +731,7 @@ export default function Dashboard({
               {activeEmployees.filter(e => !todayShifts.some(sh => sh.employee_id === e.id)).slice(0, 3).map(emp => (
                 <div key={emp.id} style={{ ...s.row, opacity: 0.5, cursor: 'pointer' }} onClick={() => onSelectEmp(emp)}>
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#334155', flexShrink: 0 }} />
-                  <div style={s.avatar('rgba(255,255,255,0.05)', '#64748b')}>{initials(emp.name)}</div>
+                  <div style={s.avatar('rgba(255,255,255,0.05)', 'var(--text-tertiary)')}>{initials(emp.name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: '#cbd5e1' }}>{emp.name}</div>
                     <div style={{ fontSize: '11px', color: '#475569' }}>{emp.role}</div>
@@ -758,14 +758,14 @@ export default function Dashboard({
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recentAnnouncement.title}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recentAnnouncement.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                         Sent to {recentAnnouncement.sent_count} staff
                         {announcementSeen && ` · Seen by ${announcementSeen.seenCount} of ${announcementSeen.totalEmployees}`}
                         {' · '}{timeAgo(recentAnnouncement.created_at)}
                       </div>
                     </div>
-                    <button onClick={() => setShowAnnouncementModal(true)} style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', cursor: 'pointer', flexShrink: 0 }}>
+                    <button onClick={() => setShowAnnouncementModal(true)} style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', cursor: 'pointer', flexShrink: 0 }}>
                       New
                     </button>
                   </div>
@@ -805,7 +805,7 @@ export default function Dashboard({
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '12px', fontWeight: 500, color: '#e2e8f0' }}>{item.text}</div>
-                        {item.sub && <div style={{ fontSize: '11px', color: '#64748b' }}>{item.sub}</div>}
+                        {item.sub && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{item.sub}</div>}
                       </div>
                       <div style={{ fontSize: '11px', color: '#475569', flexShrink: 0 }}>{timeAgo(item.time)}</div>
                     </div>
@@ -830,8 +830,8 @@ export default function Dashboard({
                   <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', width: '50%', boxSizing: 'border-box' as const }}>
                     <div style={s.avatar()}>{emp ? initials(emp.name) : '??'}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{emp?.name ?? 'Employee'}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>{req.type} · {fmtShortDate(req.start_date)} – {fmtShortDate(req.end_date)}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{emp?.name ?? 'Employee'}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{req.type} · {fmtShortDate(req.start_date)} – {fmtShortDate(req.end_date)}</div>
                     </div>
                   </div>
                 )
@@ -843,19 +843,19 @@ export default function Dashboard({
         {/* ── Team section ── */}
         <div style={{ ...s.card }} id="team-section">
           <div style={{ ...s.cardPad, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '8px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 500, color: '#f1f5f9' }}>Your team</div>
+            <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>Your team</div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
               {employees.length > 5 && (
-                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." style={{ fontSize: '12px', padding: '5px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '7px', width: '140px', outline: 'none' }} />
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." style={{ fontSize: '12px', padding: '5px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '7px', width: '140px', outline: 'none' }} />
               )}
               {departments.length > 0 && departments.map(dept => (
                 <button key={dept.id} onClick={() => setFilterDept(filterDept === dept.id ? null : dept.id)}
-                  style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '99px', border: `1.5px solid ${filterDept === dept.id ? dept.color : 'rgba(255,255,255,0.1)'}`, background: filterDept === dept.id ? dept.color : 'transparent', color: filterDept === dept.id ? '#fff' : '#94a3b8', cursor: 'pointer' }}>
+                  style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '99px', border: `1.5px solid ${filterDept === dept.id ? dept.color : 'rgba(255,255,255,0.1)'}`, background: filterDept === dept.id ? dept.color : 'transparent', color: filterDept === dept.id ? '#fff' : 'var(--text-secondary)', cursor: 'pointer' }}>
                   {dept.name}
                 </button>
               ))}
               {employees.some(e => e.status === 'terminated') && (
-                <button onClick={() => setShowTerminated(v => !v)} style={{ fontSize: '12px', color: showTerminated ? '#60a5fa' : '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+                <button onClick={() => setShowTerminated(v => !v)} style={{ fontSize: '12px', color: showTerminated ? '#60a5fa' : 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
                   {showTerminated ? 'Hide terminated' : 'Show terminated'}
                 </button>
               )}
@@ -864,7 +864,7 @@ export default function Dashboard({
                 onClick={seedDemo}
                 disabled={seeding}
                 title="Seeds fake employee records for testing — does not affect real team members"
-                style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '7px', background: 'transparent', color: '#64748b', border: '1px dashed rgba(148,163,184,0.35)', cursor: seeding ? 'not-allowed' : 'pointer' }}
+                style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '7px', background: 'transparent', color: 'var(--text-tertiary)', border: '1px dashed rgba(148,163,184,0.35)', cursor: seeding ? 'not-allowed' : 'pointer' }}
               >
                 {seeding ? 'Loading…' : '⚗ Load mock team (demo)'}
               </button>
@@ -877,19 +877,19 @@ export default function Dashboard({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 {[['Name', newName, setNewName, 'Jane Smith'], ['Role', newRole, setNewRole, 'Cashier'], ['Email', newEmail, setNewEmail, 'jane@example.com'], ['Phone', newPhone, setNewPhone, '(555) 123-4567']].map(([label, val, setter, ph]) => (
                   <div key={label as string}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{label}</label>
-                    <input value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} placeholder={ph as string} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>{label}</label>
+                    <input value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} placeholder={ph as string} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
                   </div>
                 ))}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Start date</label>
-                  <input type="date" value={newStart} onChange={e => setNewStart(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
+                  <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Start date</label>
+                  <input type="date" value={newStart} onChange={e => setNewStart(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '7px', fontSize: '13px', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Type</label>
-                  <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#f1f5f9', borderRadius: '7px', fontSize: '13px', outline: 'none' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Type</label>
+                  <select value={newType} onChange={e => setNewType(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: 'var(--text)', borderRadius: '7px', fontSize: '13px', outline: 'none' }}>
                     <option>Full-time</option><option>Part-time</option><option>Seasonal</option>
                   </select>
                 </div>
@@ -927,8 +927,8 @@ export default function Dashboard({
                     />
                     {isIn && <div style={{ position: 'absolute', top: '10px', right: '10px', width: 7, height: 7, borderRadius: '50%', background: '#4ade80' }} />}
                     <div style={{ width: 38, height: 38, borderRadius: '50%', background: selectedEmp?.id === emp.id ? '#1d4ed8' : 'rgba(59,130,246,0.15)', color: selectedEmp?.id === emp.id ? '#fff' : '#93c5fd', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initials(emp.name)}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#f1f5f9' }}>{emp.name}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>{emp.role}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{emp.role}</div>
                     {empDepts.length > 0 && <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {empDepts.map(d => <span key={d.id} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '99px', background: d.color + '22', color: d.color, border: `0.5px solid ${d.color}55` }}>{d.name}</span>)}
                     </div>}
@@ -941,7 +941,7 @@ export default function Dashboard({
 
           {selectedIds.size > 0 && (
             <div style={{ position: 'sticky', bottom: 0, display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' as const }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{selectedIds.size} selected</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>{selectedIds.size} selected</div>
               {bulkRoleEditing ? (
                 <>
                   <input
@@ -949,21 +949,21 @@ export default function Dashboard({
                     value={bulkRoleValue}
                     onChange={e => setBulkRoleValue(e.target.value)}
                     placeholder="New role"
-                    style={{ fontSize: '12px', padding: '5px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '7px', width: '140px', outline: 'none' }}
+                    style={{ fontSize: '12px', padding: '5px 10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '7px', width: '140px', outline: 'none' }}
                   />
                   <button onClick={bulkChangeRole} disabled={bulkSaving || !bulkRoleValue.trim()} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: '#1d4ed8', color: '#fff', border: 'none', cursor: bulkSaving ? 'not-allowed' : 'pointer' }}>
                     Apply
                   </button>
                 </>
               ) : (
-                <button onClick={() => setBulkRoleEditing(true)} disabled={bulkSaving} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.1)', cursor: bulkSaving ? 'not-allowed' : 'pointer' }}>
+                <button onClick={() => setBulkRoleEditing(true)} disabled={bulkSaving} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)', cursor: bulkSaving ? 'not-allowed' : 'pointer' }}>
                   Change role
                 </button>
               )}
               <button onClick={bulkDeactivate} disabled={bulkSaving} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(248,113,113,0.12)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.3)', cursor: bulkSaving ? 'not-allowed' : 'pointer' }}>
                 Deactivate
               </button>
-              <button onClick={clearSelection} disabled={bulkSaving} title="Clear selection" style={{ fontSize: '14px', color: '#64748b', background: 'none', border: 'none', cursor: bulkSaving ? 'not-allowed' : 'pointer', marginLeft: 'auto' }}>
+              <button onClick={clearSelection} disabled={bulkSaving} title="Clear selection" style={{ fontSize: '14px', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: bulkSaving ? 'not-allowed' : 'pointer', marginLeft: 'auto' }}>
                 ×
               </button>
             </div>
@@ -1003,19 +1003,19 @@ export default function Dashboard({
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAnnouncementModal(false)}>
         <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '1.5rem', width: '460px', maxWidth: '90vw' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '15px', fontWeight: 500, color: '#f1f5f9' }}>Post announcement</div>
-            <button onClick={() => setShowAnnouncementModal(false)} style={{ fontSize: '20px', lineHeight: 1, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text)' }}>Post announcement</div>
+            <button onClick={() => setShowAnnouncementModal(false)} style={{ fontSize: '20px', lineHeight: 1, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
           </div>
           <div style={{ marginBottom: '10px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Title</label>
-            <input value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="e.g. Schedule change this Friday" style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Title</label>
+            <input value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="e.g. Schedule change this Friday" style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
           </div>
           <div style={{ marginBottom: '14px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Message</label>
-            <textarea value={annMsg} onChange={e => setAnnMsg(e.target.value)} placeholder="Write your message here..." style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f1f5f9', borderRadius: '8px', fontSize: '13px', outline: 'none', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }} />
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Message</label>
+            <textarea value={annMsg} onChange={e => setAnnMsg(e.target.value)} placeholder="Write your message here..." style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '13px', outline: 'none', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
           <button onClick={sendAnnouncement} disabled={annSending || !annTitle.trim() || !annMsg.trim()}
-            style={{ width: '100%', padding: '9px', borderRadius: '8px', background: annSending || !annTitle.trim() || !annMsg.trim() ? '#334155' : '#1d4ed8', color: annSending || !annTitle.trim() || !annMsg.trim() ? '#64748b' : '#fff', border: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '9px', borderRadius: '8px', background: annSending || !annTitle.trim() || !annMsg.trim() ? '#334155' : '#1d4ed8', color: annSending || !annTitle.trim() || !annMsg.trim() ? 'var(--text-tertiary)' : '#fff', border: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
             {annSending ? 'Sending…' : 'Send to all employees'}
           </button>
         </div>
