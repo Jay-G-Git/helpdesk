@@ -1,20 +1,56 @@
 #!/bin/bash
-# Unattended Todo -> implemented -> pushed -> Done pipeline for Helpdesk.
-# Meant to be run via cron or launchd on YOUR machine (has real git push
-# credentials) — never run this from a sandboxed/no-network environment.
+# Continuous 4-stage Todo -> Done pipeline for Helpdesk: Tech Lead -> Engineer
+# -> QA -> Deploy & Finalize. Meant to be run via launchd on YOUR machine (has
+# real git push credentials) — never run this from a sandboxed/no-network
+# environment.
+#
+# WHY 4 STAGES: earlier versions did everything in one undifferentiated
+# claude -p call (plan + implement + test + verify + deploy all mixed
+# together, trusting its own self-report at every step). Converted to a real
+# multi-stage pipeline on 2026-07-18 once usage headroom (Max plan) made the
+# extra claude -p invocations per ticket affordable: Tech Lead reads the
+# ticket and produces a plan (read-only, can call NO-GO); Engineer implements
+# against that plan (write access, no git); QA independently re-verifies
+# everything from scratch — re-runs tests itself, reviews the actual diff —
+# rather than trusting Engineer's own report (read-only + test-running, no
+# write); Deploy & Finalize is the only stage with git-write and Linear-write
+# access, and handles all three possible outcomes (NO-GO, QA FAIL, QA PASS).
+# Each stage gets a narrower ALLOWED_TOOLS list than the old single-call
+# design, so a compromised or confused stage has less blast radius.
+#
+# This is a persistent daemon, not a one-shot script: it loops forever,
+# processing one Todo issue per iteration (all 4 stages) with a short
+# cooldown between issues and a longer idle poll when Todo is empty/all
+# data-schema. launchd should start this ONCE (RunAtLoad + KeepAlive, no
+# StartInterval) rather than re-invoking it on a timer.
+#
+# IMPORTANT LESSON BAKED IN BELOW: a failed ticket's discard step
+# (`git checkout -- .`) and the deploy step's commit (`git add -A`) both
+# operate on the whole working tree by default — which previously wiped out
+# uncommitted edits to THESE VERY SCRIPTS sitting in the same repo,
+# confirmed as a real incident on 2026-07-18 (this script silently reverted
+# to an old committed version after a failed-ticket discard ran mid-session).
+# Every discard/add command in the per-stage prompt files below is scoped
+# with a pathspec exclusion (':!scripts/autopilot*') to prevent this
+# recurring. If you ever hand-edit these scripts again, commit immediately —
+# scoping reduces the blast radius but committing is the real fix.
 #
 # BEFORE FIRST USE:
 #   1. chmod +x scripts/autopilot.sh
 #   2. Run `claude mcp list` in this repo and confirm the Linear MCP server
-#      is registered. If its tool names differ from the placeholder below
-#      (mcp__linear__*), edit ALLOWED_TOOLS to match what `claude mcp list`
-#      / a normal session shows you.
+#      is registered. Server name confirmed as "claude_ai_Linear".
 #   3. Do a dry run manually first: `bash scripts/autopilot.sh` and watch
 #      scripts/autopilot.log — don't trust a scheduled job you haven't
-#      watched succeed at least once.
+#      watched succeed at least once. Ctrl+C to stop a manual foreground run.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
+
+# launchd runs jobs with a minimal PATH (it never sources .zshrc/.bash_profile
+# the way an interactive Terminal shell does). Absolute path confirmed via
+# `which claude` — update this if you ever reinstall/relocate the CLI.
+CLAUDE_BIN="/Users/hansomeGuy/.local/bin/claude"
+export PATH="$(dirname "$CLAUDE_BIN"):/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 LOCKFILE="/tmp/helpdesk-autopilot.lock"
 LOG="$(pwd)/scripts/autopilot.log"
@@ -26,134 +62,184 @@ fi
 touch "$LOCKFILE"
 trap 'rm -f "$LOCKFILE"' EXIT
 
-echo "=== Run started $(date) ===" >> "$LOG"
+echo "=== Daemon started (4-stage pipeline) $(date) ===" >> "$LOG"
 
-# Restrict exactly what this unattended run is allowed to touch. This is
-# deliberately narrower than --dangerously-skip-permissions: git push and
-# tests are allowed, but nothing outside this explicit list runs without a
-# human. Server name confirmed via `claude mcp list` as "claude_ai_Linear".
-# Each entry MUST stay a single array element — "Bash(git add*)" contains a
-# space, and passing this as a plain string lets bash word-split it into
-# garbage tokens (confirmed bug from the first test run: rules like "log*"
-# and "push*" got silently ignored because of exactly this).
-ALLOWED_TOOLS=(
+# Per-stage tool scoping — deliberately narrower than one shared list.
+# Each entry MUST stay a single array element (space-containing entries like
+# "Bash(git add*)" get word-split into garbage if passed as a plain string).
+TOOLS_TECHLEAD=(
+  "Read" "Grep" "Glob"
+  "Bash(git log*)" "Bash(git diff*)"
+  "mcp__claude_ai_Linear__list_issues" "mcp__claude_ai_Linear__get_issue"
+)
+TOOLS_ENGINEER=(
   "Read" "Write" "Edit" "Grep" "Glob"
   "Bash(npm test*)" "Bash(npx tsc*)"
-  "Bash(git add*)" "Bash(git commit*)" "Bash(git push*)" "Bash(git status*)"
-  "Bash(git log*)" "Bash(git fetch*)" "Bash(git checkout*)" "Bash(git diff*)"
-  "Bash(curl*)" "Bash(echo*)"
-  "mcp__claude_ai_Linear__list_issues" "mcp__claude_ai_Linear__get_issue"
+)
+TOOLS_QA=(
+  "Read" "Grep" "Glob"
+  "Bash(npm test*)" "Bash(npx tsc*)"
+  "Bash(git diff*)" "Bash(git status*)" "Bash(git checkout*)"
+)
+TOOLS_DEPLOY=(
+  "Bash(git add*)" "Bash(git commit*)" "Bash(git push*)"
+  "Bash(git status*)" "Bash(git log*)" "Bash(git fetch*)" "Bash(curl*)" "Bash(echo*)"
   "mcp__claude_ai_Linear__save_issue" "mcp__claude_ai_Linear__save_comment"
 )
 
-# Optional Vercel deployment-verification config (Step 6 Check D). Sourced
-# from a gitignored local file (never committed, never seen by anyone but
-# you) so the token isn't hardcoded in this script. If the file doesn't
-# exist, Check D is simply skipped by the prompt and the routine falls back
-# to its original 3-check verification — nothing breaks either way.
+# Optional Vercel deployment-verification config (Deploy stage Check D).
+# Sourced from a gitignored local file so the token isn't hardcoded here.
 if [ -f "$(pwd)/scripts/.env.autopilot" ]; then
   # shellcheck disable=SC1091
   source "$(pwd)/scripts/.env.autopilot"
   export VERCEL_TOKEN VERCEL_PROJECT_ID
 fi
 
-# Safety cap — process at most this many issues in one invocation, even if
-# more are sitting in Todo. Each issue still gets its own isolated
-# implement -> test -> push -> verify cycle (separate claude -p call), but
-# an unattended run can't silently push an unbounded pile of commits just
-# because a big batch got approved to Todo at once. Raise this once you've
-# watched a handful of runs succeed cleanly.
-MAX_ISSUES_PER_RUN=5
-
-# Timeout for a single issue attempt. Confirmed real bug from a run on
-# 2026-07-17: a claude -p call sat at 0% CPU, "sleeping", for 10+ minutes
-# with no progress and no error — a true hang, not just slow work. Without
-# a timeout, a hung run blocks every future scheduled run forever (via the
-# lockfile) with nobody watching to notice or Ctrl+C it manually.
-TIMEOUT_SECS=600
-
-# Tracks issue IDs already attempted (and failed) THIS script run, so a
-# ticket that gets left in Todo after a failed attempt doesn't just get
-# picked again on the next loop iteration — confirmed real bug from the
-# same run: "Issue attempt 2/3" almost certainly re-picked JAY-79 right
-# after attempt 1 had already discarded and failed on it.
+TIMEOUT_SECS=600      # per-stage hang protection
+COOLDOWN_SECS=20      # pause between successive issues
+IDLE_SLEEP_SECS=120   # pause when Todo is empty/all-data-schema
 ALREADY_ATTEMPTED=()
+ITER=0
 
-for i in $(seq 1 "$MAX_ISSUES_PER_RUN"); do
-  echo "--- Issue attempt $i/$MAX_ISSUES_PER_RUN ($(date)) ---" >> "$LOG"
+# Runs one claude -p call with the given prompt text and allowed-tools array
+# (passed as a name-reference to avoid re-quoting issues), with the same
+# timeout/errexit-safety wrapper every stage needs. Sets globals: OUTPUT,
+# CLAUDE_EXIT, TIMED_OUT.
+run_stage() {
+  local stage_name="$1"
+  local prompt_text="$2"
+  local -n tools_ref="$3"
 
-  PROMPT_TEXT="$(cat scripts/autopilot-prompt.md)"
-  if [ "${#ALREADY_ATTEMPTED[@]}" -gt 0 ]; then
-    PROMPT_TEXT="$PROMPT_TEXT
+  echo "  [${stage_name}] starting ($(date))" >> "$LOG"
 
-ADDITIONAL CONSTRAINT FOR THIS RUN: do not pick any of these issue IDs, even
-if they are still in Todo — they were already attempted and failed earlier
-in this same run: ${ALREADY_ATTEMPTED[*]}. If every remaining Todo issue is
-in this list, treat it the same as an empty Todo list and stop."
-  fi
-
-  # set -e will kill the whole script the instant `claude` exits non-zero,
-  # BEFORE the output ever gets written to the log — confirmed bug from a
-  # real run. Disable errexit around just this call so a bad exit code gets
-  # logged instead of eaten silently.
   set +e
-
-  TMPOUT="$(mktemp)"
-  claude -p "$PROMPT_TEXT" \
-    --allowedTools "${ALLOWED_TOOLS[@]}" \
+  local tmpout
+  tmpout="$(mktemp)"
+  "$CLAUDE_BIN" -p "$prompt_text" \
+    --allowedTools "${tools_ref[@]}" \
     --permission-mode acceptEdits \
-    --output-format text > "$TMPOUT" 2>&1 &
-  CLAUDE_PID=$!
+    --output-format text > "$tmpout" 2>&1 &
+  local pid=$!
 
-  ELAPSED=0
+  local elapsed=0
   TIMED_OUT=0
-  while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+  while kill -0 "$pid" 2>/dev/null; do
     sleep 5
-    ELAPSED=$((ELAPSED + 5))
-    if [ "$ELAPSED" -ge "$TIMEOUT_SECS" ]; then
-      kill -9 "$CLAUDE_PID" 2>/dev/null
+    elapsed=$((elapsed + 5))
+    if [ "$elapsed" -ge "$TIMEOUT_SECS" ]; then
+      kill -9 "$pid" 2>/dev/null
       TIMED_OUT=1
       break
     fi
   done
-  wait "$CLAUDE_PID" 2>/dev/null
+  wait "$pid" 2>/dev/null
   CLAUDE_EXIT=$?
-  OUTPUT="$(cat "$TMPOUT")"
-  rm -f "$TMPOUT"
-
+  OUTPUT="$(cat "$tmpout")"
+  rm -f "$tmpout"
   set -e
 
   echo "$OUTPUT" >> "$LOG"
+  echo "  [${stage_name}] exit=$CLAUDE_EXIT timed_out=$TIMED_OUT" >> "$LOG"
+}
 
-  if [ "$TIMED_OUT" -eq 1 ]; then
-    echo "(TIMED OUT after ${TIMEOUT_SECS}s — killed. Any uncommitted changes were left as-is; run 'git status'/'git checkout -- .' manually before trusting the next run.)" >> "$LOG"
-    echo "Stopping this run after a timeout rather than continuing to the next issue attempt." >> "$LOG"
-    break
+while true; do
+  ITER=$((ITER + 1))
+  echo "--- Issue cycle #$ITER ($(date)) ---" >> "$LOG"
+
+  EXCLUSION_TEXT=""
+  if [ "${#ALREADY_ATTEMPTED[@]}" -gt 0 ]; then
+    EXCLUSION_TEXT="
+
+ADDITIONAL CONSTRAINT: do not pick any of these issue IDs, even if they are
+still in Todo — they were already attempted and failed earlier this cycle:
+${ALREADY_ATTEMPTED[*]}. If every remaining Todo issue is in this list,
+treat it the same as an empty Todo list and stop."
   fi
 
-  echo "(claude exited with status $CLAUDE_EXIT)" >> "$LOG"
+  # --- STAGE 1: TECH LEAD ---
+  TECHLEAD_PROMPT="$(cat scripts/autopilot-prompt-1-techlead.md)${EXCLUSION_TEXT}"
+  run_stage "TECH LEAD" "$TECHLEAD_PROMPT" TOOLS_TECHLEAD
 
-  if [ "$CLAUDE_EXIT" -ne 0 ]; then
-    echo "Non-zero exit — stopping this run rather than continuing to the next issue attempt." >> "$LOG"
-    break
+  if [ "$TIMED_OUT" -eq 1 ] || [ "$CLAUDE_EXIT" -ne 0 ]; then
+    echo "Tech Lead stage failed/timed out — sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    sleep "$IDLE_SLEEP_SECS"
+    continue
   fi
 
   if echo "$OUTPUT" | grep -qi "No Todo issues, nothing to do"; then
-    echo "Todo is empty — stopping after $((i - 1)) issue(s) processed." >> "$LOG"
-    break
+    echo "Todo is empty — clearing attempted-list, sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    ALREADY_ATTEMPTED=()
+    sleep "$IDLE_SLEEP_SECS"
+    continue
   fi
 
   if echo "$OUTPUT" | grep -qi "Only data-schema issues in Todo"; then
-    echo "Remaining Todo issues are all data-schema — stopping after $((i - 1)) issue(s) processed." >> "$LOG"
-    break
+    echo "Remaining Todo issues are all data-schema — clearing attempted-list, sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    ALREADY_ATTEMPTED=()
+    sleep "$IDLE_SLEEP_SECS"
+    continue
   fi
 
-  # Pull out whichever issue ID this attempt actually picked (if any) so a
-  # failed one doesn't get retried on the next loop iteration.
-  PICKED_ID="$(echo "$OUTPUT" | grep -oE 'JAY-[0-9]+' | head -1 || true)"
+  TECHLEAD_OUTPUT="$OUTPUT"
+  PICKED_ID="$(echo "$TECHLEAD_OUTPUT" | grep -oE 'JAY-[0-9]+' | head -1 || true)"
+
+  # --- STAGE 2: ENGINEER ---
+  ENGINEER_PROMPT="$(cat scripts/autopilot-prompt-2-engineer.md)
+
+TECH LEAD'S PLAN (from the previous stage):
+${TECHLEAD_OUTPUT}"
+  run_stage "ENGINEER" "$ENGINEER_PROMPT" TOOLS_ENGINEER
+
+  if [ "$TIMED_OUT" -eq 1 ] || [ "$CLAUDE_EXIT" -ne 0 ]; then
+    echo "Engineer stage failed/timed out on ${PICKED_ID:-unknown} — leaving any partial changes as-is, sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    [ -n "$PICKED_ID" ] && ALREADY_ATTEMPTED+=("$PICKED_ID")
+    sleep "$IDLE_SLEEP_SECS"
+    continue
+  fi
+  ENGINEER_OUTPUT="$OUTPUT"
+
+  # --- STAGE 3: QA ---
+  QA_PROMPT="$(cat scripts/autopilot-prompt-3-qa.md)
+
+TECH LEAD'S PLAN:
+${TECHLEAD_OUTPUT}
+
+ENGINEER'S REPORT:
+${ENGINEER_OUTPUT}"
+  run_stage "QA" "$QA_PROMPT" TOOLS_QA
+
+  if [ "$TIMED_OUT" -eq 1 ] || [ "$CLAUDE_EXIT" -ne 0 ]; then
+    echo "QA stage failed/timed out on ${PICKED_ID:-unknown} — sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    [ -n "$PICKED_ID" ] && ALREADY_ATTEMPTED+=("$PICKED_ID")
+    sleep "$IDLE_SLEEP_SECS"
+    continue
+  fi
+  QA_OUTPUT="$OUTPUT"
+
+  # --- STAGE 4: DEPLOY & FINALIZE ---
+  DEPLOY_PROMPT="$(cat scripts/autopilot-prompt-4-deploy.md)
+
+TECH LEAD'S PLAN:
+${TECHLEAD_OUTPUT}
+
+ENGINEER'S REPORT:
+${ENGINEER_OUTPUT}
+
+QA'S VERDICT:
+${QA_OUTPUT}"
+  run_stage "DEPLOY" "$DEPLOY_PROMPT" TOOLS_DEPLOY
+
+  if [ "$TIMED_OUT" -eq 1 ] || [ "$CLAUDE_EXIT" -ne 0 ]; then
+    echo "Deploy stage failed/timed out on ${PICKED_ID:-unknown} — this may leave the ticket in an inconsistent state (implemented but not committed/closed). Check manually. Sleeping ${IDLE_SLEEP_SECS}s." >> "$LOG"
+    [ -n "$PICKED_ID" ] && ALREADY_ATTEMPTED+=("$PICKED_ID")
+    sleep "$IDLE_SLEEP_SECS"
+    continue
+  fi
+
   if [ -n "$PICKED_ID" ] && ! echo "$OUTPUT" | grep -qi "moved to \"Done\"\|status.*Done"; then
     ALREADY_ATTEMPTED+=("$PICKED_ID")
   fi
-done
 
-echo "=== Run finished $(date) ===" >> "$LOG"
+  echo "Cooling down ${COOLDOWN_SECS}s before the next issue." >> "$LOG"
+  sleep "$COOLDOWN_SECS"
+done
