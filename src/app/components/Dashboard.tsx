@@ -364,7 +364,7 @@ export default function Dashboard({
       setAnnTitle(''); setAnnMsg('')
       setTimeout(() => setShowAnnouncementModal(false), 800)
     } else {
-      showToast(data.error || 'Something went wrong.', 'error')
+      showToast(data.error || "Couldn't send the announcement. Try again.", 'error')
     }
     setAnnSending(false)
   }

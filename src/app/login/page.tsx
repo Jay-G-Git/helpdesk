@@ -131,7 +131,7 @@ export default function Login() {
       })
       window.location.href = '/'
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong. Please try again.'
+      const msg = e instanceof Error ? e.message : 'Could not create your account. Please try again, or contact support if this keeps happening.'
       showToast(msg, 'error')
       setLoading(false)
     }

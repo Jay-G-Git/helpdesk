@@ -181,9 +181,9 @@ export default function ChatWidget() {
         }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? 'Something went wrong.', actions: data.actions }])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? "Sorry, I couldn't process that. Try rephrasing, or try again in a moment.", actions: data.actions }])
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I'm having trouble connecting right now. Try again in a moment." }])
     }
     setLoading(false)
     setTimeout(() => inputRef.current?.focus(), 50)

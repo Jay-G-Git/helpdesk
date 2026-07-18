@@ -265,7 +265,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
         setOutput(raw)
       }
     } catch {
-      setOutput('Something went wrong. Please try again.')
+      setOutput("Couldn't generate this document. Try again, or fill it in manually if this keeps happening.")
     }
     setLoading(false)
   }

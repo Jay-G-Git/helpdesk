@@ -28,7 +28,7 @@ export default function ApplyForm({ jobId, jobTitle, ownerId }: Props) {
       if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed to submit.', 'error'); setLoading(false); return }
       setDone(true)
     } catch {
-      showToast('Something went wrong. Please try again.', 'error')
+      showToast("Couldn't submit your application. Check your connection and try again.", 'error')
     }
     setLoading(false)
   }

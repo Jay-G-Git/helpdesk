@@ -200,7 +200,7 @@ export default function OnboardingFlow({ token, employeeId, userId, employeeName
       if (!res.ok) { showToast(data.error ?? 'Could not generate link.', 'error'); setPortalLoading(false); return }
       window.location.href = data.url
     } catch {
-      showToast('Something went wrong. Try again.', 'error')
+      showToast("Couldn't generate your setup link. Try again, or contact your employer if this keeps happening.", 'error')
       setPortalLoading(false)
     }
   }
