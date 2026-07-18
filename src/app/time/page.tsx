@@ -86,9 +86,21 @@ function toLocalInputValue(iso: string) {
 function weekStartISO() {
   const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d.toISOString()
 }
-function getWeekDays(offset: number) {
-  const d = new Date(); d.setDate(d.getDate() - d.getDay() + offset * 7); d.setHours(0, 0, 0, 0)
-  return Array.from({ length: 7 }, (_, i) => { const day = new Date(d); day.setDate(d.getDate() + i); return day.toISOString().slice(0, 10) })
+// JAY-114 — "today" must be resolved in the business's saved timezone, not the
+// browser's, or a shift can land on the wrong day-of-week's business_hours (e.g. a
+// Saturday shift compared against Friday's hours) whenever the two differ. Anchoring
+// on the Y-M-D calendar string and doing the rest of the arithmetic in UTC keeps the
+// week's dates from drifting across a local-timezone midnight boundary.
+function getWeekDays(offset: number, timezone?: string) {
+  const todayStr = timezone
+    ? new Date().toLocaleDateString('en-CA', { timeZone: timezone })
+    : new Date().toLocaleDateString('en-CA')
+  const [y, m, day] = todayStr.split('-').map(Number)
+  const start = new Date(Date.UTC(y, m - 1, day))
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay() + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start); d.setUTCDate(start.getUTCDate() + i); return d.toISOString().slice(0, 10)
+  })
 }
 
 function shiftHours(s: Shift) {
@@ -209,6 +221,9 @@ export default function TimePage() {
   const [deptMembers, setDeptMembers] = useState<Record<number, number[]>>({})
   // Business hours
   const [bizHours, setBizHours] = useState<BusinessHours | null>(null)
+  // JAY-114 — business's saved timezone, used so "today"/week-boundary math matches
+  // the business's own clock rather than whichever timezone the browser happens to be in.
+  const [bizTimezone, setBizTimezone] = useState<string | undefined>(undefined)
   // JAY-54 (prerequisite step) — weekly labor budget in cents, null if unset.
   const [laborBudgetCents, setLaborBudgetCents] = useState<number | null>(null)
   // JAY-18
@@ -296,6 +311,7 @@ export default function TimePage() {
     fetch('/api/settings/business', { headers: { Authorization: `Bearer ${session.access_token}` } })
       .then(r => r.json()).then(d => {
         if (d.profile?.business_hours) setBizHours(d.profile.business_hours)
+        if (d.profile?.timezone) setBizTimezone(d.profile.timezone)
         setLaborBudgetCents(d.profile?.weekly_labor_budget_cents ?? null)
         // JAY-18
         if (d.profile?.geofence_lat != null && d.profile?.geofence_lng != null && d.profile?.geofence_radius_m != null) {
@@ -542,7 +558,7 @@ export default function TimePage() {
     if (!availability.length) { showToast('No employee availability set yet.', 'error'); return }
     setGenerating(true)
     // Always use the currently viewed week — no date picker needed
-    const weekDates = getWeekDays(weekOffset)
+    const weekDates = getWeekDays(weekOffset, bizTimezone)
     const approvedOff = requests.filter(r => r.status === 'approved')
     const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
     const existing = shifts.filter(s => weekDates.includes(s.shift_date))
@@ -572,8 +588,8 @@ export default function TimePage() {
 
   async function copyLastWeek() {
     setCopyingWeek(true)
-    const thisWeek = getWeekDays(weekOffset)
-    const lastWeek = getWeekDays(weekOffset - 1)
+    const thisWeek = getWeekDays(weekOffset, bizTimezone)
+    const lastWeek = getWeekDays(weekOffset - 1, bizTimezone)
     const approvedOff = requests.filter(r => r.status === 'approved')
     const isOff = (empId: number, date: string) => approvedOff.some(r => r.employee_id === empId && r.start_date <= date && r.end_date >= date)
     const existing = shifts.filter(s => thisWeek.includes(s.shift_date))
@@ -605,7 +621,7 @@ export default function TimePage() {
 
   const empMap = Object.fromEntries(employees.map(e => [e.id, e]))
   const today = new Date().toISOString().slice(0, 10)
-  const weekDays = getWeekDays(weekOffset)
+  const weekDays = getWeekDays(weekOffset, bizTimezone)
   const weekStart = new Date(weekDays[0] + 'T00:00:00')
   const weekEnd = new Date(weekDays[6] + 'T00:00:00')
   const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
@@ -656,7 +672,7 @@ export default function TimePage() {
     )
   })
 
-  const lastWeekDays = getWeekDays(weekOffset - 1)
+  const lastWeekDays = getWeekDays(weekOffset - 1, bizTimezone)
   const lastWeekShiftsPreview = shifts.filter(s => lastWeekDays.includes(s.shift_date) && s.status !== 'called_out' && !s.is_open_shift && s.employee_id != null)
   const canCopyLastWeek = lastWeekShiftsPreview.some(s => {
     const dayIdx = lastWeekDays.indexOf(s.shift_date)
