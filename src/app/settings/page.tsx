@@ -512,10 +512,15 @@ function SettingsContent() {
   async function deleteAccount() {
     if (deleteConfirm !== userEmail) return
     setDeleting(true)
-    await fetch('/api/settings/delete-account', {
+    const res = await fetch('/api/settings/delete-account', {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     })
+    if (!res.ok) {
+      setDeleting(false)
+      showToast("Couldn't delete your account. Check your connection and try again.", 'error')
+      return
+    }
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
