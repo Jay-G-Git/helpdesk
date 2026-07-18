@@ -70,3 +70,19 @@ export function overdueOpenShifts<T extends { is_open_shift?: boolean; employee_
 ): T[] {
   return openShifts(shifts).filter(s => s.shift_date < today)
 }
+
+/**
+ * A shift is a "no-show" when its scheduled end has already passed, it wasn't
+ * marked as a callout, and no matching clock-in exists for that employee on
+ * that date. Read-time classification only — nothing is persisted, so a wrong
+ * call is just a wrong badge, not a bad write.
+ */
+export function isNoShowShift<
+  S extends { status?: string; is_open_shift?: boolean; employee_id: number | null; shift_date: string; end_time: string },
+  E extends { employee_id: number; clock_in: string },
+>(shift: S, entries: E[], now: Date): boolean {
+  if (shift.status === 'called_out' || shift.is_open_shift || shift.employee_id == null) return false
+  const shiftEnd = new Date(`${shift.shift_date}T${shift.end_time}`)
+  if (shiftEnd >= now) return false
+  return !entries.some(e => e.employee_id === shift.employee_id && e.clock_in.slice(0, 10) === shift.shift_date)
+}

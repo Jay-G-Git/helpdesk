@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { resolveTenantContext } from '../lib/tenant'
+import { isNoShowShift } from '../../lib/shifts'
 import Nav from '../components/Nav'
 import CalloutModal from '../components/CalloutModal'
 import { useToast } from '../components/Toast'
@@ -621,6 +622,10 @@ export default function TimePage() {
 
   const empMap = Object.fromEntries(employees.map(e => [e.id, e]))
   const today = new Date().toISOString().slice(0, 10)
+  // JAY-121 — recomputed on every render; the `ticker` interval in the load
+  // useEffect re-renders this component every 60s so no-show classification
+  // updates without a manual refresh.
+  const now = new Date()
   const weekDays = getWeekDays(weekOffset, bizTimezone)
   const weekStart = new Date(weekDays[0] + 'T00:00:00')
   const weekEnd = new Date(weekDays[6] + 'T00:00:00')
@@ -1160,9 +1165,12 @@ export default function TimePage() {
                           const dayShift = shifts.find(s => s.employee_id === emp.id && s.shift_date === dateStr && !s.is_open_shift)
                           const isToday = dateStr === today
                           const isCallout = dayShift?.status === 'called_out'
+                          const isNoShow = !isCallout && dayShift != null && isNoShowShift(dayShift, entries, now)
                           const cellColor = isCallout
                             ? { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)' }
-                            : dayShift ? rc : null
+                            : isNoShow
+                              ? { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)' }
+                              : dayShift ? rc : null
                           const isActive = dayShift?.id === activeShiftId
                           const isDragging = dayShift?.id === draggingShiftId
                           const cellKey = `${emp.id}-${dateStr}`
@@ -1223,7 +1231,15 @@ export default function TimePage() {
                                   <div style={{ fontSize: '11px', fontWeight: 600, color: cellColor!.text }}>
                                     {isCallout ? 'Called out' : `${fmt(dayShift.start_time)}–${fmt(dayShift.end_time)}`}
                                   </div>
-                                  {!isCallout && (
+                                  {/* JAY-121 — a shift that never got a clock-in and was never
+                                      marked as a callout otherwise looks identical to any other
+                                      past shift once it's in the past. */}
+                                  {isNoShow && (
+                                    <div style={{ fontSize: '10px', fontWeight: 600, color: cellColor!.text, marginTop: '2px' }}>
+                                      ⚠ No-show
+                                    </div>
+                                  )}
+                                  {!isCallout && !isNoShow && (
                                     <div style={{ fontSize: '10px', color: cellColor!.text, opacity: 0.65, marginTop: '2px' }}>
                                       {shiftHours(dayShift) % 1 === 0 ? shiftHours(dayShift) : shiftHours(dayShift).toFixed(1)}h
                                     </div>
@@ -1232,7 +1248,7 @@ export default function TimePage() {
                                       estimatedCost total, just shown per shift so an owner sees
                                       cost while building the schedule, not only in the weekly
                                       budget banner below. */}
-                                  {!isCallout && (() => {
+                                  {!isCallout && !isNoShow && (() => {
                                     const cost = shiftCost(dayShift, emp)
                                     return cost != null ? (
                                       <div style={{ fontSize: '10px', color: cellColor!.text, opacity: 0.5, marginTop: '1px' }}>
@@ -1316,6 +1332,7 @@ export default function TimePage() {
                     const emp = s?.employee_id != null ? empMap[s.employee_id] : null
                     if (!s) return null
                     const isCalloutShift = s.status === 'called_out'
+                    const isNoShowShiftActive = !isCalloutShift && isNoShowShift(s, entries, now)
                     const rc2 = emp ? getRoleColor(emp.role) : { bg: 'rgba(100,116,139,0.14)', text: '#94a3b8', border: 'rgba(100,116,139,0.22)' }
                     return (
                       <div style={{ margin: '0.75rem 0 0.25rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rc2.border}`, display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -1327,8 +1344,8 @@ export default function TimePage() {
                             <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>
                               {emp?.name ?? 'Open shift'} <span style={{ fontWeight: 400, color: '#64748b' }}>— {new Date(s.shift_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                             </div>
-                            <div style={{ fontSize: '12px', color: isCalloutShift ? '#f87171' : '#64748b', marginTop: '1px' }}>
-                              {isCalloutShift ? 'Called out' : `${fmt(s.start_time)} – ${fmt(s.end_time)} · ${shiftHours(s) % 1 === 0 ? shiftHours(s) : shiftHours(s).toFixed(1)}h`}
+                            <div style={{ fontSize: '12px', color: isCalloutShift ? '#f87171' : isNoShowShiftActive ? '#fbbf24' : '#64748b', marginTop: '1px' }}>
+                              {isCalloutShift ? 'Called out' : isNoShowShiftActive ? `⚠ No-show · ${fmt(s.start_time)} – ${fmt(s.end_time)}` : `${fmt(s.start_time)} – ${fmt(s.end_time)} · ${shiftHours(s) % 1 === 0 ? shiftHours(s) : shiftHours(s).toFixed(1)}h`}
                             </div>
                           </div>
                         </div>

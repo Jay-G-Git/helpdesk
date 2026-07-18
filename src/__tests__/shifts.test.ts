@@ -5,6 +5,7 @@ import {
   dayKeyFromDate,
   openShifts,
   overdueOpenShifts,
+  isNoShowShift,
   type DayHours,
 } from '../lib/shifts'
 
@@ -149,5 +150,41 @@ describe('overdueOpenShifts', () => {
 
   it('returns empty when no overdue shifts', () => {
     expect(overdueOpenShifts(shifts, '2026-05-01')).toHaveLength(0)
+  })
+})
+
+// ─── isNoShowShift ──────────────────────────────────────────────────────────
+
+describe('isNoShowShift', () => {
+  const now = new Date('2026-07-13T18:00:00Z')
+  const baseShift = { shift_date: '2026-07-13', end_time: '12:00', employee_id: 1, is_open_shift: false, status: undefined as string | undefined }
+  const clockIn = (employeeId: number, date: string) => ({ employee_id: employeeId, clock_in: `${date}T09:00:00Z` })
+
+  it('flags a past shift with no clock-in and no callout as a no-show', () => {
+    expect(isNoShowShift(baseShift, [], now)).toBe(true)
+  })
+
+  it('does not flag a shift whose scheduled end has not passed yet', () => {
+    const shift = { ...baseShift, end_time: '23:00' }
+    expect(isNoShowShift(shift, [], now)).toBe(false)
+  })
+
+  it('does not flag a shift with a matching clock-in that day', () => {
+    expect(isNoShowShift(baseShift, [clockIn(1, '2026-07-13')], now)).toBe(false)
+  })
+
+  it('does not flag a shift already marked as a callout', () => {
+    const shift = { ...baseShift, status: 'called_out' }
+    expect(isNoShowShift(shift, [], now)).toBe(false)
+  })
+
+  it('does not flag an open (unassigned) shift', () => {
+    const shift = { ...baseShift, employee_id: null, is_open_shift: true }
+    expect(isNoShowShift(shift, [], now)).toBe(false)
+  })
+
+  it('ignores a clock-in from a different employee or a different day', () => {
+    const entries = [clockIn(2, '2026-07-13'), clockIn(1, '2026-07-12')]
+    expect(isNoShowShift(baseShift, entries, now)).toBe(true)
   })
 })
