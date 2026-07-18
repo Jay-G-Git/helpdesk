@@ -804,12 +804,14 @@ export default function Dashboard({
                   {showTerminated ? 'Hide terminated' : 'Show terminated'}
                 </button>
               )}
+              <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.08)' }} />
               <button
                 onClick={seedDemo}
                 disabled={seeding}
-                style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', cursor: seeding ? 'not-allowed' : 'pointer' }}
+                title="Seeds fake employee records for testing — does not affect real team members"
+                style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '7px', background: 'transparent', color: '#64748b', border: '1px dashed rgba(148,163,184,0.35)', cursor: seeding ? 'not-allowed' : 'pointer' }}
               >
-                {seeding ? 'Loading…' : 'Load mock team'}
+                {seeding ? 'Loading…' : '⚗ Load mock team (demo)'}
               </button>
               <button onClick={() => setShowAddForm(v => !v)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: '#1d4ed8', color: '#fff', border: 'none', cursor: 'pointer' }}>+ Add employee</button>
             </div>
