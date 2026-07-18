@@ -96,6 +96,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<{ parentId?: number; message: string } | null>(null)
   const [loadingChannels, setLoadingChannels] = useState(true)
   const [loadingThread, setLoadingThread] = useState(false)
 
@@ -215,6 +216,7 @@ export default function MessagesPage() {
   async function openChannel(ch: Channel, tk = token, bid = businessId) {
     setActiveChannel(ch)
     setThreadParent(null)
+    setSendError(null)
     setLoadingThread(true)
     setMessages([])
     const res = await fetch(`/api/messages/thread?channel=${ch.id}&businessId=${bid}`, { headers: { Authorization: `Bearer ${tk}` } })
@@ -269,27 +271,38 @@ export default function MessagesPage() {
     const content = (parentId ? threadInput : input).trim()
     if (!content || sending || !activeChannel) return
     if (parentId) { setThreadInput('') } else { setInput('') }
+    setSendError(null)
     setSending(true)
 
-    const res = await fetch('/api/messages/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ channel: activeChannel.id, businessId, content, parentId: parentId ?? null, attachments: parentId ? [] : pendingFiles }),
-    })
-    const data = await res.json()
-    if (res.ok && !parentId) {
-      setMessages(prev => [...prev, data.message])
-      setPendingFiles([])
-      scrollToBottom()
-      setChannels(prev => prev.map(c => c.id === activeChannel.id ? { ...c, lastMessage: { sender_name: data.message.sender_name, content: data.message.content, created_at: data.message.created_at } } : c))
+    try {
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ channel: activeChannel.id, businessId, content, parentId: parentId ?? null, attachments: parentId ? [] : pendingFiles }),
+      })
+      if (!res.ok) {
+        if (parentId) { setThreadInput(content) } else { setInput(content) }
+        setSendError({ parentId, message: 'Message failed to send — try again' })
+        return
+      }
+      const data = await res.json()
+      if (!parentId) {
+        setMessages(prev => [...prev, data.message])
+        setPendingFiles([])
+        scrollToBottom()
+        setChannels(prev => prev.map(c => c.id === activeChannel.id ? { ...c, lastMessage: { sender_name: data.message.sender_name, content: data.message.content, created_at: data.message.created_at } } : c))
+      } else {
+        setThreadMessages(prev => [...prev, data.message])
+        setTimeout(() => threadBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        setMessages(prev => prev.map(m => m.id === parentId ? { ...m, reply_count: (m.reply_count ?? 0) + 1 } : m))
+      }
+    } catch {
+      if (parentId) { setThreadInput(content) } else { setInput(content) }
+      setSendError({ parentId, message: 'Message failed to send — try again' })
+    } finally {
+      setSending(false)
+      setTimeout(() => inputRef.current?.focus(), 50)
     }
-    if (res.ok && parentId) {
-      setThreadMessages(prev => [...prev, data.message])
-      setTimeout(() => threadBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
-      setMessages(prev => prev.map(m => m.id === parentId ? { ...m, reply_count: (m.reply_count ?? 0) + 1 } : m))
-    }
-    setSending(false)
-    setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   // ── React ────────────────────────────────────────────────────────────────
@@ -387,6 +400,7 @@ export default function MessagesPage() {
   // ── @mention autocomplete ─────────────────────────────────────────────────
   function handleInputChange(val: string) {
     setInput(val)
+    setSendError(prev => (prev && prev.parentId === undefined ? null : prev))
     const atIdx = val.lastIndexOf('@')
     if (atIdx >= 0 && atIdx === val.length - 1 || (atIdx >= 0 && !val.slice(atIdx + 1).includes(' '))) {
       const query = val.slice(atIdx + 1).toLowerCase()
@@ -772,7 +786,11 @@ export default function MessagesPage() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
-              <div style={{ fontSize: '11px', color: '#475569', marginTop: '5px', textAlign: 'center' }}>Enter to send · Shift+Enter for new line</div>
+              {sendError && sendError.parentId === undefined ? (
+                <div style={{ fontSize: '12px', color: '#f87171', marginTop: '5px', textAlign: 'center' }}>{sendError.message}</div>
+              ) : (
+                <div style={{ fontSize: '11px', color: '#475569', marginTop: '5px', textAlign: 'center' }}>Enter to send · Shift+Enter for new line</div>
+              )}
             </div>
           )}
         </div>
@@ -816,7 +834,7 @@ export default function MessagesPage() {
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', padding: '6px 10px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <textarea
                   value={threadInput}
-                  onChange={e => setThreadInput(e.target.value)}
+                  onChange={e => { setThreadInput(e.target.value); setSendError(prev => (prev && prev.parentId === threadParent.id ? null : prev)) }}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(threadParent.id) } }}
                   placeholder="Reply…"
                   rows={1}
@@ -828,6 +846,9 @@ export default function MessagesPage() {
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
+              {sendError && sendError.parentId === threadParent.id && (
+                <div style={{ fontSize: '12px', color: '#f87171', marginTop: '5px', textAlign: 'center' }}>{sendError.message}</div>
+              )}
             </div>
           </div>
         )}
