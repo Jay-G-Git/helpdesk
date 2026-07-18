@@ -6,10 +6,15 @@ import { getBearerUser } from '../../../lib/apiAuth'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // Determine if user is an owner (has a business profile) or employee
-async function getUserRole(userId: string, userEmail: string) {
+export async function getUserRole(userId: string, userEmail: string) {
   const [{ data: biz }, { data: emp }] = await Promise.all([
     supabaseAdmin.from('business_profiles').select('id, business_name').eq('user_id', userId).maybeSingle(),
-    supabaseAdmin.from('employees').select('id, name, user_id').eq('email', userEmail).maybeSingle(),
+    // JAY-91 / JAY-43 — block terminated employees from the AI tool-execution
+    // layer the same way claim-shift/pay-stubs already do for their REST
+    // routes; without this, a terminated employee's still-valid Supabase Auth
+    // session lets them keep using employee-scoped AI tools (clock_in,
+    // get_pto_balance, etc.) indefinitely.
+    supabaseAdmin.from('employees').select('id, name, user_id').eq('email', userEmail).eq('status', 'active').maybeSingle(),
   ])
   return {
     isOwner: !!biz,
@@ -191,6 +196,19 @@ function localDate(timezone: string): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: timezone }) // YYYY-MM-DD
 }
 
+// JAY-91 — the employee-status filter in getUserRole() alone isn't a full
+// fix: every employee-scoped case below falls back to `role.employeeId ?? 0`
+// (or passes `null` straight into an insert) rather than refusing to run, so
+// without this guard a terminated employee (employeeId: null, isEmployee:
+// false) would still silently "clock in" against employee_id 0/null instead
+// of being blocked, and the tool set exposed to the model isn't gated on
+// isEmployee at all (POST only branches on isOwner). Block here, the single
+// choke point every employee tool call passes through.
+const EMPLOYEE_SCOPED_TOOLS = new Set([
+  'get_pto_balance', 'request_time_off', 'clock_in', 'clock_out',
+  'get_my_schedule', 'get_my_time_off_requests',
+])
+
 export async function executeTool(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -200,6 +218,10 @@ export async function executeTool(
   timezone: string,
 ): Promise<string> {
   const ownerId = role.ownerId ?? userId
+
+  if (EMPLOYEE_SCOPED_TOOLS.has(name) && !role.isEmployee) {
+    return 'Access revoked. Your employee record is no longer active, so this action is unavailable.'
+  }
 
   switch (name) {
 
