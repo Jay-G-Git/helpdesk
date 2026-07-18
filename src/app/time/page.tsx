@@ -142,6 +142,7 @@ export default function TimePage() {
   const [repeatEnabled, setRepeatEnabled] = useState(false)
   const [repeatWeeks, setRepeatWeeks] = useState(1)
   const [shiftIsOpen, setShiftIsOpen] = useState(false)
+  const [breakWarningDismissed, setBreakWarningDismissed] = useState(false)
   const [swapRequests, setSwapRequests] = useState<ShiftSwap[]>([])
 
   // JAY-32 — owner-side edit of an existing time entry (break deduction,
@@ -264,6 +265,7 @@ export default function TimePage() {
     setRepeatEnabled(false)
     setRepeatWeeks(1)
     setShiftEmpId('')
+    setBreakWarningDismissed(false)
   }
 
   useEffect(() => {
@@ -473,6 +475,7 @@ export default function TimePage() {
     setShiftStart(hours && !hours.closed ? hours.open : '09:00')
     setShiftEnd(hours && !hours.closed ? hours.close : '17:00')
     setShiftNotes('')
+    setBreakWarningDismissed(false)
     setShowShiftForm(true)
   }
 
@@ -723,6 +726,11 @@ export default function TimePage() {
     const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60
     return h > 0 ? h : null
   })()
+  // JAY-85 — CA-style break policy: shifts over 5 hours require a 30-min break.
+  // Advisory only, at schedule-build time (proactive counterpart to JAY-70's
+  // after-the-fact missed-break premium pay). Detects an existing break via the
+  // notes field since shifts have no dedicated break column (no schema change).
+  const needsBreakWarning = drawerHours != null && drawerHours > 5 && !/break/i.test(shiftNotes) && !breakWarningDismissed
   const openShiftsCount = shifts.filter(s => s.is_open_shift && !s.employee_id && s.shift_date >= today).length
   const pendingApprovalCount = pendingRequests.length + pendingSwaps.length
 
@@ -1682,6 +1690,30 @@ export default function TimePage() {
                 {drawerHours % 1 === 0 ? drawerHours : drawerHours.toFixed(1)}h
               </span>
               <span style={{ fontSize: '11px', color: '#334155' }}>duration</span>
+            </div>
+          )}
+          {needsBreakWarning && (
+            <div style={{ marginTop: '8px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span>⚠</span> No break scheduled for a {drawerHours! % 1 === 0 ? drawerHours : drawerHours!.toFixed(1)}-hr shift
+              </div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                CA-style policy requires a 30-min break for shifts over 5 hours.
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <button
+                  onClick={() => setShiftNotes(v => v.trim() ? `${v.trim()} · 30-min break` : '30-min break')}
+                  style={{ fontSize: '11px', fontWeight: 600, color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '6px', padding: '4px 9px', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Add 30-min break
+                </button>
+                <button
+                  onClick={() => setBreakWarningDismissed(true)}
+                  style={{ fontSize: '11px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
         </div>
