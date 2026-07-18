@@ -25,7 +25,7 @@ export default function ApplyForm({ jobId, jobTitle, ownerId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_posting_id: jobId, owner_id: ownerId, name: name.trim(), email: email.trim(), phone: phone.trim(), cover_letter: coverLetter.trim(), source: source || null }),
       })
-      if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed to submit.', 'error'); setLoading(false); return }
+      if (!res.ok) { const d = await res.json(); showToast(d.error || "We couldn't submit your application. Please try again in a moment.", 'error'); setLoading(false); return }
       setDone(true)
     } catch {
       showToast("Couldn't submit your application. Check your connection and try again.", 'error')
