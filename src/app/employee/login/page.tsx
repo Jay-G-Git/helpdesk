@@ -17,7 +17,7 @@ export default function EmployeeLogin() {
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        emailRedirectTo: `${window.location.origin}/employee`,
+        emailRedirectTo: `${window.location.origin}/portal`,
         shouldCreateUser: true,
       },
     })

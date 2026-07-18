@@ -15,6 +15,7 @@ type TimeOffRequest = { id: number; start_date: string; end_date: string; type: 
 type PTOBalance = { total: number; used: number; remaining: number }
 type Announcement = { id: number; title: string; message: string; created_at: string }
 type PortalNotification = { id: number; message: string; link: string | null; read: boolean; created_at: string }
+type PayStub = { id: number; gross_pay: number; hours_worked: number | null; pay_type: string; period_start: string; period_end: string; created_at: string }
 
 function fmt(t: string) {
   const [h, m] = t.split(':'); const hr = parseInt(h)
@@ -25,6 +26,9 @@ function fmtDate(iso: string) {
 }
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+function fmtMoney(n: number) {
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 // JAY-86 — "seen by owner" indicator; mirrors src/app/activity/page.tsx's timeAgo.
 function timeAgo(iso: string) {
@@ -66,6 +70,7 @@ export default function PortalPage() {
   const [ptoBalance, setPtoBalance] = useState<PTOBalance | null>(null)
   const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [stubs, setStubs] = useState<PayStub[]>([])
   const [loading, setLoading] = useState(true)
   const [clockLoading, setClockLoading] = useState(false)
   // JAY-33 — optional shift note captured at clock-out (e.g. a handoff note
@@ -105,7 +110,7 @@ export default function PortalPage() {
   const [claimingId, setClaimingId] = useState<number | null>(null)
 
   // Messages
-  const [activeTab, setActiveTab] = useState<'home' | 'messages'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'pay' | 'messages'>('home')
   const [chatBusinessId, setChatBusinessId] = useState('')
   const [chatChannels, setChatChannels] = useState<{ id: string; name: string; type: 'group' | 'dm'; unreadCount: number; lastMessage: { sender_name: string; content: string; created_at: string } | null }[]>([])
   const [activeChatChannel, setActiveChatChannel] = useState<{ id: string; name: string; type: 'group' | 'dm' } | null>(null)
@@ -147,7 +152,7 @@ export default function PortalPage() {
 
   async function loadAll(tk: string) {
     const headers = { Authorization: `Bearer ${tk}` }
-    const [meRes, shiftsRes, ptoRes, toRes, entriesRes, openRes, swapRes, coworkerRes, onboardRes, notifRes] = await Promise.all([
+    const [meRes, shiftsRes, ptoRes, toRes, entriesRes, openRes, swapRes, coworkerRes, onboardRes, notifRes, stubsRes] = await Promise.all([
       fetch('/api/employee/me', { headers }),
       fetch('/api/employee/shifts', { headers }),
       fetch('/api/employee/pto-balance', { headers }),
@@ -158,10 +163,11 @@ export default function PortalPage() {
       fetch('/api/employee/coworker-shifts', { headers }),
       fetch('/api/portal/onboarding-check', { headers }),
       fetch('/api/employee/notifications', { headers }),
+      fetch('/api/employee/pay-stubs', { headers }),
     ])
-    const [me, sh, pto, to, ents, open, swaps, coworkers, onboard, notif] = await Promise.all([
+    const [me, sh, pto, to, ents, open, swaps, coworkers, onboard, notif, stubs] = await Promise.all([
       meRes.json(), shiftsRes.json(), ptoRes.json(), toRes.json(), entriesRes.json(),
-      openRes.json(), swapRes.json(), coworkerRes.json(), onboardRes.json(), notifRes.json(),
+      openRes.json(), swapRes.json(), coworkerRes.json(), onboardRes.json(), notifRes.json(), stubsRes.json(),
     ])
 
     if (!me.employee) { window.location.href = '/'; return }
@@ -184,6 +190,7 @@ export default function PortalPage() {
     setPtoBalance(pto.balance)
     setTimeOffRequests(to.requests ?? [])
     setNotifications(notif.notifications ?? [])
+    setStubs(stubs.stubs ?? [])
 
     const allEntries: TimeEntry[] = ents.entries ?? []
     setCurrentEntry(allEntries.find(e => !e.clock_out) ?? null)
@@ -483,7 +490,7 @@ export default function PortalPage() {
 
           {/* Tab nav */}
           <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '3px' }}>
-            {(['home', 'messages'] as const).map(tab => (
+            {(['home', 'pay', 'messages'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -501,7 +508,7 @@ export default function PortalPage() {
                   position: 'relative',
                 }}
               >
-                {tab === 'home' ? 'Home' : 'Messages'}
+                {tab === 'home' ? 'Home' : tab === 'pay' ? 'Pay' : 'Messages'}
                 {tab === 'messages' && unreadMessages > 0 && (
                   <span style={{ position: 'absolute', top: '1px', right: '1px', width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
                 )}
@@ -562,6 +569,30 @@ export default function PortalPage() {
           <button onClick={signOut} style={{ fontSize: '12px', color: '#64748b', background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', padding: '5px 10px' }}>Sign out</button>
         </div>
       </div>
+
+      {/* Pay tab */}
+      {activeTab === 'pay' && (
+        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+          <div style={{ background: '#1e293b', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)', maxWidth: '560px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>Pay history</div>
+            {stubs.length === 0 ? (
+              <div style={{ fontSize: '13px', color: '#475569', textAlign: 'center', padding: '2rem 0' }}>No pay records yet.</div>
+            ) : stubs.map(s => (
+              <div key={s.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{fmtDate(s.period_start)} – {fmtDate(s.period_end)}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                      {s.pay_type === 'hourly' && s.hours_worked ? `${s.hours_worked}h × ${fmtMoney(s.gross_pay / s.hours_worked)}/hr` : s.pay_type}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#e2e8f0' }}>{fmtMoney(s.gross_pay)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Messages tab */}
       {activeTab === 'messages' && (
