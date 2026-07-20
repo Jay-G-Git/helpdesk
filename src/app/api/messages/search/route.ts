@@ -12,6 +12,14 @@ export async function GET(req: NextRequest) {
   if (!q || q.length < 2) return NextResponse.json({ results: [] })
   if (!businessId) return NextResponse.json({ error: 'businessId required' }, { status: 400 })
 
+  const { data: biz } = await supabaseAdmin.from('business_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
+  const isOwner = !!biz && user.id === businessId
+
+  if (!isOwner) {
+    const { data: emp } = await supabaseAdmin.from('employees').select('id').eq('email', user.email ?? '').eq('user_id', businessId).single()
+    if (!emp) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { data: messages } = await supabaseAdmin
     .from('chat_messages')
     .select('id, channel, sender_name, content, created_at')

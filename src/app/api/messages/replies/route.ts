@@ -22,6 +22,14 @@ export async function GET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get('businessId')
   if (!parentId || !businessId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 
+  const { data: biz } = await supabaseAdmin.from('business_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
+  const isOwner = !!biz && user.id === businessId
+
+  if (!isOwner) {
+    const { data: emp } = await supabaseAdmin.from('employees').select('id').eq('email', user.email ?? '').eq('user_id', businessId).single()
+    if (!emp) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { data: messages } = await supabaseAdmin
     .from('chat_messages')
     .select('id, sender_id, sender_name, content, created_at, edited_at, is_deleted, parent_id')
