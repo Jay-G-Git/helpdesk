@@ -691,23 +691,18 @@ export default function Dashboard({
         {/* ── Two-column middle ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '18px' }}>
 
-          {/* Team at a glance */}
+          {/* Team at a glance — de-boxed to the prototype's single elevated
+              "Upcoming" panel treatment (background only, no border, no
+              separate header bar) instead of a bordered card with its own
+              header row. */}
           <div>
-            <div style={s.sectionLabel}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              Team at a glance
-              <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                {todayShifts.length} on shift
-              </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <h2 style={s.h2}>Team at a glance</h2>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>{todayShifts.length} on shift</span>
             </div>
-            <div style={s.card}>
-              {/* Roster header */}
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text)' }}>Today&apos;s roster</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{todayShifts.length} on shift</span>
-              </div>
+            <div style={{ ...s.panel, padding: '4px 20px' }}>
               {todayShifts.length === 0 ? (
-                <div style={{ ...s.cardPad, fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center', padding: '1.5rem' }}>No shifts scheduled today</div>
+                <div style={{ padding: '1.5rem', fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No shifts scheduled today</div>
               ) : (
                 todayShifts.slice(0, 8).map(shift => {
                   const emp = employees.find(e => e.id === shift.employee_id)
@@ -751,11 +746,8 @@ export default function Dashboard({
 
             {/* Recent announcement */}
             <div>
-              <div style={s.sectionLabel}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-                Recent announcements
-              </div>
-              <div style={{ ...s.card, ...s.cardPad }}>
+              <h2 style={{ ...s.h2, marginBottom: '14px' }}>Recent announcements</h2>
+              <div style={{ ...s.panel, ...s.cardPad }}>
                 {recentAnnouncement ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: 38, height: 38, borderRadius: '10px', background: 'rgba(251,191,36,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -786,13 +778,10 @@ export default function Dashboard({
 
             {/* Activity feed */}
             <div style={{ flex: 1 }}>
-              <div style={s.sectionLabel}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                Activity feed
-              </div>
-              <div style={s.card}>
+              <h2 style={{ ...s.h2, marginBottom: '14px' }}>Activity feed</h2>
+              <div style={{ ...s.panel, padding: '4px 0' }}>
                 {activityFeed.length === 0 ? (
-                  <div style={{ ...s.cardPad, fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center', padding: '1.5rem' }}>No recent activity</div>
+                  <div style={{ padding: '1.5rem', fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No recent activity</div>
                 ) : activityFeed.map(item => {
                   const iconMap = {
                     clock_in:    { icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, bg: 'rgba(74,222,128,0.12)', color: 'var(--success)' },
@@ -803,7 +792,7 @@ export default function Dashboard({
                   }
                   const icon = iconMap[item.type]
                   return (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
                       <div style={{ width: 26, height: 26, borderRadius: '7px', background: icon.bg, color: icon.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
                         {icon.icon}
                       </div>
