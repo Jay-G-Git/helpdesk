@@ -317,15 +317,15 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
       <div style={{ padding: '8px 8px 4px' }}>
         <button
           onClick={() => setShowPalette(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', color: '#64748b', fontSize: '12px', fontWeight: 400, transition: 'background 0.12s' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 400, transition: 'background 0.12s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
         >
           <IconSearch />
-          <span style={{ flex: 1, textAlign: 'left', color: '#475569' }}>Search…</span>
+          <span style={{ flex: 1, textAlign: 'left', color: 'var(--text-secondary)' }}>Search…</span>
           <span style={{ display: 'flex', gap: '3px' }}>
-            <span style={{ fontSize: '10px', color: '#334155', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', padding: '1px 4px', fontFamily: 'monospace' }}>⌘</span>
-            <span style={{ fontSize: '10px', color: '#334155', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', padding: '1px 4px', fontFamily: 'monospace' }}>K</span>
+            <span style={{ fontSize: '10px', color: 'var(--border)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', padding: '1px 4px', fontFamily: 'monospace' }}>⌘</span>
+            <span style={{ fontSize: '10px', color: 'var(--border)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', padding: '1px 4px', fontFamily: 'monospace' }}>K</span>
           </span>
         </button>
       </div>
@@ -389,12 +389,12 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
       {/* ── Trial banner ── */}
       {trialBanner && (
         <div style={{ margin: '0 8px 8px', padding: '8px 10px', borderRadius: '8px', background: trialBanner.status === 'trialing' ? 'rgba(234,179,8,0.12)' : 'rgba(220,38,38,0.12)', border: `1px solid ${trialBanner.status === 'trialing' ? 'rgba(234,179,8,0.25)' : 'rgba(220,38,38,0.25)'}` }}>
-          <div style={{ fontSize: '11px', color: trialBanner.status === 'trialing' ? '#fbbf24' : '#f87171', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '11px', color: trialBanner.status === 'trialing' ? 'var(--amber)' : 'var(--error)', lineHeight: 1.4 }}>
             {trialBanner.status === 'trialing'
               ? `Trial ends in ${trialBanner.daysLeft}d`
               : trialBanner.status === 'past_due' ? 'Payment failed' : 'Subscription ended'}
           </div>
-          <a href="/settings?tab=billing" style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}>
+          <a href="/settings?tab=billing" style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
             {trialBanner.status === 'trialing' ? 'Choose plan →' : 'Fix billing →'}
           </a>
         </div>
@@ -414,7 +414,7 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
               }
               setShowNotifs(v => !v)
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '7px', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', fontWeight: 500, position: 'relative', marginBottom: '2px', transition: 'background 0.12s' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '7px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 500, position: 'relative', marginBottom: '2px', transition: 'background 0.12s' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
@@ -535,7 +535,7 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
         width: 28, height: 28, borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: color,
       })
       const badgeStyle = (color: 'red' | 'amber' | 'green'): React.CSSProperties => {
-        const map = { red: ['rgba(239,68,68,0.15)','#f87171'], amber: ['rgba(245,158,11,0.15)','#fbbf24'], green: ['rgba(34,197,94,0.15)','#4ade80'] }
+        const map = { red: ['rgba(239,68,68,0.15)','var(--error)'], amber: ['rgba(245,158,11,0.15)','var(--amber)'], green: ['rgba(34,197,94,0.15)','var(--success)'] }
         return { fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: map[color][0], color: map[color][1] }
       }
 
@@ -547,20 +547,20 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
           onClick={() => setShowPalette(false)}
         >
           <div
-            style={{ width: '520px', maxWidth: 'calc(100vw - 32px)', background: '#1a2236', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.7)', maxHeight: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}
+            style={{ width: '520px', maxWidth: 'calc(100vw - 32px)', background: 'var(--text)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.7)', maxHeight: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Search input */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ color: '#475569', flexShrink: 0 }}><IconSearch /></span>
+              <span style={{ color: 'var(--text-secondary)', flexShrink: 0 }}><IconSearch /></span>
               <input
                 ref={paletteInputRef}
                 value={paletteQuery}
                 onChange={e => { setPaletteQuery(e.target.value); setPaletteHi(0) }}
                 placeholder="Search employees, actions…"
-                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: '#f1f5f9', fontFamily: 'inherit', caretColor: '#3b82f6' }}
+                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: 'var(--border)', fontFamily: 'inherit', caretColor: 'var(--accent)' }}
               />
-              <span style={{ fontSize: '11px', color: '#475569', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '2px 6px', fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => setShowPalette(false)}>esc</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '2px 6px', fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => setShowPalette(false)}>esc</span>
             </div>
 
             {/* Results */}
@@ -569,20 +569,20 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
               {/* Needs attention */}
               {hasAttention && (
                 <>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Needs your attention</div>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Needs your attention</div>
 
                   {ptos.map(p => { const hi = paletteHi % Math.max(1, (ptos.length + swaps.length + callouts.length + quickActions.length + emps.length)) === rowIdx++; return (
                     <div key={`pto-${p.id}`} style={rowStyle(hi)} onMouseEnter={() => setPaletteHi(rowIdx - 1)}>
                       <div style={iconBox('rgba(34,197,94,0.15)')}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', color: '#e2e8f0' }}>Approve {p.employeeName}&apos;s {p.type}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>{fmtShort(p.start_date)} – {fmtShort(p.end_date)}{p.reason ? ` · ${p.reason}` : ''}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--border)' }}>Approve {p.employeeName}&apos;s {p.type}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>{fmtShort(p.start_date)} – {fmtShort(p.end_date)}{p.reason ? ` · ${p.reason}` : ''}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                        <button onClick={() => paletteApprove('pto', p.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}>Approve</button>
-                        <button onClick={() => paletteDeny('pto', p.id)} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>Deny</button>
+                        <button onClick={() => paletteApprove('pto', p.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}>Approve</button>
+                        <button onClick={() => paletteDeny('pto', p.id)} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>Deny</button>
                       </div>
                     </div>
                   )})}
@@ -590,15 +590,15 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
                   {swaps.map(s => { const hi = paletteHi % Math.max(1, (ptos.length + swaps.length + callouts.length + quickActions.length + emps.length)) === rowIdx++; return (
                     <div key={`swap-${s.id}`} style={rowStyle(hi)} onMouseEnter={() => setPaletteHi(rowIdx - 1)}>
                       <div style={iconBox('rgba(59,130,246,0.15)')}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', color: '#e2e8f0' }}>Shift swap — {s.requesterName}{s.targetName ? ` → ${s.targetName}` : ''}</div>
-                        {s.notes && <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>&ldquo;{s.notes}&rdquo;</div>}
+                        <div style={{ fontSize: '13px', color: 'var(--border)' }}>Shift swap — {s.requesterName}{s.targetName ? ` → ${s.targetName}` : ''}</div>
+                        {s.notes && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>&ldquo;{s.notes}&rdquo;</div>}
                       </div>
                       <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                        <button onClick={() => paletteApprove('swap', s.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}>Approve</button>
-                        <button onClick={() => paletteDeny('swap', s.id)} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>Deny</button>
+                        <button onClick={() => paletteApprove('swap', s.id)} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}>Approve</button>
+                        <button onClick={() => paletteDeny('swap', s.id)} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>Deny</button>
                       </div>
                     </div>
                   )})}
@@ -606,11 +606,11 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
                   {callouts.map(c => { const hi = paletteHi % Math.max(1, (ptos.length + swaps.length + callouts.length + quickActions.length + emps.length)) === rowIdx++; return (
                     <div key={`co-${c.id}`} style={rowStyle(hi)} onMouseEnter={() => setPaletteHi(rowIdx - 1)}>
                       <div style={iconBox('rgba(239,68,68,0.15)')}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--error)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', color: '#e2e8f0' }}>{c.employeeName} called out</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>{fmt12(c.start_time)} – {fmt12(c.end_time)} · coverage gap</div>
+                        <div style={{ fontSize: '13px', color: 'var(--border)' }}>{c.employeeName} called out</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>{fmt12(c.start_time)} – {fmt12(c.end_time)} · coverage gap</div>
                       </div>
                       <span style={badgeStyle('red')}>urgent</span>
                     </div>
@@ -621,15 +621,15 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
               {/* Quick actions */}
               {quickActions.length > 0 && (
                 <>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Quick actions</div>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Quick actions</div>
                   {quickActions.map(a => { const hi = paletteHi % Math.max(1, (ptos.length + swaps.length + callouts.length + quickActions.length + emps.length)) === rowIdx++; return (
                     <a key={a.label} href={a.href} style={{ ...rowStyle(hi), textDecoration: 'none' }} onClick={() => setShowPalette(false)} onMouseEnter={() => setPaletteHi(rowIdx - 1)}>
                       <div style={iconBox('rgba(100,116,139,0.12)')}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       </div>
                       <div>
-                        <div style={{ fontSize: '13px', color: '#e2e8f0' }}>{a.label}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>{a.sub}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--border)' }}>{a.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>{a.sub}</div>
                       </div>
                     </a>
                   )})}
@@ -639,15 +639,15 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
               {/* Employees */}
               {emps.length > 0 && (
                 <>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Jump to employee</div>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 16px 4px' }}>Jump to employee</div>
                   {emps.map(e => { const hi = paletteHi % Math.max(1, (ptos.length + swaps.length + callouts.length + quickActions.length + emps.length)) === rowIdx++; return (
                     <a key={e.id} href="/" style={{ ...rowStyle(hi), textDecoration: 'none' }} onClick={() => setShowPalette(false)} onMouseEnter={() => setPaletteHi(rowIdx - 1)}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(100,116,139,0.15)', color: '#94a3b8', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(100,116,139,0.15)', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {e.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
                       </div>
                       <div>
-                        <div style={{ fontSize: '13px', color: '#e2e8f0' }}>{e.name}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{e.role}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--border)' }}>{e.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{e.role}</div>
                       </div>
                     </a>
                   )})}
@@ -655,17 +655,17 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
               )}
 
               {!paletteData && (
-                <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '13px', color: '#475569' }}>Loading…</div>
+                <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '13px', color: 'var(--text-secondary)' }}>Loading…</div>
               )}
               {paletteData && !hasAttention && quickActions.length === 0 && emps.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '13px', color: '#475569' }}>No results for &ldquo;{paletteQuery}&rdquo;</div>
+                <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '13px', color: 'var(--text-secondary)' }}>No results for &ldquo;{paletteQuery}&rdquo;</div>
               )}
             </div>
 
             {/* Footer */}
             <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '14px' }}>
               {[['↑↓','navigate'],['↵','select'],['esc','close']].map(([k,v]) => (
-                <span key={k} style={{ fontSize: '11px', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span key={k} style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', padding: '1px 5px', fontFamily: 'monospace', fontSize: '10px' }}>{k}</span> {v}
                 </span>
               ))}

@@ -38,6 +38,7 @@ a {
   --success: oklch(68% 0.15 145);
   --warn: oklch(75% 0.14 85);
   --error: oklch(72% 0.16 25);
+  --purple: oklch(72% 0.13 310);
   --radius-md: 8px;
   --radius-lg: 12px;
 
@@ -65,6 +66,7 @@ a {
   --success: oklch(45% 0.13 145);
   --warn: oklch(50% 0.13 85);
   --error: oklch(50% 0.19 25);
+  --purple: oklch(52% 0.15 310);
   --radius-md: 8px;
   --radius-lg: 12px;
 
@@ -1414,7 +1416,7 @@ body:has(.dash-wrap) {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: var(--text-tertiary);
   margin: 1rem 0 0.6rem;
 }
 
@@ -1447,7 +1449,7 @@ body:has(.dash-wrap) {
   position: absolute;
   top: 0;
   right: 0;
-  background: #e74c3c;
+  background: var(--error);
   color: #fff;
   font-size: 10px;
   font-weight: 700;

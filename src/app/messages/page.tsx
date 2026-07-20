@@ -651,7 +651,7 @@ export default function MessagesPage() {
                   : <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No messages yet</div>}
                 </div>
                 {ch.mentioned ? (
-                  <div title="You were mentioned" style={{ height: 18, borderRadius: '99px', background: '#b45309', color: 'var(--accent-text)', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.03em' }}>@ mentioned</div>
+                  <div title="You were mentioned" style={{ height: 18, borderRadius: '99px', background: 'var(--amber)', color: 'var(--accent-text)', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.03em' }}>@ mentioned</div>
                 ) : ch.unreadCount > 0 && (
                   <div style={{ minWidth: 18, height: 18, borderRadius: '99px', background: 'var(--accent)', color: 'var(--accent-text)', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', flexShrink: 0 }}>{ch.unreadCount}</div>
                 )}

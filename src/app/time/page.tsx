@@ -124,10 +124,10 @@ function shiftCost(s: Shift, emp: Employee | undefined | null) {
 // Role → dark-theme color mapping for schedule grid
 function getRoleColor(role: string): { bg: string; text: string; border: string } {
   const r = role.toLowerCase()
-  if (r.includes('cashier'))                             return { bg: 'rgba(29,78,216,0.18)',  text: '#93c5fd', border: 'rgba(29,78,216,0.32)' }
-  if (r.includes('floor'))                               return { bg: 'rgba(34,197,94,0.15)',  text: '#4ade80', border: 'rgba(34,197,94,0.28)' }
-  if (r.includes('lead') || r.includes('manager'))       return { bg: 'rgba(245,158,11,0.16)', text: '#fbbf24', border: 'rgba(245,158,11,0.28)' }
-  if (r.includes('stock'))                               return { bg: 'rgba(139,92,246,0.16)', text: '#c4b5fd', border: 'rgba(139,92,246,0.28)' }
+  if (r.includes('cashier'))                             return { bg: 'rgba(29,78,216,0.18)',  text: 'var(--accent)', border: 'rgba(29,78,216,0.32)' }
+  if (r.includes('floor'))                               return { bg: 'rgba(34,197,94,0.15)',  text: 'var(--success)', border: 'rgba(34,197,94,0.28)' }
+  if (r.includes('lead') || r.includes('manager'))       return { bg: 'rgba(245,158,11,0.16)', text: 'var(--amber)', border: 'rgba(245,158,11,0.28)' }
+  if (r.includes('stock'))                               return { bg: 'rgba(139,92,246,0.16)', text: 'var(--purple)', border: 'rgba(139,92,246,0.28)' }
   return                                                        { bg: 'rgba(100,116,139,0.14)', text: 'var(--text-secondary)', border: 'rgba(100,116,139,0.22)' }
 }
 
@@ -834,7 +834,7 @@ export default function TimePage() {
               onClick={generateSchedule}
               disabled={generating || !canAutoGenerate}
               title={canAutoGenerate ? 'Fill this week from employee availability' : 'Nothing left to generate — every available slot this week is already covered'}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: generating ? '#4ade80' : canAutoGenerate ? 'var(--text-secondary)' : '#3f4a5c', fontSize: '12px', fontWeight: 500, cursor: generating ? 'not-allowed' : canAutoGenerate ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canAutoGenerate || generating ? 1 : 0.6 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: generating ? 'var(--success)' : canAutoGenerate ? 'var(--text-secondary)' : 'var(--text-tertiary)', fontSize: '12px', fontWeight: 500, cursor: generating ? 'not-allowed' : canAutoGenerate ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canAutoGenerate || generating ? 1 : 0.6 }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               {generating ? 'Generating…' : 'Auto-generate'}
@@ -843,7 +843,7 @@ export default function TimePage() {
               onClick={copyLastWeek}
               disabled={copyingWeek || !canCopyLastWeek}
               title={canCopyLastWeek ? "Copy last week's shifts into this week" : 'Nothing to copy — no eligible shifts from last week'}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: copyingWeek ? '#4ade80' : canCopyLastWeek ? 'var(--text-secondary)' : '#3f4a5c', fontSize: '12px', fontWeight: 500, cursor: copyingWeek ? 'not-allowed' : canCopyLastWeek ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canCopyLastWeek || copyingWeek ? 1 : 0.6 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: copyingWeek ? 'var(--success)' : canCopyLastWeek ? 'var(--text-secondary)' : 'var(--text-tertiary)', fontSize: '12px', fontWeight: 500, cursor: copyingWeek ? 'not-allowed' : canCopyLastWeek ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'color 0.15s', opacity: canCopyLastWeek || copyingWeek ? 1 : 0.6 }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               {copyingWeek ? 'Copying…' : 'Copy last week'}
@@ -852,14 +852,14 @@ export default function TimePage() {
               onClick={publishSchedule}
               disabled={publishing}
               title="Notify employees their schedule is ready"
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: publishing ? 'var(--text-tertiary)' : '#4ade80', fontSize: '12px', fontWeight: 500, cursor: publishing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: publishing ? 'var(--text-tertiary)' : 'var(--success)', fontSize: '12px', fontWeight: 500, cursor: publishing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
               {publishing ? 'Publishing…' : 'Publish'}
             </button>
             <button
               onClick={() => { setShowShiftForm(true); setTab('shifts') }}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'var(--accent)', border: 'none', color: 'var(--accent-text)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add shift
@@ -870,15 +870,15 @@ export default function TimePage() {
         {/* Stat row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
           <div style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 16px' }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: clockedIn.length > 0 ? '#4ade80' : '#475569', letterSpacing: '-0.02em' }}>{clockedIn.length}</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: clockedIn.length > 0 ? 'var(--success)' : 'var(--text-secondary)', letterSpacing: '-0.02em' }}>{clockedIn.length}</div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Clocked in now</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 16px' }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: openShiftsCount > 0 ? '#fbbf24' : '#475569', letterSpacing: '-0.02em' }}>{openShiftsCount}</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: openShiftsCount > 0 ? 'var(--amber)' : 'var(--text-secondary)', letterSpacing: '-0.02em' }}>{openShiftsCount}</div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Open shifts</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 16px', cursor: pendingApprovalCount > 0 ? 'pointer' : 'default' }} onClick={() => { if (pendingApprovalCount > 0) setTab('timeoff') }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: pendingApprovalCount > 0 ? '#f87171' : '#475569', letterSpacing: '-0.02em' }}>{pendingApprovalCount}</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: pendingApprovalCount > 0 ? 'var(--error)' : 'var(--text-secondary)', letterSpacing: '-0.02em' }}>{pendingApprovalCount}</div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Pending approvals</div>
           </div>
           <div style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px 16px' }}>
@@ -890,7 +890,7 @@ export default function TimePage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: '1.25rem' }}>
           {([['shifts', 'Shifts'], ['timeoff', `Time Off${pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}`], ['timesheets', 'Timesheets']] as [typeof tab, string][]).map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)} style={{ padding: '8px 18px', fontWeight: tab === key ? 600 : 400, fontSize: '13px', color: tab === key ? '#93c5fd' : 'var(--text-tertiary)', background: 'none', border: 'none', borderBottom: tab === key ? '2px solid #3b82f6' : '2px solid transparent', marginBottom: '-1px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button key={key} onClick={() => setTab(key)} style={{ padding: '8px 18px', fontWeight: tab === key ? 600 : 400, fontSize: '13px', color: tab === key ? 'var(--accent)' : 'var(--text-tertiary)', background: 'none', border: 'none', borderBottom: tab === key ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-1px', cursor: 'pointer', fontFamily: 'inherit' }}>
               {label}
             </button>
           ))}
@@ -908,16 +908,16 @@ export default function TimePage() {
               return (
                 <div style={{ background: 'var(--bg-elevated)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open shift pool</span>
-                    <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: '#4ade80', borderRadius: '10px', padding: '1px 7px' }}>{openPool.length}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open shift pool</span>
+                    <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(34,197,94,0.15)', color: 'var(--success)', borderRadius: '10px', padding: '1px 7px' }}>{openPool.length}</span>
                   </div>
                   {openPool.map(s => {
                     const isPast = s.shift_date < today
                     return (
                       <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: '8px', background: isPast ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isPast ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)'}`, marginBottom: '0.5rem' }}>
-                        <div style={{ width: '110px', fontSize: '12px', flexShrink: 0, color: isPast ? '#f87171' : 'var(--text-secondary)' }}>
+                        <div style={{ width: '110px', fontSize: '12px', flexShrink: 0, color: isPast ? 'var(--error)' : 'var(--text-secondary)' }}>
                           {new Date(s.shift_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                          {isPast && <span style={{ display: 'block', fontSize: '10px', color: '#fbbf24' }}>overdue</span>}
+                          {isPast && <span style={{ display: 'block', fontSize: '10px', color: 'var(--amber)' }}>overdue</span>}
                         </div>
                         <div style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>
                           {fmt(s.start_time)} – {fmt(s.end_time)}
@@ -937,7 +937,7 @@ export default function TimePage() {
                           <option value="">Assign to…</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
-                        <button onClick={() => handleDeleteShift(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', fontSize: '18px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
+                        <button onClick={() => handleDeleteShift(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '18px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
                       </div>
                     )
                   })}
@@ -949,8 +949,8 @@ export default function TimePage() {
             {pendingSwaps.length > 0 && (
               <div style={{ background: 'var(--bg-elevated)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Swap requests</span>
-                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', borderRadius: '10px', padding: '1px 7px' }}>{pendingSwaps.length}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Swap requests</span>
+                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(245,158,11,0.15)', color: 'var(--amber)', borderRadius: '10px', padding: '1px 7px' }}>{pendingSwaps.length}</span>
                 </div>
                 {pendingSwaps.map(swap => {
                   const requester = empMap[swap.requester_employee_id]
@@ -969,17 +969,17 @@ export default function TimePage() {
                           {swap.notes ? ` · "${swap.notes}"` : ''}
                         </div>
                         {daysPending(swap.created_at) >= 1 && (
-                          <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--amber)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span>⚠</span>
                             {daysPending(swap.created_at)} day{daysPending(swap.created_at) !== 1 ? 's' : ''}, not yet reviewed
-                            <span style={{ fontSize: '9px', fontWeight: 700, background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: '8px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New</span>
+                            <span style={{ fontSize: '9px', fontWeight: 700, background: 'rgba(251,191,36,0.15)', color: 'var(--amber)', borderRadius: '8px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New</span>
                           </div>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                         <button
                           onClick={() => handleSwapDecision(swap.id, 'approved', swap.requester_shift_id, swap.target_shift_id, swap.requester_employee_id, swap.target_employee_id)}
-                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: '#4ade80', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
+                          style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: 'var(--success)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
                           Approve
                         </button>
                         <button
@@ -1017,7 +1017,7 @@ export default function TimePage() {
                 {outOfHoursShifts.length > 0 && dismissedHoursWarningWeek !== weekOffset && (
                   <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span>⚠</span> Shift{outOfHoursShifts.length !== 1 ? 's' : ''} outside business hours
                       </div>
                       <button
@@ -1065,7 +1065,7 @@ export default function TimePage() {
                 {shortNoticeChanges.length > 0 && dismissedChangeWarningWeek !== weekOffset && (
                   <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span>⚠</span> {shortNoticeChanges.length} shift{shortNoticeChanges.length !== 1 ? 's' : ''} changed with under 24h notice this week
                       </div>
                       <button
@@ -1118,34 +1118,34 @@ export default function TimePage() {
                       const dayNum = new Date(dateStr + 'T00:00:00').getDate()
                       return (
                         <div key={dateStr} style={{ textAlign: 'center', padding: '6px 4px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? '#93c5fd' : '#475569' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 600, color: isToday ? 'var(--accent)' : 'var(--text-secondary)' }}>
                             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]}
                           </div>
-                          <div style={{ fontSize: '14px', fontWeight: isToday ? 700 : 400, color: isToday ? '#93c5fd' : 'var(--text-secondary)', marginTop: '1px' }}>
+                          <div style={{ fontSize: '14px', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-secondary)', marginTop: '1px' }}>
                             {dayNum}
                           </div>
-                          {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#3b82f6', margin: '3px auto 0' }} />}
+                          {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)', margin: '3px auto 0' }} />}
                           {noLeadDays.has(dateStr) && (
-                            <div title="No lead or manager scheduled this day" style={{ fontSize: '9px', fontWeight: 600, color: '#fbbf24', marginTop: '3px', whiteSpace: 'nowrap' }}>
+                            <div title="No lead or manager scheduled this day" style={{ fontSize: '9px', fontWeight: 600, color: 'var(--amber)', marginTop: '3px', whiteSpace: 'nowrap' }}>
                               ⚠ No lead
                             </div>
                           )}
                         </div>
                       )
                     })}
-                    <div style={{ textAlign: 'center', padding: '6px 4px', fontSize: '10px', fontWeight: 600, color: '#475569', alignSelf: 'end' }}>Hrs</div>
+                    <div style={{ textAlign: 'center', padding: '6px 4px', fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', alignSelf: 'end' }}>Hrs</div>
                   </div>
 
                   {/* Employee rows */}
                   {sortedEmployees.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }}>No employees yet.</div>
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }}>No employees yet.</div>
                   ) : sortedEmployees.map((emp, empIdx) => {
                     const deptLabel = deptLabelFor(emp, empIdx)
                     const rc = getRoleColor(emp.role)
                     return (
                       <div key={emp.id}>
                       {deptLabel && (
-                        <div style={{ gridColumn: '1 / -1', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 4px 4px', borderTop: empIdx > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none', marginTop: empIdx > 0 ? '4px' : 0 }}>
+                        <div style={{ gridColumn: '1 / -1', fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 4px 4px', borderTop: empIdx > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none', marginTop: empIdx > 0 ? '4px' : 0 }}>
                           {deptLabel}
                         </div>
                       )}
@@ -1157,7 +1157,7 @@ export default function TimePage() {
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name.split(' ')[0]}</div>
-                            <div style={{ fontSize: '10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role}</div>
                           </div>
                         </div>
                         {/* Day cells */}
@@ -1167,9 +1167,9 @@ export default function TimePage() {
                           const isCallout = dayShift?.status === 'called_out'
                           const isNoShow = !isCallout && dayShift != null && isNoShowShift(dayShift, entries, now)
                           const cellColor = isCallout
-                            ? { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)' }
+                            ? { bg: 'rgba(239,68,68,0.15)', text: 'var(--error)', border: 'rgba(239,68,68,0.3)' }
                             : isNoShow
-                              ? { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)' }
+                              ? { bg: 'rgba(245,158,11,0.15)', text: 'var(--amber)', border: 'rgba(245,158,11,0.3)' }
                               : dayShift ? rc : null
                           const isActive = dayShift?.id === activeShiftId
                           const isDragging = dayShift?.id === draggingShiftId
@@ -1211,7 +1211,7 @@ export default function TimePage() {
                                 border: isDragOver
                                   ? '2px dashed rgba(59,130,246,0.7)'
                                   : isActive
-                                    ? `2px solid ${cellColor ? cellColor.text : '#3b82f6'}`
+                                    ? `2px solid ${cellColor ? cellColor.text : 'var(--accent)'}`
                                     : cellColor ? `1px solid ${cellColor.border}` : `1px dashed rgba(255,255,255,${isToday ? '0.12' : '0.05'})`,
                                 display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px',
                                 transition: 'border-color 0.1s, background 0.1s',
@@ -1258,7 +1258,7 @@ export default function TimePage() {
                                   })()}
                                 </div>
                               ) : (
-                                <div style={{ fontSize: '10px', color: isDragOver ? '#93c5fd' : '#334155', textAlign: 'center' }}>
+                                <div style={{ fontSize: '10px', color: isDragOver ? 'var(--accent)' : 'var(--border)', textAlign: 'center' }}>
                                   {isDragOver ? 'Drop here' : isUnavailable ? 'Unavailable' : '+ add'}
                                 </div>
                               )}
@@ -1273,8 +1273,8 @@ export default function TimePage() {
                           const isOT = hrs > 40
                           return (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
-                              {isOT && <span title={`${hrs % 1 === 0 ? hrs : hrs.toFixed(1)}h scheduled this week — over 40h`} style={{ color: '#f87171', fontSize: '10px' }}>⚠</span>}
-                              <div style={{ fontSize: '11px', fontWeight: isOT ? 700 : 500, color: isOT ? '#f87171' : 'var(--text-tertiary)' }}>
+                              {isOT && <span title={`${hrs % 1 === 0 ? hrs : hrs.toFixed(1)}h scheduled this week — over 40h`} style={{ color: 'var(--error)', fontSize: '10px' }}>⚠</span>}
+                              <div style={{ fontSize: '11px', fontWeight: isOT ? 700 : 500, color: isOT ? 'var(--error)' : 'var(--text-tertiary)' }}>
                                 {hrs % 1 === 0 ? hrs : hrs.toFixed(1)}h
                               </div>
                             </div>
@@ -1288,7 +1288,7 @@ export default function TimePage() {
                   {/* Daily subtotals */}
                   {sortedEmployees.length > 0 && (
                     <div style={{ display: 'grid', gridTemplateColumns: '130px repeat(7, 1fr) 52px', gap: '4px', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', padding: '2px 4px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '2px 4px', fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Total
                       </div>
                       {dailyTotals.map((hrs, i) => (
@@ -1299,7 +1299,7 @@ export default function TimePage() {
                         </div>
                       ))}
                       <div style={{ textAlign: 'center', padding: '2px 4px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#93c5fd' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent)' }}>
                           {scheduledHours % 1 === 0 ? scheduledHours : scheduledHours.toFixed(1)}h
                         </div>
                       </div>
@@ -1319,7 +1319,7 @@ export default function TimePage() {
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                           Weekly labor budget: <span style={{ color: 'var(--text)', fontWeight: 600 }}>${budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                         </div>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: overBudget ? '#f87171' : '#4ade80' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: overBudget ? 'var(--error)' : 'var(--success)' }}>
                           Projected: ${estimatedCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({overBudget ? 'over' : 'under'} by ${Math.abs(diff).toLocaleString(undefined, { maximumFractionDigits: 0 })})
                         </div>
                       </div>
@@ -1344,7 +1344,7 @@ export default function TimePage() {
                             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
                               {emp?.name ?? 'Open shift'} <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>— {new Date(s.shift_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                             </div>
-                            <div style={{ fontSize: '12px', color: isCalloutShift ? '#f87171' : isNoShowShiftActive ? '#fbbf24' : 'var(--text-tertiary)', marginTop: '1px' }}>
+                            <div style={{ fontSize: '12px', color: isCalloutShift ? 'var(--error)' : isNoShowShiftActive ? 'var(--amber)' : 'var(--text-tertiary)', marginTop: '1px' }}>
                               {isCalloutShift ? 'Called out' : isNoShowShiftActive ? `⚠ No-show · ${fmt(s.start_time)} – ${fmt(s.end_time)}` : `${fmt(s.start_time)} – ${fmt(s.end_time)} · ${shiftHours(s) % 1 === 0 ? shiftHours(s) : shiftHours(s).toFixed(1)}h`}
                             </div>
                           </div>
@@ -1353,12 +1353,12 @@ export default function TimePage() {
                           {!isCalloutShift && emp && (
                             <button
                               onClick={() => { setCalloutTarget({ shiftId: s.id, shiftDate: s.shift_date, startTime: s.start_time, endTime: s.end_time, employee: { id: emp.id, name: emp.name } }); setActiveShiftId(null) }}
-                              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.12)', color: '#fbbf24', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}
+                              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.12)', color: 'var(--amber)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}
                             >Mark callout</button>
                           )}
                           <button
                             onClick={() => { handleDeleteShift(s.id); setActiveShiftId(null) }}
-                            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#f87171', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}
+                            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: 'var(--error)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}
                           >Delete</button>
                           <button
                             onClick={() => setActiveShiftId(null)}
@@ -1384,7 +1384,7 @@ export default function TimePage() {
                             {dayNotes.map(n => (
                               <div key={n.id} style={{ fontSize: '12.5px', color: 'var(--text)', padding: '0.4rem 0.6rem', borderRadius: '7px', background: 'rgba(255,255,255,0.03)' }}>
                                 <div>{n.note}</div>
-                                <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>{n.author_name} · {fmtTime(n.created_at)}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{n.author_name} · {fmtTime(n.created_at)}</div>
                               </div>
                             ))}
                           </div>
@@ -1400,7 +1400,7 @@ export default function TimePage() {
                           <button
                             onClick={() => addLogEntry(s.shift_date)}
                             disabled={savingLog || !newLogText.trim()}
-                            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(29,78,216,0.4)', background: newLogText.trim() ? '#1d4ed8' : 'rgba(255,255,255,0.05)', color: newLogText.trim() ? '#fff' : '#475569', cursor: newLogText.trim() ? 'pointer' : 'default', fontWeight: 500, fontFamily: 'inherit' }}
+                            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(29,78,216,0.4)', background: newLogText.trim() ? 'var(--accent)' : 'rgba(255,255,255,0.05)', color: newLogText.trim() ? 'var(--accent-text)' : 'var(--text-secondary)', cursor: newLogText.trim() ? 'pointer' : 'default', fontWeight: 500, fontFamily: 'inherit' }}
                           >Add</button>
                         </div>
                       </div>
@@ -1436,7 +1436,7 @@ export default function TimePage() {
               <div style={{ background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pending requests</span>
-                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(29,78,216,0.2)', color: '#93c5fd', borderRadius: '10px', padding: '1px 7px' }}>{pendingRequests.length}</span>
+                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, background: 'rgba(29,78,216,0.2)', color: 'var(--accent)', borderRadius: '10px', padding: '1px 7px' }}>{pendingRequests.length}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {pendingRequests.map(req => {
@@ -1448,7 +1448,7 @@ export default function TimePage() {
                     const wouldRemain = totalPto !== null ? totalPto - usedSoFar - requestDays : null
                     return (
                       <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(29,78,216,0.2)', color: '#93c5fd', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(29,78,216,0.2)', color: 'var(--accent)', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {emp ? emp.name.split(' ').map(w => w[0]).join('').slice(0, 2) : '??'}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1458,20 +1458,20 @@ export default function TimePage() {
                             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
                               Balance: {usedSoFar} of {totalPto} days used this year
                               {wouldRemain !== null && wouldRemain <= 0 && (
-                                <span style={{ color: '#fbbf24', marginLeft: '6px' }}>⚠ Approving would leave {Math.max(0, wouldRemain)} days remaining</span>
+                                <span style={{ color: 'var(--amber)', marginLeft: '6px' }}>⚠ Approving would leave {Math.max(0, wouldRemain)} days remaining</span>
                               )}
                             </div>
                           )}
                           {daysPending(req.created_at) >= 1 && (
-                            <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--amber)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <span>⚠</span>
                               {daysPending(req.created_at)} day{daysPending(req.created_at) !== 1 ? 's' : ''}, not yet reviewed
-                              <span style={{ fontSize: '9px', fontWeight: 700, background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: '8px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New</span>
+                              <span style={{ fontSize: '9px', fontWeight: 700, background: 'rgba(251,191,36,0.15)', color: 'var(--amber)', borderRadius: '8px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New</span>
                             </div>
                           )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                          <button onClick={() => handleTimeOff(req.id, 'approved')} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: '#4ade80', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
+                          <button onClick={() => handleTimeOff(req.id, 'approved')} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: 'var(--success)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
                           <button onClick={() => handleTimeOff(req.id, 'denied')} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Deny</button>
                         </div>
                       </div>
@@ -1483,11 +1483,11 @@ export default function TimePage() {
 
             <div style={{ background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1rem' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>All requests</div>
-              {requests.length === 0 ? <div style={{ color: '#475569', fontSize: '13px', padding: '0.5rem 0' }}>No time off requests yet.</div> : (
+              {requests.length === 0 ? <div style={{ color: 'var(--text-secondary)', fontSize: '13px', padding: '0.5rem 0' }}>No time off requests yet.</div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {requests.map(req => {
                     const emp = employees.find(e => e.id === req.employee_id)
-                    const statusColor = req.status === 'approved' ? '#4ade80' : req.status === 'denied' ? '#f87171' : '#fbbf24'
+                    const statusColor = req.status === 'approved' ? 'var(--success)' : req.status === 'denied' ? 'var(--error)' : 'var(--amber)'
                     const isHalfDay = req.start_date === req.end_date && (req.portion === 'first_half' || req.portion === 'second_half')
                     return (
                       <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -1512,13 +1512,13 @@ export default function TimePage() {
             {/* Flagged anomalies */}
             {flagged.length > 0 && (
               <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', padding: '1rem' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#f87171', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Anomalies — still clocked in after 10h</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--error)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Anomalies — still clocked in after 10h</div>
                 {flagged.map(e => {
                   const emp = empMap[e.employee_id]
                   return (
                     <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(239,68,68,0.15)', fontSize: '13px' }}>
                       <span style={{ fontWeight: 500, color: 'var(--text)' }}>{emp?.name ?? 'Unknown'}</span>
-                      <span style={{ color: '#f87171', fontWeight: 600 }}>{elapsed(e.clock_in)} — in at {fmtTime(e.clock_in)}</span>
+                      <span style={{ color: 'var(--error)', fontWeight: 600 }}>{elapsed(e.clock_in)} — in at {fmtTime(e.clock_in)}</span>
                     </div>
                   )
                 })}
@@ -1529,7 +1529,7 @@ export default function TimePage() {
             {clockedIn.length > 0 && (
               <div style={{ background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '0.75rem' }}>
-                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#4ade80' }} />
+                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }} />
                   <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Clocked in now ({clockedIn.length})</span>
                 </div>
                 {clockedIn.filter(e => !flagged.find(f => f.id === e.id)).map(e => {
@@ -1540,7 +1540,7 @@ export default function TimePage() {
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{emp?.name ?? 'Unknown'}</div>
                         <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Since {fmtTime(e.clock_in)}</div>
                       </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#4ade80' }}>{elapsed(e.clock_in)}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)' }}>{elapsed(e.clock_in)}</div>
                     </div>
                   )
                 })}
@@ -1559,10 +1559,10 @@ export default function TimePage() {
                     <div key={empId} style={{ marginBottom: '0.875rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>{emp?.name ?? 'Unknown'}</span>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: isOver ? '#f87171' : '#93c5fd' }}>{fmtMins(mins)}{isOver ? ' · OT' : ''}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: isOver ? 'var(--error)' : 'var(--accent)' }}>{fmtMins(mins)}{isOver ? ' · OT' : ''}</span>
                       </div>
                       <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: isOver ? '#ef4444' : '#3b82f6', borderRadius: 3, transition: 'width 0.3s' }} />
+                        <div style={{ height: '100%', width: `${pct}%`, background: isOver ? 'var(--error)' : 'var(--accent)', borderRadius: 3, transition: 'width 0.3s' }} />
                       </div>
                     </div>
                   )
@@ -1574,7 +1574,7 @@ export default function TimePage() {
             <div style={{ background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1rem' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>All entries this week</div>
               {entries.length === 0 ? (
-                <div style={{ color: '#475569', fontSize: '13px', padding: '0.5rem 0' }}>No time entries yet. They&apos;ll show up here once your team clocks in or out.</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', padding: '0.5rem 0' }}>No time entries yet. They&apos;ll show up here once your team clocks in or out.</div>
               ) : [...clockedIn, ...completed].map(e => {
                 const emp = empMap[e.employee_id]
                 return (
@@ -1582,13 +1582,13 @@ export default function TimePage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{emp?.name ?? 'Unknown'}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                        {new Date(e.clock_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span style={{ color: '#4ade80' }}>now</span>}
+                        {new Date(e.clock_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span style={{ color: 'var(--success)' }}>now</span>}
                         {/* JAY-32 — unpaid break already deducted from total_minutes server-side. */}
-                        {e.break_minutes > 0 && <span style={{ color: '#f59e0b' }}> · −{e.break_minutes}m break</span>}
+                        {e.break_minutes > 0 && <span style={{ color: 'var(--amber)' }}> · −{e.break_minutes}m break</span>}
                       </div>
                       {/* JAY-33 — shift note left at clock-out, e.g. a handoff note or incident. */}
                       {e.notes && (
-                        <div style={{ fontSize: '12px', color: '#93c5fd', marginTop: '3px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--accent)', marginTop: '3px' }}>
                           📝 {e.notes}
                         </div>
                       )}
@@ -1598,17 +1598,17 @@ export default function TimePage() {
                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
                           📍 {distanceMiles(geofence.lat, geofence.lng, e.clock_in_lat, e.clock_in_lng).toFixed(2)} mi from business
                           {distanceMiles(geofence.lat, geofence.lng, e.clock_in_lat, e.clock_in_lng) * 1609.34 > geofence.radiusM && (
-                            <span style={{ color: '#f59e0b' }}> (outside geofence)</span>
+                            <span style={{ color: 'var(--amber)' }}> (outside geofence)</span>
                           )}
                         </div>
                       )}
                       {e.clock_in_photo_url && (
-                        <a href={e.clock_in_photo_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#93c5fd', marginTop: '3px', display: 'inline-block' }}>
+                        <a href={e.clock_in_photo_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '3px', display: 'inline-block' }}>
                           📷 View clock-in photo
                         </a>
                       )}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: e.clock_out ? 'var(--text-secondary)' : '#4ade80', minWidth: '40px', textAlign: 'right' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: e.clock_out ? 'var(--text-secondary)' : 'var(--success)', minWidth: '40px', textAlign: 'right' }}>
                       {e.clock_out && e.total_minutes ? fmtMins(e.total_minutes) : elapsed(e.clock_in)}
                     </div>
                     {/* JAY-32 — edit modal trigger; only meaningful once the entry has closed. */}
@@ -1677,7 +1677,7 @@ export default function TimePage() {
             <button
               onClick={saveEntryEdit}
               disabled={savingEntry}
-              style={{ background: '#3b82f6', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', padding: '8px 14px', cursor: savingEntry ? 'default' : 'pointer', opacity: savingEntry ? 0.6 : 1 }}
+              style={{ background: 'var(--accent)', border: 'none', borderRadius: '8px', color: 'var(--accent-text)', fontSize: '13px', padding: '8px 14px', cursor: savingEntry ? 'default' : 'pointer', opacity: savingEntry ? 0.6 : 1 }}
             >
               {savingEntry ? 'Saving…' : 'Save'}
             </button>
@@ -1711,11 +1711,11 @@ export default function TimePage() {
             {shiftIsOpen ? (
               <>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                 </div>
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Open shift</div>
-                  <div style={{ fontSize: '11px', color: '#4ade80' }}>Anyone can claim</div>
+                  <div style={{ fontSize: '11px', color: 'var(--success)' }}>Anyone can claim</div>
                 </div>
               </>
             ) : drawerSelectedEmp ? (
@@ -1732,10 +1732,10 @@ export default function TimePage() {
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>New shift</div>
             )}
           </div>
-          <button onClick={closeDrawer} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '4px' }}>✕</button>
+          <button onClick={closeDrawer} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '4px' }}>✕</button>
         </div>
         {shiftDate && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#93c5fd', background: 'rgba(29,78,216,0.12)', border: '1px solid rgba(29,78,216,0.22)', borderRadius: '6px', padding: '3px 9px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--accent)', background: 'rgba(29,78,216,0.12)', border: '1px solid rgba(29,78,216,0.22)', borderRadius: '6px', padding: '3px 9px' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             {new Date(shiftDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </div>
@@ -1748,11 +1748,11 @@ export default function TimePage() {
         {/* Employee selector (if not pre-filled and not open shift) */}
         {!shiftIsOpen && (
           <div>
-            <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Employee</div>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Employee</div>
             <select
               value={shiftEmpId}
               onChange={e => setShiftEmpId(Number(e.target.value))}
-              style={{ width: '100%', fontSize: '13px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: shiftEmpId ? 'var(--text)' : '#475569', cursor: 'pointer' }}
+              style={{ width: '100%', fontSize: '13px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: shiftEmpId ? 'var(--text)' : 'var(--text-secondary)', cursor: 'pointer' }}
             >
               <option value="">Select employee…</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -1762,7 +1762,7 @@ export default function TimePage() {
 
         {/* Date */}
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Date</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Date</div>
           <input type="date" value={shiftDate} onChange={e => setShiftDate(e.target.value)}
             style={{ width: '100%', fontSize: '13px', padding: '9px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text)', colorScheme: 'dark' }}
           />
@@ -1770,17 +1770,17 @@ export default function TimePage() {
 
         {/* Time blocks */}
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Shift time</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Shift time</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
-              <div style={{ fontSize: '10px', color: '#475569', marginBottom: '3px' }}>Start</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '3px' }}>Start</div>
               <input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)}
                 style={{ width: '100%', minWidth: 0, maxWidth: '100%', fontSize: '16px', fontWeight: 600, background: 'none', border: 'none', color: 'var(--text)', padding: 0, colorScheme: 'dark', outline: 'none' }}
               />
             </div>
-            <div style={{ textAlign: 'center', color: '#334155', fontSize: '13px' }}>↓</div>
+            <div style={{ textAlign: 'center', color: 'var(--border)', fontSize: '13px' }}>↓</div>
             <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
-              <div style={{ fontSize: '10px', color: '#475569', marginBottom: '3px' }}>End</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '3px' }}>End</div>
               <input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)}
                 style={{ width: '100%', minWidth: 0, maxWidth: '100%', fontSize: '16px', fontWeight: 600, background: 'none', border: 'none', color: 'var(--text)', padding: 0, colorScheme: 'dark', outline: 'none' }}
               />
@@ -1788,16 +1788,16 @@ export default function TimePage() {
           </div>
           {drawerHours != null && (
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#4ade80', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '20px', padding: '3px 9px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '20px', padding: '3px 9px' }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 {drawerHours % 1 === 0 ? drawerHours : drawerHours.toFixed(1)}h
               </span>
-              <span style={{ fontSize: '11px', color: '#334155' }}>duration</span>
+              <span style={{ fontSize: '11px', color: 'var(--border)' }}>duration</span>
             </div>
           )}
           {needsBreakWarning && (
             <div style={{ marginTop: '8px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span>⚠</span> No break scheduled for a {drawerHours! % 1 === 0 ? drawerHours : drawerHours!.toFixed(1)}-hr shift
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1806,7 +1806,7 @@ export default function TimePage() {
               <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                 <button
                   onClick={() => setShiftNotes(v => v.trim() ? `${v.trim()} · 30-min break` : '30-min break')}
-                  style={{ fontSize: '11px', fontWeight: 600, color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '6px', padding: '4px 9px', cursor: 'pointer', fontFamily: 'inherit' }}
+                  style={{ fontSize: '11px', fontWeight: 600, color: 'var(--amber)', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '6px', padding: '4px 9px', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
                   Add 30-min break
                 </button>
@@ -1823,7 +1823,7 @@ export default function TimePage() {
 
         {/* Quick presets */}
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Quick presets</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Quick presets</div>
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
             {[
               { label: 'Morning', start: '09:00', end: '17:00' },
@@ -1833,7 +1833,7 @@ export default function TimePage() {
               const active = shiftStart === p.start && shiftEnd === p.end
               return (
                 <button key={p.label} onClick={() => { setShiftStart(p.start); setShiftEnd(p.end) }}
-                  style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${active ? 'rgba(29,78,216,0.5)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(29,78,216,0.2)' : 'rgba(255,255,255,0.03)', color: active ? '#93c5fd' : 'var(--text-tertiary)', transition: 'all 0.1s' }}
+                  style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', border: `1px solid ${active ? 'rgba(29,78,216,0.5)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(29,78,216,0.2)' : 'rgba(255,255,255,0.03)', color: active ? 'var(--accent)' : 'var(--text-tertiary)', transition: 'all 0.1s' }}
                 >{p.label}</button>
               )
             })}
@@ -1842,7 +1842,7 @@ export default function TimePage() {
 
         {/* Notes */}
         <div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Notes</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Notes</div>
           <textarea
             value={shiftNotes} onChange={e => setShiftNotes(e.target.value)}
             placeholder="Opening shift, training, etc."
@@ -1855,20 +1855,20 @@ export default function TimePage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>Post as open shift</div>
-            <div style={{ fontSize: '11px', color: '#475569', marginTop: '1px' }}>Employees can claim this</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '1px' }}>Employees can claim this</div>
           </div>
           <button
             onClick={() => { setShiftIsOpen(v => !v); if (!shiftIsOpen) setShiftEmpId('') }}
-            style={{ width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: shiftIsOpen ? '#22c55e' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+            style={{ width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: shiftIsOpen ? 'var(--success)' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
           >
-            <div style={{ position: 'absolute', top: 3, left: shiftIsOpen ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            <div style={{ position: 'absolute', top: 3, left: shiftIsOpen ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'var(--accent-text)', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
           </button>
         </div>
 
         {/* Repeat */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input type="checkbox" id="repeat-chk" checked={repeatEnabled} onChange={e => { setRepeatEnabled(e.target.checked); if (!e.target.checked) setRepeatWeeks(1) }}
-            style={{ width: 14, height: 14, accentColor: '#3b82f6', cursor: 'pointer', flexShrink: 0 }}
+            style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
           />
           <label htmlFor="repeat-chk" style={{ fontSize: '12px', color: 'var(--text-tertiary)', cursor: 'pointer', userSelect: 'none' }}>Repeat weekly for</label>
           {repeatEnabled && (
@@ -1885,7 +1885,7 @@ export default function TimePage() {
       <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <button
           onClick={handleAddShift} disabled={savingShift}
-          style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#1d4ed8', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: savingShift ? 'not-allowed' : 'pointer', opacity: savingShift ? 0.7 : 1, fontFamily: 'inherit' }}
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--accent)', border: 'none', color: 'var(--accent-text)', fontSize: '13px', fontWeight: 600, cursor: savingShift ? 'not-allowed' : 'pointer', opacity: savingShift ? 0.7 : 1, fontFamily: 'inherit' }}
         >{savingShift ? 'Saving…' : 'Save shift'}</button>
         <button
           onClick={closeDrawer}

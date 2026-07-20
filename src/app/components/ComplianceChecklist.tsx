@@ -115,7 +115,7 @@ export default function ComplianceChecklist({
           {completed}/{items.length} complete
         </span>
       </div>
-      <div style={{ fontSize: '11px', color: '#9a9a9a', marginBottom: '0.75rem' }}>
+      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
         Auto-updates when employee submits via portal. Use "Mark received" for paper forms.
       </div>
       <div className="compliance-list">
@@ -134,7 +134,7 @@ export default function ComplianceChecklist({
             </div>
             <div style={{ flexShrink: 0, marginLeft: '0.5rem' }}>
               {item.checked ? (
-                <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: 500 }}>
+                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 500 }}>
                   {item.field ? 'via portal' : 'auto'}
                 </span>
               ) : item.field ? (
@@ -143,14 +143,14 @@ export default function ComplianceChecklist({
                   disabled={saving === item.field}
                   style={{
                     fontSize: '11px', padding: '2px 8px', borderRadius: '6px',
-                    border: '1px solid #d0d5e8', background: '#f5f6fa',
-                    color: '#555', cursor: 'pointer', fontWeight: 500,
+                    border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                    color: 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 500,
                   }}
                 >
                   {saving === item.field ? '...' : 'Mark received'}
                 </button>
               ) : (
-                <span style={{ fontSize: '11px', color: '#c0c0c0' }}>pending</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>pending</span>
               )}
             </div>
           </div>
@@ -162,39 +162,39 @@ export default function ComplianceChecklist({
           authorization at all), so this stays collapsed unless a date is
           already set or the owner explicitly adds one. */}
       {i9Status === 'complete' && (
-        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
           {editingExpiration ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="date"
                 value={expirationDraft}
                 onChange={e => setExpirationDraft(e.target.value)}
-                style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #d0d5e8' }}
+                style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}
               />
               <button
                 onClick={saveExpiration}
                 disabled={savingExpiration}
-                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: 'none', background: '#185fa5', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 500 }}
               >
                 {savingExpiration ? '...' : 'Save'}
               </button>
               <button
                 onClick={() => { setEditingExpiration(false); setExpirationDraft(workAuthExpiresOn ?? '') }}
-                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #d0d5e8', background: '#fff', color: '#555', cursor: 'pointer' }}
+                style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--accent-text)', color: 'var(--text-tertiary)', cursor: 'pointer' }}
               >
                 Cancel
               </button>
             </div>
           ) : workAuthExpiresOn ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-              <span style={{ color: expirationSoon ? '#c0392b' : '#666' }}>
+              <span style={{ color: expirationSoon ? 'var(--error)' : 'var(--text-tertiary)' }}>
                 Work authorization expires: {new Date(workAuthExpiresOn + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 {expirationSoon && ` (${daysUntilExpiration! < 0 ? 'expired' : `${daysUntilExpiration} days`})`}
               </span>
-              <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
+              <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
             </div>
           ) : (
-            <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: '#185fa5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <button onClick={() => setEditingExpiration(true)} style={{ fontSize: '11px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               + Add work authorization expiration date
             </button>
           )}

@@ -71,13 +71,13 @@ export default function NotificationsPage() {
 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9' }}>Notifications</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>All notifications, most recent first</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--border)' }}>Notifications</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px' }}>All notifications, most recent first</div>
           </div>
           <button
             onClick={markAllRead}
             disabled={unreadCount === 0}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: unreadCount === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: unreadCount === 0 ? '#475569' : '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: unreadCount === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: unreadCount === 0 ? 'var(--text-secondary)' : 'var(--text-tertiary)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             Mark all read
           </button>
@@ -85,23 +85,23 @@ export default function NotificationsPage() {
 
         <div style={{ ...cardStyle, padding: loading || grouped.length === 0 ? '3rem 1.5rem' : '1.5rem', maxWidth: '760px' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#475569', fontSize: '14px' }}>Loading notifications…</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>Loading notifications…</div>
           ) : grouped.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#475569' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               <div style={{ fontSize: '14px' }}>No notifications yet.</div>
             </div>
           ) : (
             grouped.map(group => (
               <div key={group.date} style={{ marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '10px' }}>{group.date}</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '10px' }}>{group.date}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {group.notifs.map(n => {
                     const rowStyle: React.CSSProperties = { display: 'block', padding: '10px 8px', borderRadius: '8px', textDecoration: 'none', color: 'inherit', background: n.read ? 'transparent' : 'rgba(37,99,235,0.1)', cursor: n.link || !n.read ? 'pointer' : 'default' }
                     const content = (
                       <>
                         <div style={{ fontSize: '13.5px', color: 'var(--text)', fontWeight: 500 }}>{n.message}</div>
-                        <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>{timeAgo(n.created_at)}</div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>{timeAgo(n.created_at)}</div>
                       </>
                     )
                     return n.link ? (

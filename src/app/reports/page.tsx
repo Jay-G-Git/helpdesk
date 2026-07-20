@@ -26,16 +26,16 @@ function HBarChart({ data }: { data: { name: string; value: number; color?: stri
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '110px', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
           <div style={{ flex: 1, height: '18px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ width: `${(d.value / max) * 100}%`, height: '100%', background: d.color ?? '#3b82f6', borderRadius: '4px', transition: 'width 0.4s' }} />
+            <div style={{ width: `${(d.value / max) * 100}%`, height: '100%', background: d.color ?? 'var(--accent)', borderRadius: '4px', transition: 'width 0.4s' }} />
           </div>
-          <div style={{ width: '50px', fontSize: '12px', color: '#e2e8f0', textAlign: 'right', flexShrink: 0 }}>{d.value}</div>
+          <div style={{ width: '50px', fontSize: '12px', color: 'var(--border)', textAlign: 'right', flexShrink: 0 }}>{d.value}</div>
         </div>
       ))}
     </div>
   )
 }
 
-function BarChart({ data, color = '#3b82f6', prefix = '', suffix = '' }: { data: { label: string; value: number }[]; color?: string; prefix?: string; suffix?: string }) {
+function BarChart({ data, color = 'var(--accent)', prefix = '', suffix = '' }: { data: { label: string; value: number }[]; color?: string; prefix?: string; suffix?: string }) {
   const max = Math.max(...data.map(d => d.value), 1)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px', padding: '0 4px' }}>
@@ -45,7 +45,7 @@ function BarChart({ data, color = '#3b82f6', prefix = '', suffix = '' }: { data:
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', height: '100%', justifyContent: 'flex-end' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{prefix}{d.value > 0 ? (d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value) : ''}{suffix}</div>
             <div style={{ width: '100%', background: color, borderRadius: '4px 4px 0 0', height: `${Math.max(pct * 85, d.value > 0 ? 4 : 0)}%`, minHeight: d.value > 0 ? '4px' : 0 }} />
-            <div style={{ fontSize: '10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', textAlign: 'center' }}>{d.label}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', textAlign: 'center' }}>{d.label}</div>
           </div>
         )
       })}
@@ -193,7 +193,7 @@ export default function ReportsPage() {
   // invisible against the dark bg in production; fill alone reads better).
   const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1.25rem' }
   const ghostBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }
-  const emptyState: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }
+  const emptyState: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }
 
   if (loading) return (
     <div className="dash-wrap"><Nav active="reports" />
@@ -235,7 +235,7 @@ export default function ReportsPage() {
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Active employees</div>
           </div>
           <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: turnoverRate > 20 ? '#f87171' : 'var(--text)' }}>{turnoverRate}%</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: turnoverRate > 20 ? 'var(--error)' : 'var(--text)' }}>{turnoverRate}%</div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Turnover rate</div>
           </div>
           <div
@@ -246,11 +246,11 @@ export default function ReportsPage() {
             } : undefined}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <div style={{ fontSize: '22px', fontWeight: 600, color: complianceScore === 100 ? '#4ade80' : complianceScore >= 80 ? '#fbbf24' : '#f87171' }}>{complianceScore}%</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: complianceScore === 100 ? 'var(--success)' : complianceScore >= 80 ? 'var(--amber)' : 'var(--error)' }}>{complianceScore}%</div>
               {complianceScore < 100 && <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>›</span>}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Compliance score</div>
-            <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>Based on direct deposit + document completion</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>Based on direct deposit + document completion</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>
@@ -285,14 +285,14 @@ export default function ReportsPage() {
                 const regHours = r.hoursWorked != null ? Math.max(0, r.hoursWorked - r.overtimeHours) : null
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px 90px 80px 90px', gap: '8px', fontSize: '13px', padding: '8px 0', borderBottom: i < overtimeRows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                    <span style={{ color: '#e2e8f0', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.employeeName}</span>
+                    <span style={{ color: 'var(--border)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.employeeName}</span>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {new Date(r.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     <span style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{regHours != null ? regHours.toFixed(1) : '—'}</span>
-                    <span style={{ textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>{r.overtimeHours.toFixed(1)}</span>
+                    <span style={{ textAlign: 'right', color: 'var(--amber)', fontWeight: 600 }}>{r.overtimeHours.toFixed(1)}</span>
                     <span style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>1.5x</span>
-                    <span style={{ textAlign: 'right', color: '#e2e8f0', fontWeight: 600 }}>{fmtMoney(r.grossPay)}</span>
+                    <span style={{ textAlign: 'right', color: 'var(--border)', fontWeight: 600 }}>{fmtMoney(r.grossPay)}</span>
                   </div>
                 )
               })}
@@ -315,10 +315,10 @@ export default function ReportsPage() {
           const canCollapse = incomplete.length > 3 && distinctCombos.size === 1
           return (
             <div id="incomplete-paperwork" style={{ ...cardStyle, marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.28)' }}>
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: '#f87171' }}>Incomplete paperwork</div>
+              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: 'var(--error)' }}>Incomplete paperwork</div>
               {canCollapse && !paperworkExpanded ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span style={{ color: '#f87171' }}>⚠ {incomplete.length} employees missing {rows[0].missing.join(', ').toLowerCase()}</span>
+                  <span style={{ color: 'var(--error)' }}>⚠ {incomplete.length} employees missing {rows[0].missing.join(', ').toLowerCase()}</span>
                   <button onClick={() => setPaperworkExpanded(true)} style={{ fontSize: '12px', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Show ▾</button>
                 </div>
               ) : (
@@ -328,9 +328,9 @@ export default function ReportsPage() {
                   )}
                   {rows.map(({ employee: e, missing }) => (
                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
-                      <span style={{ fontWeight: 500, color: '#e2e8f0' }}>{e.name}</span>
+                      <span style={{ fontWeight: 500, color: 'var(--border)' }}>{e.name}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: '#f87171' }}>{missing.join(', ')} pending</span>
+                        <span style={{ color: 'var(--error)' }}>{missing.join(', ')} pending</span>
                         <button style={{ ...ghostBtn, padding: '2px 8px', fontSize: '11px' }} onClick={() => router.push(`/employees/${e.id}`)}>View profile</button>
                       </div>
                     </div>
@@ -350,7 +350,7 @@ export default function ReportsPage() {
           {new Set(monthlyHeadcount.map(m => m.value)).size > 1 ? (
             <div style={cardStyle}>
               <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Headcount (6 months)</div>
-              <BarChart data={monthlyHeadcount} color="#3b82f6" />
+              <BarChart data={monthlyHeadcount} color="var(--accent)" />
             </div>
           ) : (
             <div style={cardStyle}>
@@ -361,7 +361,7 @@ export default function ReportsPage() {
           {totalPayroll > 0 ? (
             <div style={cardStyle}>
               <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Payroll cost (6 months)</div>
-              <BarChart data={monthlyPayroll} color="#4ade80" prefix="$" />
+              <BarChart data={monthlyPayroll} color="var(--success)" prefix="$" />
             </div>
           ) : (
             <div style={cardStyle}>
@@ -389,7 +389,7 @@ export default function ReportsPage() {
         {ptoData.length > 0 && (
           <div style={{ ...cardStyle, marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>PTO days used (12 months)</div>
-            <HBarChart data={ptoData.map(d => ({ ...d, color: '#fbbf24' }))} />
+            <HBarChart data={ptoData.map(d => ({ ...d, color: 'var(--amber)' }))} />
           </div>
         )}
 

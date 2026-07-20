@@ -17,9 +17,9 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 const KIND_STYLES: Record<ToastKind, { bg: string; border: string; color: string }> = {
-  success: { bg: 'rgba(20,83,45,0.95)', border: 'rgba(74,222,128,0.4)', color: '#4ade80' },
-  error: { bg: 'rgba(127,29,29,0.95)', border: 'rgba(248,113,113,0.4)', color: '#f87171' },
-  info: { bg: 'rgba(30,41,59,0.95)', border: 'rgba(148,163,184,0.4)', color: '#cbd5e1' },
+  success: { bg: 'rgba(20,83,45,0.95)', border: 'rgba(74,222,128,0.4)', color: 'var(--success)' },
+  error: { bg: 'rgba(127,29,29,0.95)', border: 'rgba(248,113,113,0.4)', color: 'var(--error)' },
+  info: { bg: 'rgba(30,41,59,0.95)', border: 'rgba(148,163,184,0.4)', color: 'var(--border)' },
 }
 
 let nextId = 1

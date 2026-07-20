@@ -33,11 +33,11 @@ type Application = {
 }
 
 const STAGES: { key: Application['status']; label: string; color: string; bg: string; border: string }[] = [
-  { key: 'applied',      label: 'Applied',      color: '#94a3b8', bg: 'rgba(100,116,139,0.14)', border: 'rgba(100,116,139,0.24)' },
-  { key: 'interviewing', label: 'Interviewing',  color: '#93c5fd', bg: 'rgba(29,78,216,0.15)',   border: 'rgba(29,78,216,0.32)' },
-  { key: 'offer',        label: 'Offer',         color: '#fbbf24', bg: 'rgba(245,158,11,0.16)',  border: 'rgba(245,158,11,0.3)' },
-  { key: 'hired',        label: 'Hired',         color: '#4ade80', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.3)' },
-  { key: 'rejected',     label: 'Rejected',      color: '#f87171', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.26)' },
+  { key: 'applied',      label: 'Applied',      color: 'var(--text-tertiary)', bg: 'rgba(100,116,139,0.14)', border: 'rgba(100,116,139,0.24)' },
+  { key: 'interviewing', label: 'Interviewing',  color: 'var(--accent)', bg: 'rgba(29,78,216,0.15)',   border: 'rgba(29,78,216,0.32)' },
+  { key: 'offer',        label: 'Offer',         color: 'var(--amber)', bg: 'rgba(245,158,11,0.16)',  border: 'rgba(245,158,11,0.3)' },
+  { key: 'hired',        label: 'Hired',         color: 'var(--success)', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.3)' },
+  { key: 'rejected',     label: 'Rejected',      color: 'var(--error)', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.26)' },
 ]
 
 function timeAgo(iso: string) {
@@ -268,10 +268,10 @@ export default function JobsPage() {
   // JAY-132 — retokenize, and drop the border (nearly invisible against the
   // dark bg in production; the bg-elevated fill alone reads correctly).
   const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1.25rem' }
-  const dangerBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#f87171', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
-  const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }
-  const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: 'none', background: '#1d4ed8', color: '#fff', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
-  const sectionLabel: React.CSSProperties = { fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }
+  const dangerBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: 'var(--error)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
+  const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-tertiary)', cursor: 'pointer', fontFamily: 'inherit' }
+  const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
+  const sectionLabel: React.CSSProperties = { fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }
 
   return (
     <div className="dash-wrap">
@@ -280,7 +280,7 @@ export default function JobsPage() {
 
         {/* Page header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Hiring</div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--border)', letterSpacing: '-0.02em' }}>Hiring</div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             {userId && (
               <button onClick={() => copy(`${window.location.origin}/careers/${userId}`, 'page')} style={ghostBtn} title="Copy your public careers page link">
@@ -296,31 +296,31 @@ export default function JobsPage() {
         {/* Metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
           <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#f1f5f9' }}>{openJobsCount}</div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Open jobs</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--border)' }}>{openJobsCount}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Open jobs</div>
           </div>
           <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#93c5fd' }}>{activeCandidatesCount}</div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Active candidates</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--accent)' }}>{activeCandidatesCount}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Active candidates</div>
           </div>
           <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#fbbf24' }}>{interviewsThisWeekCount}</div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Interviews this week</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--amber)' }}>{interviewsThisWeekCount}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Interviews this week</div>
           </div>
           <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#4ade80' }}>{offersPendingCount}</div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Offers pending</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--success)' }}>{offersPendingCount}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Offers pending</div>
           </div>
           <div style={cardStyle} title={sourceEntries.map(([name, count]) => `${name}: ${count}`).join(' · ')}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#c084fc' }}>{topSource ? topSource[0] : '—'}</div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Top source{topSource ? ` · ${topSource[1]}` : ''}</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--purple)' }}>{topSource ? topSource[0] : '—'}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Top source{topSource ? ` · ${topSource[1]}` : ''}</div>
           </div>
         </div>
 
         {/* Create/Edit form */}
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: '1.25rem' }}>
-            <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '1rem' }}>{editingId ? 'Edit job' : 'New job posting'}</div>
+            <div style={{ fontWeight: 600, color: 'var(--border)', marginBottom: '1rem' }}>{editingId ? 'Edit job' : 'New job posting'}</div>
             <div className="row2" style={{ marginBottom: '0.75rem' }}>
               <div className="field"><label>Job title *</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Cashier" /></div>
               <div className="field"><label>Department</label><input value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} placeholder="e.g. Retail" /></div>
@@ -361,7 +361,7 @@ export default function JobsPage() {
               </div>
             </div>
             {errors.length > 0 && (
-              <div style={{ marginBottom: '0.75rem', fontSize: '12px', color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+              <div style={{ marginBottom: '0.75rem', fontSize: '12px', color: 'var(--error)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
                 {errors.map((e, i) => <div key={i}>{e}</div>)}
               </div>
             )}
@@ -378,8 +378,8 @@ export default function JobsPage() {
         {shareJob && (
           <div style={{ ...cardStyle, marginBottom: '1.25rem', border: '1px solid rgba(29,78,216,0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ fontWeight: 600, color: '#f1f5f9' }}>Share — {shareJob.title}</div>
-              <button onClick={() => setShareJobId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#64748b' }}>×</button>
+              <div style={{ fontWeight: 600, color: 'var(--border)' }}>Share — {shareJob.title}</div>
+              <button onClick={() => setShareJobId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-tertiary)' }}>×</button>
             </div>
             <div style={{ marginBottom: '1rem' }}>
               <div style={sectionLabel}>Direct link</div>
@@ -409,9 +409,9 @@ export default function JobsPage() {
 
         {/* Job postings — compact horizontal scroll */}
         {loading ? (
-          <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }}>Loading...</div></div>
+          <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }}>Loading...</div></div>
         ) : jobs.length === 0 ? (
-          <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }}>No job postings yet — create your first one above.</div></div>
+          <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }}>No job postings yet — create your first one above.</div></div>
         ) : (
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '1.25rem', paddingBottom: '2px' }}>
             {jobs.map(job => {
@@ -422,11 +422,11 @@ export default function JobsPage() {
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.title}</span>
                     <span style={{ fontSize: '10px', fontWeight: 600, color: statusColor(job.status), flexShrink: 0 }}>● {statusLabel(job.status)}</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {[job.employment_type, job.location, formatPayRange(job.pay_min, job.pay_max, job.pay_period)].filter(Boolean).join(' · ')}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#93c5fd', background: 'rgba(29,78,216,0.15)', borderRadius: '999px', padding: '1px 8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent)', background: 'rgba(29,78,216,0.15)', borderRadius: '999px', padding: '1px 8px' }}>
                       {jobApps.length} applicant{jobApps.length !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -467,7 +467,7 @@ export default function JobsPage() {
             </div>
 
             {pipelineApps.length === 0 ? (
-              <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '13px' }}>
+              <div style={cardStyle}><div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }}>
                 {apps.length === 0 ? 'No applicants yet.' : 'No candidates match your search.'}
               </div></div>
             ) : (
@@ -523,21 +523,21 @@ export default function JobsPage() {
                                 </div>
                               </div>
                               {jobTitle && (
-                                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {jobTitle}
                                 </div>
                               )}
                               {app.interview_at && (
-                                <div style={{ fontSize: '10px', fontWeight: 600, color: '#93c5fd', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--accent)', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                                   {fmtInterview(app.interview_at)}
                                 </div>
                               )}
                               {isStale(app) && (
-                                <div style={{ fontSize: '10px', fontWeight: 600, color: '#fbbf24', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--amber)', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                                   ⚠ Stale — {daysSinceUpdate(app)} days
                                 </div>
                               )}
-                              <div style={{ fontSize: '10px', color: '#475569' }}>{timeAgo(app.created_at)}</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{timeAgo(app.created_at)}</div>
                             </div>
                           )
                         })}
@@ -561,22 +561,22 @@ export default function JobsPage() {
               boxShadow: '-12px 0 40px rgba(0,0,0,0.5)',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '16px', color: '#f1f5f9' }}>{selected.name}</div>
-                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '18px', padding: '0 4px' }}>×</button>
+                <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--border)' }}>{selected.name}</div>
+                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px', padding: '0 4px' }}>×</button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1.25rem' }}>
-                <div style={{ fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}><MailIcon size={13} />{selected.email}</div>
-                {selected.phone && <div style={{ fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}><PhoneIcon size={13} />{selected.phone}</div>}
-                <div style={{ fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}><TagIcon size={13} />{jobs.find(j => j.id === selected.job_posting_id)?.title ?? 'Unknown role'}</div>
-                {selected.source && <div style={{ fontSize: '12px', color: '#64748b' }}>Source: <span style={{ color: '#c084fc' }}>{selected.source}</span></div>}
+                <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}><MailIcon size={13} />{selected.email}</div>
+                {selected.phone && <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}><PhoneIcon size={13} />{selected.phone}</div>}
+                <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}><TagIcon size={13} />{jobs.find(j => j.id === selected.job_posting_id)?.title ?? 'Unknown role'}</div>
+                {selected.source && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Source: <span style={{ color: 'var(--purple)' }}>{selected.source}</span></div>}
               </div>
 
               {selected.resume_file_name && (
                 <div style={{ marginBottom: '1.25rem' }}>
                   <div style={sectionLabel}>Resume</div>
                   <button onClick={() => viewResume(selected.id)} disabled={resumeLoading} style={{
-                    display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#93c5fd',
+                    display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--accent)',
                     background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px',
                     padding: '0.6rem 0.75rem', cursor: 'pointer', width: '100%', textAlign: 'left',
                   }}>
@@ -588,7 +588,7 @@ export default function JobsPage() {
               {selected.cover_letter && (
                 <div style={{ marginBottom: '1.25rem' }}>
                   <div style={sectionLabel}>Cover letter</div>
-                  <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--border)', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.06)' }}>
                     {selected.cover_letter}
                   </div>
                 </div>
@@ -626,7 +626,7 @@ export default function JobsPage() {
                 {selected.status !== 'rejected' && selected.status !== 'hired' && (
                   <button onClick={() => moveStage(selected.id, 'rejected', true)}
                     title="Move to Rejected and send the candidate a short, kind email letting them know"
-                    style={{ padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.3)', fontFamily: 'inherit', background: 'transparent', color: '#f87171' }}>
+                    style={{ padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.3)', fontFamily: 'inherit', background: 'transparent', color: 'var(--error)' }}>
                     Decline & notify
                   </button>
                 )}

@@ -109,7 +109,7 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
         </label>
       </div>
 
-      <div className="context-bar" style={{ background: '#f7f7f5', color: '#6b6b6b', marginBottom: '1rem' }}>
+      <div className="context-bar" style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>
         Documents uploaded here (W-4, I-9, handbook, etc.) will automatically appear in every employee's onboarding link.
       </div>
 
@@ -118,7 +118,7 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search documents..."
-          style={{ width: '100%', fontSize: '13px', padding: '7px 10px', border: '1px solid #dde1ea', borderRadius: '7px', marginBottom: '0.75rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', fontSize: '13px', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '7px', marginBottom: '0.75rem', boxSizing: 'border-box' }}
         />
       )}
 
@@ -130,14 +130,14 @@ export default function DocumentLibrary({ userId }: { userId: string }) {
         <div className="upload-list">
           {filteredDocs.map(doc => (
             <div key={doc.id} className="upload-item">
-              <div className="upload-icon"><FileIcon size={16} color="#185fa5" /></div>
+              <div className="upload-icon"><FileIcon size={16} color="var(--accent)" /></div>
               <div style={{ flex: 1 }}>
                 <div className="upload-name">{doc.file_name}</div>
                 <div className="upload-meta">{formatSize(doc.file_size)}</div>
               </div>
               <button
                 className="doc-btn"
-                style={{ color: '#c0392b' }}
+                style={{ color: 'var(--error)' }}
                 onClick={() => handleDelete(doc)}
                 disabled={deletingId === doc.id}
               >

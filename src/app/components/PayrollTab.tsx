@@ -138,13 +138,13 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
         <div>
           <div style={{ fontWeight: 600, fontSize: '15px' }}>Payroll history</div>
           {payRate ? (
-            <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
               {payType === 'salary'
                 ? `${formatMoney(payRate)}/yr · ${formatMoney(payRate / 26)} per period`
                 : `${formatMoney(payRate)}/hr`}
             </div>
           ) : (
-            <div style={{ fontSize: '13px', color: '#c0392b', marginTop: '2px' }}>No pay rate set — edit employee info first.</div>
+            <div style={{ fontSize: '13px', color: 'var(--error)', marginTop: '2px' }}>No pay rate set — edit employee info first.</div>
           )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -158,7 +158,7 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
       </div>
 
       {showForm && (
-        <div style={{ background: '#f8f9fb', borderRadius: '8px', padding: '1rem', marginBottom: '1rem', border: '1px solid #e8eaf0' }}>
+        <div style={{ background: 'var(--bg-elevated)', borderRadius: '8px', padding: '1rem', marginBottom: '1rem', border: '1px solid var(--border)' }}>
           <div className="row2" style={{ marginBottom: '0.75rem' }}>
             <div className="field">
               <label>Period start</label>
@@ -178,7 +178,7 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
           )}
 
           {(payType === 'salary' || hours) && payRate ? (
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#185fa5', marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent)', marginBottom: '0.75rem' }}>
               Gross pay: {formatMoney(calcGrossPay())}
             </div>
           ) : null}
@@ -202,7 +202,7 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
         <div className="empty-state">No payments logged yet.</div>
       ) : (
         <>
-          <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
             Total paid: <strong>{formatMoney(totalPaid)}</strong> across {entries.length} period{entries.length !== 1 ? 's' : ''}
           </div>
           <div className="upload-list">
@@ -219,7 +219,7 @@ export default function PayrollTab({ employeeId, payType, payRate }: Props) {
                     {formatDate(entry.paid_at)}
                   </div>
                 </div>
-                <span style={{ fontWeight: 600, color: '#185fa5', fontSize: '14px' }}>{formatMoney(entry.gross_pay)}</span>
+                <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: '14px' }}>{formatMoney(entry.gross_pay)}</span>
               </div>
             ))}
           </div>

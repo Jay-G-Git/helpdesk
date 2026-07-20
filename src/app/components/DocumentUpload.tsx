@@ -122,7 +122,7 @@ export default function DocumentUpload({ employeeId, employeeName, userId }: Pro
         <div className="upload-list">
           {docs.map(doc => (
             <div key={doc.id} className="upload-item">
-              <div className="upload-icon"><FileIcon size={16} color="#185fa5" /></div>
+              <div className="upload-icon"><FileIcon size={16} color="var(--accent)" /></div>
               <div style={{ flex: 1 }}>
                 <div className="upload-name">{doc.file_name}</div>
                 <div className="upload-meta">{formatSize(doc.file_size)}</div>
@@ -130,7 +130,7 @@ export default function DocumentUpload({ employeeId, employeeName, userId }: Pro
               <button className="doc-btn" onClick={() => handleDownload(doc)}>Download</button>
               <button
                 className="doc-btn"
-                style={{ color: '#c0392b' }}
+                style={{ color: 'var(--error)' }}
                 onClick={() => handleDelete(doc)}
                 disabled={deletingId === doc.id}
               >

@@ -29,23 +29,23 @@ const FILTERS: { key: ActivityEvent['type'] | 'all'; label: string }[] = [
 
 const TYPE_META: Record<ActivityEvent['type'], { color: string; bg: string; icon: React.ReactNode }> = {
   hire: {
-    color: '#4ade80', bg: 'rgba(34,197,94,0.15)',
+    color: 'var(--success)', bg: 'rgba(34,197,94,0.15)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>,
   },
   payroll: {
-    color: '#93c5fd', bg: 'rgba(59,130,246,0.15)',
+    color: 'var(--accent)', bg: 'rgba(59,130,246,0.15)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
   },
   application: {
-    color: '#c084fc', bg: 'rgba(168,85,247,0.15)',
+    color: 'var(--purple)', bg: 'rgba(168,85,247,0.15)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
   announcement: {
-    color: '#fbbf24', bg: 'rgba(245,158,11,0.15)',
+    color: 'var(--amber)', bg: 'rgba(245,158,11,0.15)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>,
   },
   swap: {
-    color: '#60a5fa', bg: 'rgba(59,130,246,0.15)',
+    color: 'var(--accent)', bg: 'rgba(59,130,246,0.15)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>,
   },
 }
@@ -198,7 +198,7 @@ export default function ActivityPage() {
           <button
             onClick={exportCSV}
             disabled={filtered.length === 0}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: filtered.length === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: filtered.length === 0 ? '#475569' : 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: filtered.length === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: filtered.length === 0 ? 'var(--text-secondary)' : 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
@@ -216,9 +216,9 @@ export default function ActivityPage() {
                 onClick={() => setFilter(f.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '99px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
-                  background: isActive ? '#1d4ed8' : 'rgba(255,255,255,0.05)',
-                  color: isActive ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${isActive ? '#1d4ed8' : 'rgba(255,255,255,0.1)'}`,
+                  background: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                  color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
+                  border: `1px solid ${isActive ? 'var(--accent)' : 'rgba(255,255,255,0.1)'}`,
                 }}
               >
                 {f.label}
@@ -241,16 +241,16 @@ export default function ActivityPage() {
 
         <div style={{ ...cardStyle, padding: loading || grouped.length === 0 ? '3rem 1.5rem' : '1.5rem', maxWidth: '760px' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#475569', fontSize: '14px' }}>Loading activity…</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>Loading activity…</div>
           ) : grouped.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#475569' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               <div style={{ fontSize: '14px' }}>Nothing here yet.</div>
             </div>
           ) : (
             grouped.map(group => (
               <div key={group.date} style={{ marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '10px' }}>{group.date}</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '10px' }}>{group.date}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {group.events.map(ev => {
                     const meta = TYPE_META[ev.type]
@@ -263,7 +263,7 @@ export default function ActivityPage() {
                           <div style={{ fontSize: '13.5px', color: 'var(--text)', fontWeight: 500 }}>{ev.title}</div>
                           {ev.detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.detail}</div>}
                         </div>
-                        <div style={{ fontSize: '11.5px', color: '#475569', flexShrink: 0, whiteSpace: 'nowrap', paddingTop: '2px' }}>{timeAgo(ev.created_at)}</div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', flexShrink: 0, whiteSpace: 'nowrap', paddingTop: '2px' }}>{timeAgo(ev.created_at)}</div>
                       </div>
                     )
                   })}

@@ -333,7 +333,7 @@ export default function EmployeeProfile() {
                       <div className="upload-meta">{formatSize(doc.file_size)} · {formatDate(doc.created_at)}</div>
                     </div>
                     <button className="doc-btn" onClick={() => handleDownload(doc)}>Download</button>
-                    <button className="doc-btn" style={{ color: '#c0392b' }} onClick={() => handleDeleteDoc(doc)}>Remove</button>
+                    <button className="doc-btn" style={{ color: 'var(--error)' }} onClick={() => handleDeleteDoc(doc)}>Remove</button>
                   </div>
                 ))}
               </div>

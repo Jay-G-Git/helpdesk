@@ -102,7 +102,7 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
       <div style={{ textAlign: 'center', padding: '2rem 0' }}>
         <div style={{ fontSize: '40px', marginBottom: '0.75rem' }}>✓</div>
         <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '0.5rem' }}>Offboarding complete</div>
-        <p style={{ fontSize: '14px', color: '#666', marginBottom: '1.5rem' }}>
+        <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
           {employee.name} has been marked as terminated and the offboarding record has been saved.
         </p>
         <button className="btn" onClick={onBack}>← Back to dashboard</button>
@@ -133,14 +133,14 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
       <div className="section-label" style={{ marginBottom: '0.75rem' }}>Offboarding checklist</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
         {OFFBOARDING_ITEMS.map(item => (
-          <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem', background: checked[item.key] ? '#f0faf4' : '#fafafa', border: `1px solid ${checked[item.key] ? '#a8dab5' : '#e8eaf0'}`, borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s' }}>
+          <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem', background: checked[item.key] ? 'var(--bg-success)' : 'var(--bg-elevated)', border: `1px solid ${checked[item.key] ? 'var(--success)' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s' }}>
             <input
               type="checkbox"
               checked={!!checked[item.key]}
               onChange={() => toggle(item.key)}
               style={{ width: '16px', height: '16px', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '13px', color: checked[item.key] ? '#27ae60' : '#3a3a3a', textDecoration: checked[item.key] ? 'line-through' : 'none' }}>
+            <span style={{ fontSize: '13px', color: checked[item.key] ? 'var(--success)' : 'var(--text)', textDecoration: checked[item.key] ? 'line-through' : 'none' }}>
               {item.label}
             </span>
           </label>
@@ -159,7 +159,7 @@ function OffboardingFlow({ employee, userId, onBack }: { employee: Employee; use
 
       <button
         className="btn auth-btn-primary"
-        style={{ width: 'auto', background: '#c0392b', marginTop: '0.25rem' }}
+        style={{ width: 'auto', background: 'var(--error)', marginTop: '0.25rem' }}
         onClick={complete}
         disabled={saving}
       >
@@ -370,7 +370,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
             <div>
               <div className="section-label" style={{ marginBottom: '1rem' }}>
                 Position details
-                <a href="/settings" style={{ float: 'right', fontWeight: 400, textTransform: 'none', color: '#185fa5', letterSpacing: 'normal' }}>Edit fields</a>
+                <a href="/settings" style={{ float: 'right', fontWeight: 400, textTransform: 'none', color: 'var(--accent)', letterSpacing: 'normal' }}>Edit fields</a>
               </div>
               <div className="row2">
                 {templateFields.map(field => (
@@ -425,7 +425,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
             <div className="section-label">Welcome pack</div>
             {!welcomePackTemplate && (
               <div className="hist-meta" style={{ marginBottom: '0.75rem' }}>
-                No welcome pack template set up yet. <a href="/settings" style={{ color: '#185fa5' }}>Add one in Settings</a> and it will auto-fill here.
+                No welcome pack template set up yet. <a href="/settings" style={{ color: 'var(--accent)' }}>Add one in Settings</a> and it will auto-fill here.
               </div>
             )}
             <textarea
@@ -448,7 +448,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
               {!linkUrl ? (
                 <>
                   <div className="field" style={{ marginBottom: '0.75rem' }}>
-                    <label>Employee email <span style={{ color: '#9a9a9a', fontWeight: 400 }}>(optional — leave blank to just get a link)</span></label>
+                    <label>Employee email <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional — leave blank to just get a link)</span></label>
                     <input
                       type="email"
                       value={employeeEmail}
@@ -481,7 +481,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
             {checkinSummary.length > 0 && (
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                 {checkinSummary.map(tag => (
-                  <span key={tag} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', background: '#e8edf8', color: '#185fa5', fontWeight: 500 }}>
+                  <span key={tag} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', background: 'var(--bg-info)', color: 'var(--accent)', fontWeight: 500 }}>
                     {tag}
                   </span>
                 ))}
@@ -490,7 +490,7 @@ export default function ActionScreen({ employee, action, onBack, onDocDone, user
             <textarea
               value={output}
               onChange={e => { setOutput(e.target.value); setSaved(false) }}
-              style={{ width: '100%', minHeight: '120px', border: '1px solid #e8eaf0', borderRadius: '8px', padding: '12px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
+              style={{ width: '100%', minHeight: '120px', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
             />
             <div className="doc-actions">
               <button className="doc-btn" onClick={copyDoc}>Copy</button>

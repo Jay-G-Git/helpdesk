@@ -621,7 +621,7 @@ function SettingsContent() {
           {/* Danger zone — isolated on the far side, red-tinted, own group */}
           <button onClick={() => setTab(dangerTab.key)} style={{
             padding: '8px 14px', fontSize: '13px', fontWeight: tab === dangerTab.key ? 700 : 500,
-            color: tab === dangerTab.key ? 'var(--error)' : '#b91c1c',
+            color: tab === dangerTab.key ? 'var(--error)' : 'var(--error)',
             background: tab === dangerTab.key ? 'rgba(248,113,113,0.1)' : 'none',
             border: '1px solid rgba(248,113,113,0.25)', borderRadius: '7px', cursor: 'pointer',
             marginBottom: '6px', transition: 'all 0.15s', fontFamily: 'inherit',
@@ -1069,7 +1069,7 @@ function SettingsContent() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {[
                     { label: 'Owner', color: 'var(--accent)', bg: 'rgba(59,130,246,0.15)', desc: 'Full access including billing and account settings. Only one per business.' },
-                    { label: 'Admin', color: '#c4b5fd', bg: 'rgba(139,92,246,0.15)', desc: 'Full dashboard access — employees, shifts, payroll, hiring. Cannot delete the account or change billing.' },
+                    { label: 'Admin', color: 'var(--purple)', bg: 'rgba(139,92,246,0.15)', desc: 'Full dashboard access — employees, shifts, payroll, hiring. Cannot delete the account or change billing.' },
                     { label: 'Manager', color: 'var(--amber)', bg: 'rgba(217,119,6,0.15)', desc: 'Can view employees, manage shifts, approve time off and swap requests. No payroll rates or settings.' },
                     { label: 'Employee', color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.06)', desc: 'Portal only — their own schedule, clock in/out, PTO requests, shift swaps.' },
                   ].map(r => (
@@ -1104,7 +1104,7 @@ function SettingsContent() {
                 )}
                 {teamEmployees.filter(e => showTerminated || e.status !== 'terminated').map(emp => {
                   const roleColors: Record<string, { bg: string; color: string }> = {
-                    admin: { bg: 'rgba(139,92,246,0.15)', color: '#c4b5fd' },
+                    admin: { bg: 'rgba(139,92,246,0.15)', color: 'var(--purple)' },
                     manager: { bg: 'rgba(217,119,6,0.15)', color: 'var(--amber)' },
                     employee: { bg: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' },
                   }
@@ -1463,7 +1463,7 @@ function IntegrationsTab() {
         {/* Gusto */}
         <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(192,105,43,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ReceiptIcon size={18} color="#e0925a" /></div>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(192,105,43,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ReceiptIcon size={18} color="var(--amber)" /></div>
             <div><div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>Gusto</div><div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Payroll &amp; HR</div></div>
             {!loading && <div style={{ marginLeft: 'auto' }}>{gusto ? connectedBadge : notConnectedBadge}</div>}
           </div>

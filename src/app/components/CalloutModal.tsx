@@ -135,37 +135,37 @@ export default function CalloutModal({ shiftId, shiftDate, startTime, endTime, c
       onClick={onClose}
     >
       <div
-        style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', width: '500px', maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+        style={{ background: 'var(--accent-text)', borderRadius: '14px', padding: '1.5rem', width: '500px', maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
           <div>
             <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Find shift coverage</div>
-            <div style={{ fontSize: '13px', color: '#555' }}>
-              <span style={{ fontWeight: 600, color: '#c0392b' }}>{calledOutEmployee.name}</span> called out
+            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--error)' }}>{calledOutEmployee.name}</span> called out
             </div>
-            <div style={{ fontSize: '12px', color: '#9a9a9a', marginTop: '2px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
               {formatDate(shiftDate)} · {formatTime(startTime)} – {formatTime(endTime)}
             </div>
           </div>
-          <button onClick={onClose} style={{ fontSize: '22px', lineHeight: 1, color: '#9a9a9a', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
+          <button onClick={onClose} style={{ fontSize: '22px', lineHeight: 1, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
         </div>
 
         {/* Status banner */}
         {marked && (
-          <div style={{ background: '#e8f8ef', border: '1px solid #c3e6cb', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#27ae60', fontWeight: 500 }}>
+          <div style={{ background: 'var(--bg-success)', border: '1px solid var(--success)', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: 'var(--success)', fontWeight: 500 }}>
             {sent !== null ? `Shift marked as called out. Email sent to ${sent} employee${sent !== 1 ? 's' : ''}.` : 'Shift marked as called out.'}
           </div>
         )}
 
         {/* Eligible employees */}
-        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '0.5rem', color: '#555' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-tertiary)' }}>
           {loading ? 'Finding available employees...' : `${eligible.length} available employee${eligible.length !== 1 ? 's' : ''}`}
         </div>
 
         {!loading && eligible.length === 0 && (
-          <div style={{ fontSize: '13px', color: '#9a9a9a', padding: '1rem', background: '#f8f9fb', borderRadius: '8px', marginBottom: '1rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', padding: '1rem', background: 'var(--bg-elevated)', borderRadius: '8px', marginBottom: '1rem', textAlign: 'center' }}>
             No available employees — everyone is either already scheduled or on approved leave.
           </div>
         )}
@@ -173,27 +173,27 @@ export default function CalloutModal({ shiftId, shiftDate, startTime, endTime, c
         {!loading && eligible.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
             {eligible.map(emp => (
-              <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.75rem', borderRadius: '8px', background: '#fafafa', border: '1px solid #eee' }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e8edf8', color: '#185fa5', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.75rem', borderRadius: '8px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-info)', color: 'var(--accent)', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {initials(emp.name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500 }}>{emp.name}</div>
-                  <div style={{ fontSize: '11px', color: '#9a9a9a' }}>{emp.role}{emp.phone ? ` · ${emp.phone}` : ''}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{emp.role}{emp.phone ? ` · ${emp.phone}` : ''}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
                   {emp.phone && (
                     <>
                       <a
                         href={`tel:${emp.phone.replace(/\D/g, '')}`}
-                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #d0d5e8', background: '#f5f6fa', color: '#185fa5', textDecoration: 'none', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                         title="Call"
                       >
                         <PhoneIcon size={13} /> Call
                       </a>
                       <a
                         href={`sms:${emp.phone.replace(/\D/g, '')}?body=${smsBody}`}
-                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #d0d5e8', background: '#f5f6fa', color: '#185fa5', textDecoration: 'none', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                         title="Text"
                       >
                         <MessageIcon size={13} /> Text
@@ -201,7 +201,7 @@ export default function CalloutModal({ shiftId, shiftDate, startTime, endTime, c
                     </>
                   )}
                   {!emp.phone && (
-                    <span style={{ fontSize: '11px', color: '#ccc' }}>No phone</span>
+                    <span style={{ fontSize: '11px', color: 'var(--border)' }}>No phone</span>
                   )}
                 </div>
               </div>
@@ -210,12 +210,12 @@ export default function CalloutModal({ shiftId, shiftDate, startTime, endTime, c
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
           {!marked && eligible.length > 0 && (
             <button
               onClick={notifyAll}
               disabled={sending}
-              style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#185fa5', color: '#fff', cursor: 'pointer', fontWeight: 600, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
               {sending ? 'Sending...' : <><MailIcon size={13} /> Email all {eligible.length} available</>}
             </button>
@@ -223,14 +223,14 @@ export default function CalloutModal({ shiftId, shiftDate, startTime, endTime, c
           {!marked && (
             <button
               onClick={markCalloutOnly}
-              style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fafafa', color: '#555', cursor: 'pointer', fontWeight: 500 }}
+              style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 500 }}
             >
               Mark called out only
             </button>
           )}
           <button
             onClick={onClose}
-            style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fafafa', color: '#555', cursor: 'pointer', fontWeight: 500 }}
+            style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 500 }}
           >
             Close
           </button>
