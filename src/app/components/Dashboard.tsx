@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { resolveTenantContext } from '../lib/tenant'
 import { Employee, ActionType } from '../page'
@@ -8,6 +9,7 @@ import EmployeePanel from './EmployeePanel'
 import Nav from './Nav'
 import CalloutModal from './CalloutModal'
 import { useToast } from './Toast'
+import { formatDate as sharedFormatDate } from '../../lib/formatDate'
 
 type TimeOffRequest = {
   id: number
@@ -76,7 +78,7 @@ function weekStartISO(offsetWeeks = 0) {
 }
 
 function fmtShortDate(s: string) {
-  return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return sharedFormatDate(s, 'shortNoYear')
 }
 
 function formatTime(t: string) {
@@ -100,6 +102,8 @@ export default function Dashboard({
   onSelectEmp, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onStartAction
 }: Props) {
   const { showToast } = useToast()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [firstName, setFirstName] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [token, setToken] = useState('')
@@ -174,6 +178,17 @@ export default function Dashboard({
       }
     })
   }, [])
+
+  useEffect(() => {
+    const action = searchParams.get('action')
+    if (action === 'announce') {
+      setShowAnnouncementModal(true)
+      router.replace('/', { scroll: false })
+    } else if (action === 'add-employee') {
+      setShowAddForm(true)
+      router.replace('/', { scroll: false })
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     if (token) {

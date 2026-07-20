@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { SettingsIcon, SignOutIcon } from './Icons'
 import { useTheme } from './ThemeProvider'
+import { formatDate as sharedFormatDate } from '../../lib/formatDate'
 
 type Props = {
   active: 'dashboard' | 'time' | 'hiring' | 'payroll' | 'reports' | 'settings' | 'messages' | 'activity'
@@ -21,7 +22,7 @@ type PaletteData = {
 }
 
 function fmtShort(iso: string) {
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return sharedFormatDate(iso, 'shortNoYear')
 }
 function fmt12(t: string) {
   const [h, m] = t.split(':'); const hr = parseInt(h)
@@ -529,8 +530,8 @@ export default function Nav({ active, viewerRole = 'owner', viewerPerms }: Props
       const emps     = (paletteData?.employees ?? []).filter(e => !q || e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q)).slice(0, 5)
       const quickActions = [
         { label: 'Add shift',          sub: 'Schedule an employee for a new shift', href: '/time' },
-        { label: 'Post announcement',  sub: 'Send a message to all employees',      href: '/' },
-        { label: 'Add employee',       sub: 'Onboard a new team member',            href: '/' },
+        { label: 'Post announcement',  sub: 'Send a message to all employees',      href: '/?action=announce' },
+        { label: 'Add employee',       sub: 'Onboard a new team member',            href: '/?action=add-employee' },
         { label: 'View timesheets',    sub: 'See who is clocked in right now',      href: '/time' },
       ].filter(a => !q || a.label.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q))
 
