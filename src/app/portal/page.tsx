@@ -573,7 +573,7 @@ export default function PortalPage() {
       {/* Pay tab */}
       {activeTab === 'pay' && (
         <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-          <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)', maxWidth: '560px' }}>
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', maxWidth: '560px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>Pay history</div>
             {stubs.length === 0 ? (
               <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center', padding: '2rem 0' }}>No pay records yet.</div>
@@ -781,7 +781,7 @@ export default function PortalPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
             {/* Clock in / out */}
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>Time clock</div>
               {currentEntry ? (
                 <div>
@@ -904,7 +904,7 @@ export default function PortalPage() {
             </div>
 
             {/* Upcoming shifts */}
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>Schedule</div>
 
               {todayShift && (
@@ -976,7 +976,7 @@ export default function PortalPage() {
 
             {/* Open shifts */}
             {openShifts.length > 0 && (
-              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(74,222,128,0.25)' }}>
+              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', borderLeft: '3px solid var(--success)' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>
                   Open shifts — available to claim
                 </div>
@@ -1002,7 +1002,7 @@ export default function PortalPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
             {/* Hours this week */}
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>This week</div>
               <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
                 <div>
@@ -1024,7 +1024,7 @@ export default function PortalPage() {
 
             {/* Announcements */}
             {announcements.length > 0 && (
-              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>Announcements</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                   {announcements.slice(0, 5).map(a => (
@@ -1039,7 +1039,7 @@ export default function PortalPage() {
             )}
 
             {/* Time off */}
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Time off</div>
                 <button
@@ -1141,7 +1141,7 @@ export default function PortalPage() {
 
             {/* Swap requests */}
             {swapRequests.length > 0 && (
-              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '1.5rem' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '1rem' }}>My swap requests</div>
                 {swapRequests.slice(0, 5).map(sr => {
                   const myShift = shifts.find(s => s.id === sr.requester_shift_id)

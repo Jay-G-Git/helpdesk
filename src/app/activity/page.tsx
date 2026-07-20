@@ -14,7 +14,9 @@ type ActivityEvent = {
   actorName?: string
 }
 
-const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px' }
+// JAY-132 — retokenize, and drop the border (nearly invisible against the
+// dark bg in production; the bg-elevated fill alone reads correctly).
+const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px' }
 
 const FILTERS: { key: ActivityEvent['type'] | 'all'; label: string }[] = [
   { key: 'all', label: 'All activity' },
@@ -186,7 +188,7 @@ export default function ActivityPage() {
   return (
     <div className="dash-wrap">
       <Nav active="activity" />
-      <div className="dash-content" style={{ background: '#0f172a', minHeight: '100vh', padding: '2rem' }}>
+      <div className="dash-content" style={{ background: 'var(--bg)', minHeight: '100vh', padding: '2rem' }}>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
@@ -229,7 +231,7 @@ export default function ActivityPage() {
             <select
               value={actorFilter}
               onChange={e => setActorFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              style={{ marginLeft: 'auto', fontSize: '12.5px', fontWeight: 500, padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+              style={{ marginLeft: 'auto', fontSize: '12.5px', fontWeight: 500, padding: '7px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
             >
               <option value="all">All employees</option>
               {actorsWithActivity.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -258,7 +260,7 @@ export default function ActivityPage() {
                           {meta.icon}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 500 }}>{ev.title}</div>
+                          <div style={{ fontSize: '13.5px', color: 'var(--text)', fontWeight: 500 }}>{ev.title}</div>
                           {ev.detail && <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.detail}</div>}
                         </div>
                         <div style={{ fontSize: '11.5px', color: '#475569', flexShrink: 0, whiteSpace: 'nowrap', paddingTop: '2px' }}>{timeAgo(ev.created_at)}</div>

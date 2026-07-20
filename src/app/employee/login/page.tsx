@@ -38,23 +38,23 @@ export default function EmployeeLogin() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#0f172a', padding: '1.5rem',
+      background: 'var(--bg)', padding: '1.5rem',
     }}>
       <div style={{ width: '100%', maxWidth: '380px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: '#e2e8f0', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)', marginBottom: '0.25rem' }}>
             help<span style={{ color: '#3b82f6' }}>desk</span>
           </div>
           <div style={{ fontSize: '14px', color: '#94a3b8' }}>Employee portal</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '2rem' }}>
+        <div style={{ background: 'var(--bg-elevated)', borderRadius: '16px', padding: '2rem' }}>
           {sent ? (
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '1rem', color: '#3b82f6' }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '0.5rem', color: '#e2e8f0' }}>Check your email</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '0.5rem', color: 'var(--text)' }}>Check your email</div>
               <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
-                We sent a login link to <strong style={{ color: '#e2e8f0' }}>{email}</strong>. Click the link to access your portal.
+                We sent a login link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click the link to access your portal.
               </div>
               <button
                 onClick={() => { setSent(false); setEmail('') }}
@@ -65,7 +65,7 @@ export default function EmployeeLogin() {
             </div>
           ) : (
             <>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '0.25rem', color: '#e2e8f0' }}>Sign in</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '0.25rem', color: 'var(--text)' }}>Sign in</div>
               <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '1.5rem' }}>
                 Enter your work email to receive a login link.
               </div>
@@ -75,7 +75,7 @@ export default function EmployeeLogin() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 onKeyDown={e => e.key === 'Enter' && sendLink()}
-                style={{ marginBottom: '0.75rem', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.15)' }}
+                style={{ marginBottom: '0.75rem', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.15)' }}
                 autoFocus
               />
               <button

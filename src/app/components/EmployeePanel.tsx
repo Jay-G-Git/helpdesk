@@ -743,7 +743,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
   return (
     <>
     <div className={`emp-panel-dark${closing ? ' closing' : ''}`} style={{
-      background: cardBg, border: `1px solid ${border}`, borderRadius: '12px',
+      background: cardBg, borderRadius: '12px',
       padding: '1.5rem', transition: 'opacity 0.4s ease, transform 0.4s ease',
       opacity: closing ? 0 : 1, transform: closing ? 'translateY(-8px)' : 'translateY(0)',
     }}>

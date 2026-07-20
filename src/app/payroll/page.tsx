@@ -467,7 +467,10 @@ export default function PayrollPage() {
     }
   })
 
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
+  // JAY-132 — border-only cards read as nearly invisible in production against
+  // the dark bg (confirmed visually on Dashboard); drop the faint border and
+  // rely on the bg-elevated fill alone, same fix applied there.
+  const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1.25rem' }
   const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }
   const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
   const sectionLabel: React.CSSProperties = { fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }

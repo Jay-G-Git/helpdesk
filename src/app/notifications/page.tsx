@@ -6,7 +6,7 @@ import Nav from '../components/Nav'
 
 type Notification = { id: number; message: string; created_at: string; read: boolean; link?: string | null }
 
-const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px' }
+const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px' }
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -67,7 +67,7 @@ export default function NotificationsPage() {
   return (
     <div className="dash-wrap">
       <Nav active="dashboard" />
-      <div className="dash-content" style={{ background: '#0f172a', minHeight: '100vh', padding: '2rem' }}>
+      <div className="dash-content" style={{ background: 'var(--bg)', minHeight: '100vh', padding: '2rem' }}>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
@@ -100,7 +100,7 @@ export default function NotificationsPage() {
                     const rowStyle: React.CSSProperties = { display: 'block', padding: '10px 8px', borderRadius: '8px', textDecoration: 'none', color: 'inherit', background: n.read ? 'transparent' : 'rgba(37,99,235,0.1)', cursor: n.link || !n.read ? 'pointer' : 'default' }
                     const content = (
                       <>
-                        <div style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 500 }}>{n.message}</div>
+                        <div style={{ fontSize: '13.5px', color: 'var(--text)', fontWeight: 500 }}>{n.message}</div>
                         <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>{timeAgo(n.created_at)}</div>
                       </>
                     )

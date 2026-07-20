@@ -77,7 +77,9 @@ export default function OffboardingSettings() {
   // that's the actual scope of the drift). Matches the established dark
   // palette (payroll/page.tsx reference): var(--bg) page bg, var(--bg-elevated) cards,
   // rgba(255,255,255,0.07) borders, var(--text)/var(--text-secondary)/var(--text-tertiary) text tiers.
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
+  // JAY-132 — border-only cards read as nearly invisible against the dark
+  // page bg in production; drop the border, rely on the bg-elevated fill.
+  const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1.25rem' }
 
   if (loading) return (
     <div className="dash-wrap" style={{ background: 'var(--bg)', minHeight: '100vh' }}>

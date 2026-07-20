@@ -265,7 +265,9 @@ export default function JobsPage() {
     setDragOverStage(null)
   }
 
-  const cardStyle: React.CSSProperties = { background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '1.25rem' }
+  // JAY-132 — retokenize, and drop the border (nearly invisible against the
+  // dark bg in production; the bg-elevated fill alone reads correctly).
+  const cardStyle: React.CSSProperties = { background: 'var(--bg-elevated)', borderRadius: '12px', padding: '1.25rem' }
   const dangerBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#f87171', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
   const ghostBtn: React.CSSProperties = { fontSize: '12px', padding: '5px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }
   const primaryBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: 'none', background: '#1d4ed8', color: '#fff', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }
@@ -415,9 +417,9 @@ export default function JobsPage() {
             {jobs.map(job => {
               const jobApps = apps.filter(a => a.job_posting_id === job.id)
               return (
-                <div key={job.id} style={{ flexShrink: 0, minWidth: '220px', maxWidth: '260px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '12px 14px' }}>
+                <div key={job.id} style={{ flexShrink: 0, minWidth: '220px', maxWidth: '260px', background: 'var(--bg-elevated)', borderRadius: '10px', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.title}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.title}</span>
                     <span style={{ fontSize: '10px', fontWeight: 600, color: statusColor(job.status), flexShrink: 0 }}>● {statusLabel(job.status)}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -516,7 +518,7 @@ export default function JobsPage() {
                                 <div style={{ width: 24, height: 24, borderRadius: '50%', background: stage.bg, color: stage.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
                                   {app.name.slice(0, 2).toUpperCase()}
                                 </div>
-                                <div style={{ fontSize: '12px', fontWeight: 500, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                                   {app.name}
                                 </div>
                               </div>
@@ -554,7 +556,7 @@ export default function JobsPage() {
             <div onClick={() => setSelected(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40, backdropFilter: 'blur(2px)' }} />
             <div style={{
               position: 'fixed', top: 0, right: 0, height: '100vh', width: '360px', maxWidth: '100vw',
-              background: '#1e293b', borderLeft: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--bg-elevated)', borderLeft: '1px solid rgba(255,255,255,0.08)',
               zIndex: 50, overflowY: 'auto', padding: '1.25rem',
               boxShadow: '-12px 0 40px rgba(0,0,0,0.5)',
             }}>
@@ -616,7 +618,7 @@ export default function JobsPage() {
                       padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 600,
                       cursor: 'pointer', border: 'none', fontFamily: 'inherit',
                       background: selected.status === stage.key ? stage.color : stage.bg,
-                      color: selected.status === stage.key ? '#0f172a' : stage.color,
+                      color: selected.status === stage.key ? 'var(--bg)' : stage.color,
                     }}>
                     {stage.label}
                   </button>
