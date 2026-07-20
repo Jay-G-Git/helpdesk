@@ -195,6 +195,28 @@ export default function ReportsPage() {
   const ghostBtn: React.CSSProperties = { fontSize: '13px', padding: '7px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }
   const emptyState: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '13px' }
 
+  // JAY-139: KPI row as a flat divider list (Payroll stat-pair pattern) —
+  // built as data so the 5th (conditionally-rendered) cell doesn't break the
+  // divider math.
+  const kpiCells: { key: string; value: string; label: string; sub?: string; color?: string; onClick?: () => void; showChevron?: boolean }[] = [
+    { key: 'active', value: String(active.length), label: 'Active employees' },
+    { key: 'turnover', value: `${turnoverRate}%`, label: 'Turnover rate', color: turnoverRate > 20 ? 'var(--error)' : undefined },
+    {
+      key: 'compliance',
+      value: `${complianceScore}%`,
+      label: 'Compliance score',
+      sub: 'Based on direct deposit + document completion',
+      color: complianceScore === 100 ? 'var(--success)' : complianceScore >= 80 ? 'var(--amber)' : 'var(--error)',
+      showChevron: complianceScore < 100,
+      onClick: complianceScore < 100 ? () => {
+        setPaperworkExpanded(true)
+        document.getElementById('incomplete-paperwork')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } : undefined,
+    },
+    { key: 'tenure', value: avgTenureMonths < 12 ? `${avgTenureMonths}mo` : `${Math.floor(avgTenureMonths / 12)}yr ${avgTenureMonths % 12}mo`, label: 'Avg. tenure' },
+  ]
+  if (totalPayroll > 0) kpiCells.push({ key: 'payroll', value: fmtMoney(totalPayroll), label: 'Total payroll' })
+
   if (loading) return (
     <div className="dash-wrap"><Nav active="reports" />
       <div className="dash-content"><div style={cardStyle}><div style={emptyState}>Loading...</div></div></div>
@@ -228,52 +250,33 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* KPI row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '1.25rem' }}>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)' }}>{active.length}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Active employees</div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: turnoverRate > 20 ? 'var(--error)' : 'var(--text)' }}>{turnoverRate}%</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Turnover rate</div>
-          </div>
-          <div
-            style={{ ...cardStyle, cursor: complianceScore < 100 ? 'pointer' : 'default' }}
-            onClick={complianceScore < 100 ? () => {
-              setPaperworkExpanded(true)
-              document.getElementById('incomplete-paperwork')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            } : undefined}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <div style={{ fontSize: '22px', fontWeight: 600, color: complianceScore === 100 ? 'var(--success)' : complianceScore >= 80 ? 'var(--amber)' : 'var(--error)' }}>{complianceScore}%</div>
-              {complianceScore < 100 && <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>›</span>}
+        {/* KPI row — JAY-139: flat divider row matching Payroll's stat-pair
+            pattern, replacing individually-boxed cells. */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${kpiCells.length}, 1fr)`, gap: 0, marginBottom: '1.25rem' }}>
+          {kpiCells.map((c, i) => (
+            <div
+              key={c.key}
+              style={{ padding: i === 0 ? '0 16px 0 0' : '0 16px', borderLeft: i > 0 ? '1px solid var(--border)' : undefined, cursor: c.onClick ? 'pointer' : 'default' }}
+              onClick={c.onClick}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ fontSize: '22px', fontWeight: 600, color: c.color ?? 'var(--text)' }}>{c.value}</div>
+                {c.showChevron && <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>›</span>}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{c.label}</div>
+              {c.sub && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>{c.sub}</div>}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Compliance score</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>Based on direct deposit + document completion</div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>
-              {avgTenureMonths < 12 ? `${avgTenureMonths}mo` : `${Math.floor(avgTenureMonths / 12)}yr ${avgTenureMonths % 12}mo`}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Avg. tenure</div>
-          </div>
-          {totalPayroll > 0 && (
-            <div style={cardStyle}>
-              <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{fmtMoney(totalPayroll)}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Total payroll</div>
-            </div>
-          )}
+          ))}
         </div>
 
         {/* Overtime (JAY-71) — read-only visibility into JAY-57's overtime
             premium calculation, which previously had zero reporting surface
             anywhere in the app. Only renders when there's OT to show. */}
         {overtimeRows.length > 0 && (
-          <div style={{ ...cardStyle, marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '0.75rem' }}>Overtime</div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px 90px 80px 90px', gap: '8px', fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 0 8px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px 90px 80px 90px', gap: '8px', fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 0 8px', borderBottom: '1px solid var(--border)' }}>
                 <span>Employee</span>
                 <span>Period</span>
                 <span style={{ textAlign: 'right' }}>Reg hrs</span>
@@ -314,7 +317,7 @@ export default function ReportsPage() {
           const distinctCombos = new Set(rows.map(r => r.missing.join(',')))
           const canCollapse = incomplete.length > 3 && distinctCombos.size === 1
           return (
-            <div id="incomplete-paperwork" style={{ ...cardStyle, marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.28)' }}>
+            <div id="incomplete-paperwork" style={{ background: 'var(--bg-danger)', border: '1px solid var(--border-danger)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }}>
               <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.75rem', color: 'var(--error)' }}>Incomplete paperwork</div>
               {canCollapse && !paperworkExpanded ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
@@ -327,7 +330,7 @@ export default function ReportsPage() {
                     <button onClick={() => setPaperworkExpanded(false)} style={{ alignSelf: 'flex-end', fontSize: '12px', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '2px' }}>Hide ▴</button>
                   )}
                   {rows.map(({ employee: e, missing }) => (
-                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border-danger)' }}>
                       <span style={{ fontWeight: 500, color: 'var(--border)' }}>{e.name}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: 'var(--error)' }}>{missing.join(', ')} pending</span>
@@ -341,53 +344,64 @@ export default function ReportsPage() {
           )
         })()}
 
-        {/* Charts grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-          {/* JAY-56: a bar chart where every bar reads the same value is
-              technically rendering but communicates zero information —
-              replace with a one-line summary when headcount hasn't moved
-              across the window. */}
-          {new Set(monthlyHeadcount.map(m => m.value)).size > 1 ? (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Headcount (6 months)</div>
-              <BarChart data={monthlyHeadcount} color="var(--accent)" />
-            </div>
-          ) : (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '0.5rem' }}>Headcount (6 months)</div>
-              <div style={emptyState}>Steady at {monthlyHeadcount[monthlyHeadcount.length - 1]?.value ?? 0} employees — no change this period</div>
-            </div>
-          )}
-          {totalPayroll > 0 ? (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Payroll cost (6 months)</div>
-              <BarChart data={monthlyPayroll} color="var(--success)" prefix="$" />
-            </div>
-          ) : (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '0.5rem' }}>Payroll cost</div>
-              <div style={emptyState}>No payroll data yet — run payroll to see cost trends here.</div>
-            </div>
-          )}
+        {/* Trends — JAY-139: flat divider sections (Payroll stat-pair
+            pattern) replacing per-widget cards. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, marginBottom: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ padding: '0 16px 0 0' }}>
+            {/* JAY-56: a bar chart where every bar reads the same value is
+                technically rendering but communicates zero information —
+                replace with a one-line summary when headcount hasn't moved
+                across the window. */}
+            {new Set(monthlyHeadcount.map(m => m.value)).size > 1 ? (
+              <>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Headcount (6 months)</div>
+                <BarChart data={monthlyHeadcount} color="var(--accent)" />
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '0.5rem' }}>Headcount (6 months)</div>
+                <div style={emptyState}>Steady at {monthlyHeadcount[monthlyHeadcount.length - 1]?.value ?? 0} employees — no change this period</div>
+              </>
+            )}
+          </div>
+          <div style={{ padding: '0 16px', borderLeft: '1px solid var(--border)' }}>
+            {totalPayroll > 0 ? (
+              <>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Payroll cost (6 months)</div>
+                <BarChart data={monthlyPayroll} color="var(--success)" prefix="$" />
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '0.5rem' }}>Payroll cost</div>
+                <div style={emptyState}>No payroll data yet — run payroll to see cost trends here.</div>
+              </>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-          {hoursData.length > 0 && (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Hours worked per employee</div>
-              <HBarChart data={hoursData} />
+        {(hoursData.length > 0 || roleData.length > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, marginBottom: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ padding: '0 16px 0 0' }}>
+              {hoursData.length > 0 && (
+                <>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Hours worked per employee</div>
+                  <HBarChart data={hoursData} />
+                </>
+              )}
             </div>
-          )}
-          {roleData.length > 0 && (
-            <div style={cardStyle}>
-              <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Team by role</div>
-              <HBarChart data={roleData} />
+            <div style={{ padding: '0 16px', borderLeft: '1px solid var(--border)' }}>
+              {roleData.length > 0 && (
+                <>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Team by role</div>
+                  <HBarChart data={roleData} />
+                </>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {ptoData.length > 0 && (
-          <div style={{ ...cardStyle, marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1rem', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
             <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Time off days used (12 months)</div>
             <HBarChart data={ptoData.map(d => ({ ...d, color: 'var(--amber)' }))} />
           </div>
