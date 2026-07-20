@@ -164,7 +164,7 @@ export default function EmployeeProfile() {
     }).eq('id', form.id)
 
     if (error) {
-      showToast('Error saving. Try again.', 'error')
+      showToast("Couldn't save changes. Check your connection and try again.", 'error')
     } else {
       setEmployee(form)
       showToast('Saved.', 'success')
