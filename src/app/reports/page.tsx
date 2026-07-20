@@ -388,7 +388,7 @@ export default function ReportsPage() {
 
         {ptoData.length > 0 && (
           <div style={{ ...cardStyle, marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>PTO days used (12 months)</div>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', marginBottom: '1rem' }}>Time off days used (12 months)</div>
             <HBarChart data={ptoData.map(d => ({ ...d, color: 'var(--amber)' }))} />
           </div>
         )}
