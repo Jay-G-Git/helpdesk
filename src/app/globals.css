@@ -19,10 +19,16 @@ a {
    point at the closest spec-equivalent token instead of a hardcoded hex. */
 :root,
 [data-theme="dark"] {
-  --bg: oklch(17% 0.012 260);
-  --bg-elevated: oklch(21% 0.014 258);
-  --bg-input: oklch(25% 0.015 258);
-  --border: oklch(28% 0.018 258);
+  /* JAY-132 — the spec's literal values (17/21/25/28%) left barely any
+     visible gap between bg/bg-elevated/bg-input/border once rendered in
+     production (confirmed visually — panel fills and divider lines were
+     nearly imperceptible). Same hue/chroma, wider lightness spread so
+     boundaries actually read; still a dark, low-contrast palette, not a
+     shift toward light/white. */
+  --bg: oklch(15% 0.012 260);
+  --bg-elevated: oklch(23% 0.014 258);
+  --bg-input: oklch(28% 0.015 258);
+  --border: oklch(34% 0.018 258);
   --text: oklch(95% 0.006 90);
   --text-secondary: oklch(72% 0.02 250);
   --text-tertiary: oklch(52% 0.02 250);
@@ -42,7 +48,7 @@ a {
   --bg-success: oklch(68% 0.15 145 / 0.15);
   --text-info: var(--accent);
   --text-success: var(--success);
-  --border-md: oklch(28% 0.018 258 / 1.6);
+  --border-md: oklch(34% 0.018 258);
 }
 
 [data-theme="light"] {
@@ -67,7 +73,7 @@ a {
   --bg-success: oklch(45% 0.13 145 / 0.12);
   --text-info: var(--accent);
   --text-success: var(--success);
-  --border-md: oklch(88% 0.01 90 / 1.6);
+  --border-md: oklch(78% 0.01 90);
 }
 
 body {
