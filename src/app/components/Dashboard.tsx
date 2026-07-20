@@ -463,7 +463,7 @@ export default function Dashboard({
     cardPad: { padding: '14px 16px' },
     sectionLabel: { fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' },
     h2: { fontSize: '17px', fontWeight: 700, letterSpacing: '-0.01em', margin: '0 0 20px', color: 'var(--text)' },
-    row: { display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 0', borderTop: '1px solid var(--border)' },
+    row: { display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 0' },
     avatar: (color = 'var(--bg-input)', text = 'var(--accent)') => ({ width: 32, height: 32, borderRadius: '50%', background: color, color: text, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
     tile: (bg: string, color: string) => ({ width: 32, height: 32, borderRadius: '9px', background: bg, color, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
     pill: (bg: string, color: string) => ({ fontSize: '10px', fontWeight: 600, padding: '2px 9px', borderRadius: '99px', background: bg, color, flexShrink: 0 }),
@@ -531,7 +531,7 @@ export default function Dashboard({
               <h2 style={s.h2}>Needs your attention</h2>
               <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>{pendingCount} waiting</span>
             </div>
-            <div>
+            <div className="divider-list">
               {/* PTO requests */}
               {timeOffRequests.map(req => {
                 const emp = employees.find(e => e.id === req.employee_id)
@@ -700,7 +700,7 @@ export default function Dashboard({
               <h2 style={s.h2}>Team at a glance</h2>
               <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>{todayShifts.length} on shift</span>
             </div>
-            <div style={{ ...s.panel, padding: '4px 20px' }}>
+            <div className="divider-list" style={{ ...s.panel, padding: '4px 20px' }}>
               {todayShifts.length === 0 ? (
                 <div style={{ padding: '1.5rem', fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No shifts scheduled today</div>
               ) : (
@@ -779,7 +779,7 @@ export default function Dashboard({
             {/* Activity feed */}
             <div style={{ flex: 1 }}>
               <h2 style={{ ...s.h2, marginBottom: '14px' }}>Activity feed</h2>
-              <div style={{ ...s.panel, padding: '4px 0' }}>
+              <div className="divider-list" style={{ ...s.panel, padding: '4px 0' }}>
                 {activityFeed.length === 0 ? (
                   <div style={{ padding: '1.5rem', fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No recent activity</div>
                 ) : activityFeed.map(item => {
@@ -792,7 +792,7 @@ export default function Dashboard({
                   }
                   const icon = iconMap[item.type]
                   return (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 16px' }}>
                       <div style={{ width: 26, height: 26, borderRadius: '7px', background: icon.bg, color: icon.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
                         {icon.icon}
                       </div>

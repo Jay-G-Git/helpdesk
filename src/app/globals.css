@@ -78,6 +78,16 @@ a {
   --border-md: oklch(78% 0.01 90);
 }
 
+/* JAY-132 — divider-separated row lists (the de-boxed "Linear/Notion" style
+   used throughout the redesign). Each row previously carried its own
+   `borderTop`, which put a stray line directly under the panel's rounded top
+   edge on the first row of every list. Border now lives between siblings
+   only, via the adjacent-sibling combinator, so the first row is always
+   clean regardless of which conditional block happened to render it. */
+.divider-list > * + * {
+  border-top: 1px solid var(--border);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #f7f7f5;
