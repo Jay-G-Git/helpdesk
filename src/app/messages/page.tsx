@@ -282,7 +282,7 @@ export default function MessagesPage() {
       })
       if (!res.ok) {
         if (parentId) { setThreadInput(content) } else { setInput(content) }
-        setSendError({ parentId, message: 'Message failed to send — try again' })
+        setSendError({ parentId, message: "Didn't send — server error" })
         return
       }
       const data = await res.json()
@@ -298,7 +298,7 @@ export default function MessagesPage() {
       }
     } catch {
       if (parentId) { setThreadInput(content) } else { setInput(content) }
-      setSendError({ parentId, message: 'Message failed to send — try again' })
+      setSendError({ parentId, message: "Didn't send — network dropped" })
     } finally {
       setSending(false)
       setTimeout(() => inputRef.current?.focus(), 50)
@@ -787,7 +787,11 @@ export default function MessagesPage() {
                 </button>
               </div>
               {sendError && sendError.parentId === undefined ? (
-                <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '5px', textAlign: 'center' }}>{sendError.message}</div>
+                <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '5px', textAlign: 'center' }}>
+                  {sendError.message}
+                  {' · '}
+                  <button onClick={() => send()} disabled={sending} style={{ fontSize: '12px', color: 'var(--error)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Retry</button>
+                </div>
               ) : (
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '5px', textAlign: 'center' }}>Enter to send · Shift+Enter for new line</div>
               )}
@@ -847,7 +851,11 @@ export default function MessagesPage() {
                 </button>
               </div>
               {sendError && sendError.parentId === threadParent.id && (
-                <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '5px', textAlign: 'center' }}>{sendError.message}</div>
+                <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '5px', textAlign: 'center' }}>
+                  {sendError.message}
+                  {' · '}
+                  <button onClick={() => send(threadParent.id)} disabled={sending} style={{ fontSize: '12px', color: 'var(--error)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Retry</button>
+                </div>
               )}
             </div>
           </div>
