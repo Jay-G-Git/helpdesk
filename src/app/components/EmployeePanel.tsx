@@ -400,7 +400,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       const { revealed } = await res.json()
       setRevealedFields(prev => ({ ...prev, [formId]: revealed }))
     } else {
-      showToast('Could not reveal this field.', 'error')
+      showToast("Couldn't reveal this field. Try again, or contact support if it keeps happening.", 'error')
     }
     setRevealingForm(null)
   }
@@ -435,7 +435,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       notes: payNotes.trim() || null,
     }])
     if (error) {
-      showToast('Error saving.', 'error')
+      showToast("Couldn't save this payment. Check the amount and dates, then try again.", 'error')
     } else {
       showToast('Saved.', 'success')
       setPayShowForm(false)
@@ -604,7 +604,7 @@ export default function EmployeePanel({ employee, initialTab = 'info', onClose, 
       })
       .eq('id', employee.id)
     if (error) {
-      showToast('Error saving. Try again.', 'error')
+      showToast("Couldn't save employee changes. Check the connection and try again.", 'error')
     } else {
       if ((rateChanged || typeChanged) && form.pay_rate != null) {
         const { data: { session } } = await supabase.auth.getSession()
