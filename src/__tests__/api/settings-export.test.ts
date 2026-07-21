@@ -43,4 +43,22 @@ describe('GET /api/settings/export', () => {
     expect(body.time_off_requests).toEqual([{ id: 6, status: 'approved' }])
     expect(body.time_entries).toEqual([{ id: 7, clock_in: '2026-01-01T09:00:00Z' }])
   })
+
+  it('strips ssn_last4 and date_of_birth from exported employees', async () => {
+    mockOwner({ id: 'owner-1' })
+    queueFromResponses(supabaseAdmin, [
+      { data: [{ id: 1, name: 'Jane', ssn_last4: '1234', date_of_birth: '1990-01-01' }], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    ])
+    const res = await GET(mockRequest({ token: 'good' }) as never)
+    const body = JSON.parse(await res.text())
+    expect(body.employees).toEqual([{ id: 1, name: 'Jane' }])
+    expect(body.employees[0]).not.toHaveProperty('ssn_last4')
+    expect(body.employees[0]).not.toHaveProperty('date_of_birth')
+  })
 })

@@ -18,10 +18,16 @@ export async function GET(req: NextRequest) {
 
   // employee_forms/employee_documents (I-9/W-4/direct deposit PII) are intentionally
   // excluded from this business-level export pending a separate decision on their
-  // privacy tradeoffs (see JAY-63/64).
+  // privacy tradeoffs (see JAY-63/64). ssn_last4/date_of_birth are stripped from the
+  // employees rows below for the same reason (see JAY-172).
+  const employees = (empRes.data ?? []).map((employee: Record<string, unknown>) => {
+    const { ssn_last4, date_of_birth, ...rest } = employee
+    return rest
+  })
+
   const data = {
     exported_at: new Date().toISOString(),
-    employees: empRes.data ?? [],
+    employees,
     payroll_entries: payRes.data ?? [],
     shifts: shiftsRes.data ?? [],
     payroll_runs: payrollRunsRes.data ?? [],
