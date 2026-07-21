@@ -110,6 +110,10 @@ export default function Home() {
     }
   }
 
+  function importEmployees(emps: Employee[]) {
+    setEmployees(prev => [...prev, ...emps])
+  }
+
   function updateEmployee(emp: Employee) {
     setEmployees(prev => prev.map(e => e.id === emp.id ? emp : e))
     setSelectedEmp(emp)
@@ -173,6 +177,7 @@ export default function Home() {
         viewerPerms={viewerPerms}
         onSelectEmp={setSelectedEmp}
         onAddEmployee={addEmployee}
+        onImportEmployees={importEmployees}
         onUpdateEmployee={updateEmployee}
         onDeleteEmployee={deleteEmployee}
         onStartAction={startAction}

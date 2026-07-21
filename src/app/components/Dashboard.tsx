@@ -10,6 +10,7 @@ import Nav from './Nav'
 import CalloutModal from './CalloutModal'
 import { useToast } from './Toast'
 import { formatDate as sharedFormatDate } from '../../lib/formatDate'
+import { parseEmployeeCsv, ImportRow } from '../../lib/csvImport'
 
 type TimeOffRequest = {
   id: number
@@ -54,6 +55,7 @@ type Props = {
   viewerPerms: Record<string, boolean> | null
   onSelectEmp: (emp: Employee) => void
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void
+  onImportEmployees: (emps: Employee[]) => void
   onUpdateEmployee: (emp: Employee) => void
   onDeleteEmployee: (id: number) => void
   onStartAction: (type: ActionType) => void
@@ -99,7 +101,7 @@ function timeAgo(iso: string) {
 
 export default function Dashboard({
   employees, selectedEmp, docsGenerated, loading, viewerRole, viewerPerms,
-  onSelectEmp, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onStartAction
+  onSelectEmp, onAddEmployee, onImportEmployees, onUpdateEmployee, onDeleteEmployee, onStartAction
 }: Props) {
   const { showToast } = useToast()
   const searchParams = useSearchParams()
@@ -155,6 +157,13 @@ export default function Dashboard({
   const [newPhone, setNewPhone] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // JAY-170 — bulk employee CSV import
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importChecked, setImportChecked] = useState<Set<number>>(new Set())
+  const [importing, setImporting] = useState(false)
+  const [importRowErrors, setImportRowErrors] = useState<Record<number, string>>({})
 
   // Announcement form
   const [annTitle, setAnnTitle] = useState('')
@@ -406,6 +415,65 @@ export default function Dashboard({
     setNewName(''); setNewRole(''); setNewStart(''); setNewType('Full-time'); setNewPhone(''); setNewEmail('')
     setShowAddForm(false)
     setSaving(false)
+  }
+
+  function handleImportFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const { rows } = parseEmployeeCsv(String(reader.result ?? ''))
+      setImportRows(rows)
+      setImportChecked(new Set(rows.map((r, i) => (r.name.trim() && r.role.trim() ? i : -1)).filter(i => i >= 0)))
+      setImportRowErrors({})
+    }
+    reader.readAsText(file)
+  }
+
+  function updateImportRow(index: number, field: keyof ImportRow, value: string) {
+    setImportRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+
+  function toggleImportChecked(index: number) {
+    setImportChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index); else next.add(index)
+      return next
+    })
+  }
+
+  async function handleImportSubmit() {
+    if (!token || importChecked.size === 0) return
+    setImporting(true)
+    const checkedIndexes = Array.from(importChecked)
+    const rowsToSend = checkedIndexes.map(i => importRows[i])
+    const res = await fetch('/api/employees/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rows: rowsToSend }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      const succeeded: Employee[] = []
+      const errors: Record<number, string> = {}
+      ;(data.results ?? []).forEach((result: { index: number; success: boolean; employee?: Employee; error?: string }) => {
+        const originalIndex = checkedIndexes[result.index]
+        if (result.success && result.employee) succeeded.push(result.employee)
+        else if (!result.success) errors[originalIndex] = result.error || 'Import failed'
+      })
+      if (succeeded.length > 0) onImportEmployees(succeeded)
+      if (Object.keys(errors).length > 0) {
+        setImportRowErrors(errors)
+        showToast(`Imported ${succeeded.length} of ${rowsToSend.length}. Fix the flagged rows and retry.`, 'error')
+      } else {
+        showToast(`Imported ${succeeded.length} employee${succeeded.length !== 1 ? 's' : ''}.`, 'success')
+        setShowImportModal(false)
+        setImportRows([])
+        setImportChecked(new Set())
+        setImportRowErrors({})
+      }
+    } else {
+      showToast(data.error || "Couldn't import employees. Try again.", 'error')
+    }
+    setImporting(false)
   }
 
   function toggleSelected(id: number) {
@@ -876,6 +944,7 @@ export default function Dashboard({
               >
                 {seeding ? 'Loading…' : '⚗ Load mock team (demo)'}
               </button>
+              <button onClick={() => setShowImportModal(v => !v)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer' }}>Import employees</button>
               <button onClick={() => setShowAddForm(v => !v)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', cursor: 'pointer' }}>+ Add employee</button>
             </div>
           </div>
@@ -905,6 +974,52 @@ export default function Dashboard({
               <button onClick={handleAdd} disabled={saving || !newName || !newRole} style={{ padding: '7px 18px', borderRadius: '7px', background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
                 {saving ? 'Saving…' : 'Save employee'}
               </button>
+            </div>
+          )}
+
+          {showImportModal && (
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.03)' }}>
+              {importRows.length === 0 ? (
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Upload a CSV with columns: name, email, phone, role (any order, any casing).
+                  </div>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
+                    style={{ fontSize: '12px', color: 'var(--text)' }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      {importRows.filter(r => r.name.trim() && r.role.trim()).length} of {importRows.length} matched
+                    </div>
+                    <button onClick={() => { setImportRows([]); setImportChecked(new Set()); setImportRowErrors({}) }} style={{ fontSize: '11px', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>Start over</button>
+                  </div>
+                  <div style={{ maxHeight: '260px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                    {importRows.map((row, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '20px 1fr 1fr 1fr 1fr', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
+                        <input type="checkbox" checked={importChecked.has(i)} onChange={() => toggleImportChecked(i)} style={{ width: 14, height: 14, cursor: 'pointer' }} />
+                        <input value={row.name} onChange={e => updateImportRow(i, 'name', e.target.value)} placeholder="Name" style={{ padding: '5px 8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+                        <input value={row.email} onChange={e => updateImportRow(i, 'email', e.target.value)} placeholder="Email" style={{ padding: '5px 8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+                        <input value={row.phone} onChange={e => updateImportRow(i, 'phone', e.target.value)} placeholder="Phone" style={{ padding: '5px 8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+                        <select value={row.role} onChange={e => updateImportRow(i, 'role', e.target.value)} style={{ padding: '5px 8px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-elevated)', color: 'var(--text)', borderRadius: '6px', fontSize: '12px', outline: 'none' }}>
+                          <option value="">Select role…</option>
+                          {Array.from(new Set(employees.map(e => e.role).filter(Boolean))).map(r => <option key={r} value={r}>{r}</option>)}
+                          {row.role && !employees.some(e => e.role === row.role) && <option value={row.role}>{row.role}</option>}
+                        </select>
+                        {importRowErrors[i] && <div style={{ gridColumn: '2 / -1', fontSize: '11px', color: 'var(--error)' }}>{importRowErrors[i]}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={handleImportSubmit} disabled={importing || importChecked.size === 0} style={{ padding: '7px 18px', borderRadius: '7px', background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
+                    {importing ? 'Importing…' : `Import ${importChecked.size} employee${importChecked.size !== 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
